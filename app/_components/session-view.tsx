@@ -6,6 +6,8 @@ import {
   completeSession,
   expireSession,
   markOccurrenceNotApplicable,
+  pauseSession,
+  resumeSession,
   retrySession,
 } from "@/lib/db/repository";
 import type { Session } from "@/lib/domain/types";
@@ -151,6 +153,30 @@ export function SessionView({
     });
   }
 
+  async function pauseNow(reason?: "baby") {
+    await runAction(async () => {
+      const db = await openDatabase();
+      try {
+        const paused = await pauseSession(db, current.id, Date.now(), reason);
+        setCurrent(paused);
+      } finally {
+        db.close();
+      }
+    });
+  }
+
+  async function resumeNow() {
+    await runAction(async () => {
+      const db = await openDatabase();
+      try {
+        const resumed = await resumeSession(db, current.id, Date.now());
+        setCurrent(resumed);
+      } finally {
+        db.close();
+      }
+    });
+  }
+
   function askNo() {
     setRetryId(newActionId());
     setShowNoOptions(true);
@@ -186,7 +212,7 @@ export function SessionView({
           <p className="mt-6 text-center text-sm leading-6 text-muted">
             El reloj sigue aunque cambies de pantalla. Al volver, retomas donde ibas.
           </p>
-          <div className="mt-7 flex justify-center">
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <button
               type="button"
               onClick={() => void complete()}
@@ -194,6 +220,22 @@ export function SessionView({
               className="min-h-12 rounded-full bg-accent px-7 text-base font-semibold text-white disabled:opacity-60"
             >
               {busy ? "Guardando…" : "Terminé"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void pauseNow()}
+              disabled={busy}
+              className="min-h-12 rounded-full border border-line px-6 text-sm font-semibold disabled:opacity-60"
+            >
+              Pausar
+            </button>
+            <button
+              type="button"
+              onClick={() => void pauseNow("baby")}
+              disabled={busy}
+              className="min-h-12 rounded-full border border-line px-6 text-sm font-semibold disabled:opacity-60"
+            >
+              El bebé
             </button>
           </div>
         </>
@@ -262,9 +304,34 @@ export function SessionView({
       ) : null}
 
       {current.status === "paused" ? (
-        <div className="mt-6 space-y-3 text-base leading-7 text-muted">
-          <p>El tiempo está congelado.</p>
-          <p>Continuar se conecta en el siguiente paso de pausa.</p>
+        <div className="mt-6 space-y-4">
+          <p className="text-base leading-7 text-muted">
+            El tiempo está congelado en{" "}
+            <span className="font-mono text-lg font-semibold text-foreground">
+              {formatRemaining(current.remainingSecAtStart * 1000)}
+            </span>.
+          </p>
+          <p className="text-sm leading-6 text-muted">
+            Al continuar, retomas exactamente ahí. La pausa no cuenta como fallo.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => void resumeNow()}
+              disabled={busy}
+              className="min-h-12 flex-1 rounded-full bg-accent px-5 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {busy ? "Guardando…" : "Continuar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void notApplicable()}
+              disabled={busy}
+              className="min-h-12 flex-1 rounded-full border border-line px-5 text-sm font-semibold disabled:opacity-60"
+            >
+              No aplica
+            </button>
+          </div>
         </div>
       ) : null}
 

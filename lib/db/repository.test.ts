@@ -3,8 +3,8 @@ import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
   archiveTask, completeSession, createTask, ensureDay, ensureOccurrence, expireSession,
-  getSettings, listTasks, markOccurrenceNotApplicable, occurrenceIdFor, retrySession,
-  saveSettings, startSession, updateTask,
+  getSettings, listTasks, markOccurrenceNotApplicable, occurrenceIdFor, pauseSession,
+  resumeSession, retrySession, saveSettings, startSession, updateTask,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 import type { RunoEvent } from "@/lib/domain/types";
@@ -287,6 +287,89 @@ describe("resultados y correcciones", () => {
     const second = await expireSession(db, "s1", retryAt + 5 * 60 * 1000);
     expect(second).toMatchObject({ status: "awaiting_confirmation", elapsedSec: 15 * 60 + 5 * 60 });
     expect(await db.events.where("type").equals("timer_expired").count()).toBe(2);
+  });
+});
+
+describe("pausa y reanudación", () => {
+  it("congela el restante y no cuenta el tiempo pausado", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const paused = await pauseSession(db, "s1", NOW + 10_000);
+
+    expect(paused).toMatchObject({
+      status: "paused", startedAt: null, remainingSecAtStart: 15 * 60 - 10, elapsedSec: 10,
+    });
+    expect(await db.sessions.where("runningSlot").equals("running").count()).toBe(0);
+    expect(await db.events.where("type").equals("paused").count()).toBe(1);
+
+    const resumed = await resumeSession(db, "s1", NOW + 70_000);
+    expect(resumed).toMatchObject({
+      status: "running", startedAt: NOW + 70_000, remainingSecAtStart: 15 * 60 - 10,
+      elapsedSec: 10,
+    });
+    expect(await db.events.where("type").equals("resumed").count()).toBe(1);
+    expect(await resumeSession(db, "s1", NOW + 71_000)).toEqual(resumed);
+
+    const completed = await completeSession(db, "s1", NOW + 80_000);
+    expect(completed).toMatchObject({ status: "completed", elapsedSec: 20 });
+    expect((await db.occurrences.get(started.occurrenceId))!.timerElapsedSec).toBe(20);
+  });
+
+  it("registra vida real solo cuando hay motivo explícito", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    await pauseSession(db, "s1", NOW + 10_000, "baby");
+    expect(await db.events.where("type").equals("paused").count()).toBe(1);
+    expect(await db.events.where("type").equals("life_real").count()).toBe(1);
+
+    await resumeSession(db, "s1", NOW + 20_000);
+    await pauseSession(db, "s1", NOW + 30_000);
+    expect(await db.events.where("type").equals("paused").count()).toBe(2);
+    expect(await db.events.where("type").equals("life_real").count()).toBe(1);
+  });
+
+  it("una pausa bloquea iniciar otra tarea hasta resolverla", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await createTask(db, "cafe", taskInput({ title: "Café" }), NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    await pauseSession(db, "s1", NOW + 10_000);
+
+    await expect(startSession(db, {
+      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: NOW + 20_000,
+    })).rejects.toThrow("continúa o cierra");
+
+    await resumeSession(db, "s1", NOW + 20_000);
+    await completeSession(db, "s1", NOW + 25_000);
+    await expect(startSession(db, {
+      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: NOW + 30_000,
+    })).resolves.toMatchObject({ status: "running", handId: null });
+  });
+
+  it("mantiene la pausa al cerrar y reabrir la DB", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    await pauseSession(db, "s1", NOW + 10_000);
+    db.close();
+
+    const reopened = await testDb(db.name);
+    expect(await reopened.sessions.get("s1")).toMatchObject({
+      status: "paused", remainingSecAtStart: 15 * 60 - 10, elapsedSec: 10,
+    });
+    await expect(resumeSession(reopened, "s1", NOW + 60_000)).resolves.toMatchObject({
+      status: "running", startedAt: NOW + 60_000,
+    });
+  });
+
+  it("no pausa un timer ya vencido", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    await expect(pauseSession(db, "s1", NOW + 15 * 60 * 1000)).rejects.toThrow("venció");
+    expect(await db.events.where("type").equals("paused").count()).toBe(0);
   });
 });
 

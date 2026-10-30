@@ -179,10 +179,10 @@ export async function startSession(
       (date !== toLocalDate(now) || !availabilityOf(task, occurrence, now).eligible)) {
       throw new DomainError("invalid_transition", "Esta tarea no está disponible en este horario.");
     }
-    const unresolved = await db.sessions.where("occurrenceId").equals(occurrence.id)
+    const active = await db.sessions
       .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
       .first();
-    if (unresolved || await db.sessions.where("runningSlot").equals("running").first()) {
+    if (active) {
       throw new DomainError("conflict", "Primero continúa o cierra la sesión que ya está abierta.");
     }
 
@@ -411,6 +411,96 @@ export async function retrySession(
       startedAt: now,
       runningSlot: "running",
       remainingSecAtStart: extensionSec,
+      updatedAt: now,
+    };
+    await db.sessions.put(resumed);
+    return resumed;
+  });
+}
+
+
+/** Freezes the current segment. Paused time never counts toward the task. */
+export async function pauseSession(
+  db: RunoDatabase, sessionId: string, now: number, reason?: "baby" | "life_real",
+): Promise<Session> {
+  assertId(sessionId);
+  assertTimestamp(now);
+  return db.transaction("rw", db.sessions, db.events, async () => {
+    const session = await db.sessions.get(sessionId);
+    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (session.status === "paused") return session;
+    if (session.status !== "running") {
+      throw new DomainError("invalid_transition", "Solo una sesión corriendo puede pausarse.");
+    }
+
+    const deadline = session.startedAt + session.remainingSecAtStart * 1000;
+    if (now >= deadline) {
+      throw new DomainError("invalid_transition", "El timer ya venció; confirma el resultado.");
+    }
+    const remainingSec = Math.max(0, Math.ceil((deadline - now) / 1000));
+    const segmentSec = session.remainingSecAtStart - remainingSec;
+
+    await appendEvent(db, {
+      actionId: `pause:${sessionId}:${session.startedAt}`, type: "paused", at: now,
+      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
+      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      context: { remainingSec, reason: reason ?? null },
+    });
+    if (reason) {
+      await appendEvent(db, {
+        actionId: `life-real:${sessionId}:${session.startedAt}`, type: "life_real", at: now,
+        taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
+        sessionId, ...(session.handId ? { handId: session.handId } : {}),
+        context: { reason },
+      });
+    }
+
+    const {
+      runningSlot: _runningSlot,
+      startedAt: _startedAt,
+      ...rest
+    } = session;
+    void _runningSlot;
+    void _startedAt;
+    const paused: Session = {
+      ...rest,
+      status: "paused",
+      startedAt: null,
+      remainingSecAtStart: remainingSec,
+      elapsedSec: session.elapsedSec + segmentSec,
+      updatedAt: now,
+    };
+    await db.sessions.put(paused);
+    return paused;
+  });
+}
+
+/** Reopens the frozen segment exactly where it stopped. */
+export async function resumeSession(
+  db: RunoDatabase, sessionId: string, now: number,
+): Promise<Session> {
+  assertId(sessionId);
+  assertTimestamp(now);
+  return db.transaction("rw", db.sessions, db.events, async () => {
+    const session = await db.sessions.get(sessionId);
+    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (session.status === "running") return session;
+    if (session.status !== "paused") {
+      throw new DomainError("invalid_transition", "Esta sesión no está pausada.");
+    }
+
+    await appendEvent(db, {
+      actionId: `resume:${sessionId}:${session.updatedAt}`, type: "resumed", at: now,
+      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
+      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      context: { remainingSec: session.remainingSecAtStart },
+    });
+
+    const resumed: Session = {
+      ...session,
+      status: "running",
+      startedAt: now,
+      runningSlot: "running",
       updatedAt: now,
     };
     await db.sessions.put(resumed);
