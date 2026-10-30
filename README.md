@@ -1,10 +1,10 @@
 # Runo
 
 App personal de hábitos y sesiones de enfoque, local-first y sin login.
-El MVP se está construyendo por partes: B1 muestra la franja actual, B3 conecta el timer
-con 3-2-1 y vencimiento, B4 resuelve terminado/no aplica/reintentar, B5 cierra la franja
-y el día, B10 pausa y reanuda, B11 ofrece descanso y B12 consolida el bloqueo. Los tres
-cambios diarios y la instalación móvil siguen pendientes.
+El MVP se está construyendo por partes: B1 muestra la franja actual, B2 ofrece tres
+cambios diarios, B3 conecta el timer con 3-2-1 y vencimiento, B4 resuelve resultados,
+B5 cierra la franja y el día, B10 pausa, B11 descansa y B12 consolida el bloqueo. El
+editor de tareas y la instalación móvil siguen pendientes.
 
 ## Antes de trabajar
 
@@ -60,7 +60,8 @@ El repositorio fija snapshots al iniciar y exige un `actionId` estable para rein
 una edición sin sobrescribir cambios posteriores. La semilla se ejecuta explícitamente,
 no al importar módulos ni durante un render de servidor.
 
-B1 conecta la capa de datos a la apertura por franjas, B3 al timer, B4 a los resultados,
-B5 al cierre de franja/día, B10 a la pausa, B11 al descanso y B12 al bloqueo. Todavía
-faltan cambios y pruebas móviles: consultar siempre `STATUS.md` en lugar de asumir
-que los tests unitarios significan que el MVP ya está listo para uso.
+B1 conecta la capa de datos a la apertura por franjas, B2 a los cambios, B3 al timer,
+B4 a los resultados, B5 al cierre de franja/día, B10 a la pausa, B11 al descanso y B12
+al bloqueo. Todavía faltan editor, pruebas móviles e instalación: consultar siempre
+`STATUS.md` en lugar de asumir que los tests unitarios significan que el MVP ya está
+listo para uso.

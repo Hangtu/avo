@@ -5,7 +5,7 @@ import {
   archiveTask, closeDay, completeSession, createTask, ensureDay, ensureFranja,
   ensureOccurrence, expireSession, getSettings, listTasks, markOccurrenceNotApplicable,
   occurrenceIdFor, pauseSession, resumeSession, retrySession, saveSettings, startSession,
-  updateTask,
+  swapFranjaTask, updateTask,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 import type { RunoEvent } from "@/lib/domain/types";
@@ -504,6 +504,133 @@ describe("bloqueo de tarea y franja", () => {
     await expect(startSession(db, {
       sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: NOW + 2000,
     })).resolves.toMatchObject({ status: "running" });
+  });
+});
+
+describe("cambios de franja", () => {
+  async function fourTasks() {
+    const db = await testDb();
+    for (const [id, priority] of [["a", 3], ["b", 2], ["c", 2], ["d", 1]] as const) {
+      await createTask(db, id, taskInput({ title: id.toUpperCase(), priority }), NOW);
+      await ensureOccurrence(db, id, MONDAY, NOW);
+    }
+    await ensureDay(db, MONDAY, NOW);
+    return {
+      db,
+      tasks: await listTasks(db),
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    };
+  }
+
+  it("cambia una carta, comparte el contador y difiere la original", async () => {
+    const { db, tasks, occurrences } = await fourTasks();
+    const first = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+    expect(first).toMatchObject({ swapsRemaining: 3, canSwap: true });
+    const original = first.hand!.occurrenceIds[0];
+
+    const result = await swapFranjaTask(db, {
+      handId: first.hand!.id, occurrenceId: original, now: NOW + 1000,
+      seed: "s", tasks, occurrences,
+    });
+    expect(result.swapped).toBe(true);
+    if (!result.swapped) return;
+    expect(result.day.swapsUsed).toBe(1);
+    expect(result.hand.deferredOccurrenceIds).toContain(original);
+    expect(result.hand.occurrenceIds).not.toContain(original);
+    expect(result.hand.occurrenceIds).toHaveLength(3);
+    expect(await db.events.where("type").equals("swapped").count()).toBe(1);
+    expect(await db.ledger.count()).toBe(0);
+
+    const after = await ensureFranja(db, {
+      date: MONDAY, now: NOW + 2000, seed: "s", tasks,
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    });
+    expect(after).toMatchObject({ swapsRemaining: 2, canSwap: false });
+    expect(after.tasks).toHaveLength(3);
+  });
+
+  it("no gasta un cambio si no hay alternativa", async () => {
+    const db = await testDb();
+    await createTask(db, "solo", taskInput(), NOW);
+    await ensureOccurrence(db, "solo", MONDAY, NOW);
+    await ensureDay(db, MONDAY, NOW);
+    const tasks = await listTasks(db);
+    const occurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
+    const hand = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+
+    const result = await swapFranjaTask(db, {
+      handId: hand.hand!.id, occurrenceId: hand.hand!.occurrenceIds[0],
+      now: NOW + 1000, seed: "s", tasks, occurrences,
+    });
+    expect(result).toEqual({ swapped: false, reason: "no_alternative" });
+    expect((await db.days.get(MONDAY))!.swapsUsed).toBe(0);
+    expect(await db.events.where("type").equals("swapped").count()).toBe(0);
+  });
+
+  it("limita a tres cambios por fecha aunque queden alternativas", async () => {
+    const db = await testDb();
+    for (let index = 0; index < 7; index += 1) {
+      const id = `t${index}`;
+      await createTask(db, id, taskInput({ title: id, priority: 2 }), NOW);
+      await ensureOccurrence(db, id, MONDAY, NOW);
+    }
+    await ensureDay(db, MONDAY, NOW);
+    const tasks = await listTasks(db);
+    const occurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
+    const hand = (await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences })).hand!;
+    let occurrenceIds = hand.occurrenceIds;
+
+    for (let index = 0; index < 3; index += 1) {
+      const result = await swapFranjaTask(db, {
+        handId: hand.id, occurrenceId: occurrenceIds[0],
+        now: NOW + index * 1000, seed: "s", tasks, occurrences,
+      });
+      expect(result.swapped).toBe(true);
+      if (!result.swapped) return;
+      occurrenceIds = result.hand.occurrenceIds;
+    }
+    expect((await db.days.get(MONDAY))!.swapsUsed).toBe(3);
+
+    const fourth = await swapFranjaTask(db, {
+      handId: hand.id, occurrenceId: occurrenceIds[0],
+      now: NOW + 5000, seed: "s", tasks, occurrences,
+    });
+    expect(fourth).toEqual({ swapped: false, reason: "no_swaps" });
+    expect(await db.events.where("type").equals("swapped").count()).toBe(3);
+  });
+
+  it("no cambia mientras hay una sesión activa", async () => {
+    const { db, tasks, occurrences } = await fourTasks();
+    const hand = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+    await startSession(db, { sessionId: "s1", taskId: tasks[0].id, date: MONDAY, variant: "full", now: NOW });
+    const result = await swapFranjaTask(db, {
+      handId: hand.hand!.id, occurrenceId: hand.hand!.occurrenceIds[0],
+      now: NOW + 1000, seed: "s", tasks, occurrences,
+    });
+    expect(result).toEqual({ swapped: false, reason: "active_session" });
+    expect((await db.days.get(MONDAY))!.swapsUsed).toBe(0);
+  });
+
+  it("la tarea cambiada puede volver en la franja siguiente", async () => {
+    const { db, tasks, occurrences } = await fourTasks();
+    const first = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+    const original = first.hand!.occurrenceIds[0];
+    const swapped = await swapFranjaTask(db, {
+      handId: first.hand!.id, occurrenceId: original, now: NOW + 1000,
+      seed: "s", tasks, occurrences,
+    });
+    expect(swapped.swapped).toBe(true);
+    if (!swapped.swapped) return;
+
+    for (const occurrenceId of swapped.hand.occurrenceIds) {
+      await db.occurrences.update(occurrenceId, { status: "completed" });
+    }
+    const next = await ensureFranja(db, {
+      date: MONDAY, now: NOW + 2000, seed: "s", tasks,
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    });
+    expect(next.hand).toMatchObject({ ordinal: 2, status: "open" });
+    expect(next.hand!.occurrenceIds).toContain(original);
   });
 });
 

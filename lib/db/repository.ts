@@ -524,6 +524,8 @@ export interface CurrentFranja {
   tasks: FranjaTaskView[];
   pendingToday: number;
   remainingEligible: number;
+  swapsRemaining: number;
+  canSwap: boolean;
 }
 
 function pendingCount(occurrences: readonly Occurrence[], date: LocalDate): number {
@@ -577,8 +579,12 @@ export async function ensureFranja(
   return db.transaction("rw", db.days, db.hands, db.events, async () => {
     const pendingToday = pendingCount(occurrences, date);
     const day = await db.days.get(date);
+    const swapsRemaining = Math.max(0, 3 - (day?.swapsUsed ?? 0));
     if (day?.closedAt != null) {
-      return { hand: null, tasks: [], pendingToday, remainingEligible: 0 };
+      return {
+        hand: null, tasks: [], pendingToday, remainingEligible: 0,
+        swapsRemaining, canSwap: false,
+      };
     }
 
     let hand = await db.hands
@@ -597,13 +603,23 @@ export async function ensureFranja(
           tasks, occurrences, now, seed,
           excludeOccurrenceIds: [...excluded],
         }).length;
-        return { hand, tasks: views, pendingToday, remainingEligible };
+        const canSwap = swapsRemaining > 0 && eligibleCandidates({
+          tasks, occurrences, now, seed,
+          excludeOccurrenceIds: [...excluded, ...hand.deferredOccurrenceIds],
+        }).length > 0;
+        return {
+          hand, tasks: views, pendingToday, remainingEligible,
+          swapsRemaining, canSwap,
+        };
       }
     }
 
     const candidates = proposeHand({ tasks, occurrences, now, seed });
     if (candidates.length === 0) {
-      return { hand: null, tasks: [], pendingToday, remainingEligible: 0 };
+      return {
+        hand: null, tasks: [], pendingToday, remainingEligible: 0,
+        swapsRemaining, canSwap: false,
+      };
     }
 
     const hands = await db.hands.where("date").equals(date).toArray();
@@ -630,6 +646,8 @@ export async function ensureFranja(
       tasks: taskViewsForHand(created, tasks, occurrences),
       pendingToday,
       remainingEligible,
+      swapsRemaining,
+      canSwap: swapsRemaining > 0 && remainingEligible > 0,
     };
   });
 }
@@ -688,5 +706,100 @@ export async function closeDay(
     const closed: Day = { ...day, closedAt: now };
     await db.days.put(closed);
     return closed;
+  });
+}
+
+
+export type SwapReason =
+  | "closed"
+  | "no_swaps"
+  | "no_alternative"
+  | "not_in_hand"
+  | "active_session";
+
+export type SwapResult =
+  | { swapped: true; hand: Hand; day: Day; replacementOccurrenceId: string }
+  | { swapped: false; reason: SwapReason };
+
+/**
+ * Replaces one card in the open franja without refilling the slot. The swapped
+ * occurrence stays pending and is deferred until a later franja. Three changes
+ * are shared per local date and never spent without a real alternative.
+ */
+export async function swapFranjaTask(
+  db: RunoDatabase,
+  input: {
+    handId: string;
+    occurrenceId: string;
+    now: number;
+    seed: string;
+    tasks: readonly Task[];
+    occurrences: readonly Occurrence[];
+  },
+): Promise<SwapResult> {
+  const { handId, occurrenceId, now, seed, tasks, occurrences } = input;
+  assertId(handId);
+  assertId(occurrenceId);
+  assertTimestamp(now);
+
+  return db.transaction("rw", db.days, db.hands, db.sessions, db.events, async () => {
+    const hand = await db.hands.get(handId);
+    if (!hand || hand.status !== "open") return { swapped: false, reason: "not_in_hand" };
+
+    const day = await db.days.get(hand.date);
+    if (!day || day.closedAt != null) return { swapped: false, reason: "closed" };
+
+    const active = await db.sessions
+      .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
+      .first();
+    if (active) return { swapped: false, reason: "active_session" };
+
+    const index = hand.occurrenceIds.indexOf(occurrenceId);
+    if (index < 0) return { swapped: false, reason: "not_in_hand" };
+    const swapsUsed = day.swapsUsed ?? 0;
+    if (swapsUsed >= 3) return { swapped: false, reason: "no_swaps" };
+
+    const occurrenceById = new Map(occurrences.map((occurrence) => [occurrence.id, occurrence]));
+    const original = occurrenceById.get(occurrenceId);
+    if (!original) return { swapped: false, reason: "not_in_hand" };
+
+    const excluded = new Set([
+      ...hand.occurrenceIds,
+      ...hand.deferredOccurrenceIds,
+      occurrenceId,
+    ]);
+    const alternative = eligibleCandidates({
+      tasks, occurrences, now, seed,
+      excludeOccurrenceIds: [...excluded],
+    }).find((candidate) => occurrenceById.has(candidate.occurrenceId));
+    if (!alternative) return { swapped: false, reason: "no_alternative" };
+
+    const nextSwaps = Math.min(3, swapsUsed + 1) as Day["swapsUsed"];
+    const { inserted } = await appendEvent(db, {
+      actionId: `swap:${hand.id}:${occurrenceId}`, type: "swapped", at: now,
+      taskId: original.taskId, occurrenceId, handId: hand.id,
+      context: {
+        fromOccurrenceId: occurrenceId,
+        toOccurrenceId: alternative.occurrenceId,
+        swapsUsed: nextSwaps,
+      },
+    });
+    if (!inserted) return { swapped: false, reason: "not_in_hand" };
+
+    const occurrenceIds = [...hand.occurrenceIds];
+    occurrenceIds[index] = alternative.occurrenceId;
+    const deferredOccurrenceIds = hand.deferredOccurrenceIds.includes(occurrenceId)
+      ? [...hand.deferredOccurrenceIds]
+      : [...hand.deferredOccurrenceIds, occurrenceId];
+    const updatedHand: Hand = { ...hand, occurrenceIds, deferredOccurrenceIds };
+    const updatedDay: Day = { ...day, swapsUsed: nextSwaps };
+    await db.hands.put(updatedHand);
+    await db.days.put(updatedDay);
+    return {
+      swapped: true,
+      hand: updatedHand,
+      day: updatedDay,
+      replacementOccurrenceId: alternative.occurrenceId,
+    };
   });
 }
