@@ -461,7 +461,7 @@ function Countdown({
         <button
           type="button"
           onClick={onCancel}
-          className="mt-6 min-h-11 rounded-none border border-line px-6 text-sm font-semibold"
+          className="mt-6 min-h-11 rounded-none border border-control px-6 text-sm font-semibold"
         >
           Cancelar
         </button>

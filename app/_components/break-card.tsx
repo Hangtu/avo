@@ -76,7 +76,7 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-none border border-line px-5 text-sm font-semibold"
+              className="min-h-11 rounded-none border border-control px-5 text-sm font-semibold"
             >
               Ahora no
             </button>
@@ -99,7 +99,7 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            className="mt-4 min-h-11 rounded-none border border-line px-5 text-sm font-semibold"
+            className="mt-4 min-h-11 rounded-none border border-control px-5 text-sm font-semibold"
           >
             Saltar descanso
           </button>

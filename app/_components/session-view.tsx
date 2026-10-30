@@ -269,7 +269,7 @@ export function SessionView({
               type="button"
               onClick={() => void pauseNow()}
               disabled={busy}
-              className="min-h-12 rounded-none border border-line px-6 text-sm font-semibold disabled:opacity-60"
+              className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
             >
               Pausar
             </button>
@@ -277,7 +277,7 @@ export function SessionView({
               type="button"
               onClick={() => void pauseNow("baby")}
               disabled={busy}
-              className="min-h-12 rounded-none border border-line px-6 text-sm font-semibold disabled:opacity-60"
+              className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
             >
               El bebé
             </button>
@@ -310,7 +310,7 @@ export function SessionView({
                   type="button"
                   onClick={askNo}
                   disabled={busy}
-                  className="min-h-12 flex-1 rounded-none border border-line px-5 text-sm font-semibold disabled:opacity-60"
+                  className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
                 >
                   {isShort ? "No lo hice" : "No terminé"}
                 </button>
@@ -337,7 +337,7 @@ export function SessionView({
                   type="button"
                   onClick={() => void notApplicable()}
                   disabled={busy}
-                  className="min-h-12 flex-1 rounded-none border border-line px-5 text-sm font-semibold disabled:opacity-60"
+                  className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
                 >
                   No aplica
                 </button>
@@ -380,7 +380,7 @@ export function SessionView({
               type="button"
               onClick={() => void notApplicable()}
               disabled={busy}
-              className="min-h-12 flex-1 rounded-none border border-line px-5 text-sm font-semibold disabled:opacity-60"
+              className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
             >
               No aplica
             </button>

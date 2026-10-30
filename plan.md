@@ -256,16 +256,41 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 - Cuerpo de 18–20 px; títulos de 40–64 px en escritorio y 32–40 px en móvil; timer responsivo de 64–112 px, sin desbordes.
 - Interlineado de 1.5–1.7, alineación izquierda, jerarquía clara y pocos elementos simultáneos.
 - Números tabulares en timer, cuenta 3-2-1 y descanso para evitar saltos de ancho.
-- Objetivo de contraste de 7:1 para texto de cuerpo, medido en la paleta de papel cálido. El acento bermellón se usa en botones/estado y también debe superar contraste con el texto que contenga.
+- Objetivo de contraste de 7:1 para texto de cuerpo, medido en la paleta de papel cálido. El acento bermellón se usa sobre todo en foco/estado no textual; si se usa como fondo de texto, debe superar contraste con el texto que contenga.
 - Controles de al menos 44 × 44 px, foco visible, etiquetas comprensibles, compatibilidad con lector de pantalla y zoom al 200 % sin pérdida funcional.
 - `prefers-reduced-motion` también aplica al **timer y al Vigía**. El avance debe poder entenderse sin animación, color ni sonido.
 - Modo noche cálido automático desde las 20:00, con cambio manual persistente; no se fuerza contra una elección del usuario. Su variante visual puede inspirarse en TURA, pero se valida después de C3/D3.
 - Feedback visual siempre disponible. Vibración breve solo si la API funciona; su ausencia no bloquea ni cuenta como fallo en iOS.
 - Español de México, tuteo directo y sin caricaturizar el habla. En tiempos, números exactos: «faltan 7 min», no «ahorita».
 
-**Paleta inicial a medir en C3:** papel `#F4F1EA`, tinta `#171512`, gris `#544E47`, línea `#D8D2C6`, acento bermellón `#C43D2E`. Son tokens, no una afirmación de contraste ya validada.
+**Paleta implementada:** papel `#F4F1EA`, tinta `#171512`, gris `#544E47`, línea `#D8D2C6` (solo separadores decorativos), control `#8C8275` (bordes de campos/controles) y acento bermellón `#C43D2E`. Los ratios se midieron en C3; el acento no se usa como texto de cuerpo.
 
-**Trabajo de C3:** contrastar estas decisiones con fuentes identificables de accesibilidad (incluidas WCAG), anotar en esta sección referencias realmente consultadas y límites de evidencia, medir contraste y probar lectura. No presentar investigación pendiente como completada ni usar hallazgos sobre dislexia como si demostraran efectos sobre TDAH.
+### C3 — medición de contraste (2026-10-30)
+
+**Fuentes consultadas realmente:**
+
+- [W3C, Web Content Accessibility Guidelines (WCAG) 2.2](https://www.w3.org/TR/WCAG22/), Recomendación del 5 de octubre de 2023: SC 1.4.3 (4.5:1 normal / 3:1 texto grande), 1.4.4 (200 % sin pérdida), 1.4.6 (7:1 / 4.5:1 grande), 1.4.11 (3:1 para componentes y estados no textuales), 2.4.7 (foco visible), 2.5.5 (44 × 44 px, AAA) y 2.5.8 (24 × 24 px, AA).
+- [WebAIM, Contrast and Color Accessibility](https://webaim.org/articles/contrast/) (consultado el 2026-10-30): 4.5:1 y 3:1, texto grande 18 pt o 14 pt en negrita, y no redondear ratios.
+- [MDN, prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) (consultado el 2026-10-30) para el trabajo posterior de C4.
+- [Google Fonts, Lexend](https://fonts.google.com/specimen/Lexend) (referencia aportada por el dueño): espécimen de la fuente base; no es evidencia clínica.
+
+**Método:** fórmula de luminancia relativa y contraste de WCAG sobre los tokens sRGB. No es una auditoría formal ni una prueba con usuarios.
+
+| Par | Ratio medido | Uso previsto | Lectura |
+|---|---:|---|---|
+| tinta / papel | 16.15:1 | texto principal | supera 7:1 |
+| gris / papel | 7.28:1 | texto secundario | supera 7:1 |
+| gris / superficie | 7.55:1 | texto secundario | supera 7:1 |
+| control / papel | 3.35:1 | bordes de campos y controles | supera 3:1 no textual |
+| control / superficie | 3.47:1 | controles sobre superficie | supera 3:1 no textual |
+| acento / papel | 4.59:1 | foco y bordes de estado, no cuerpo | supera 3:1 no textual; no usar como cuerpo |
+| papel / tinta en botón | 16.15:1 | texto de acción principal | supera 7:1 |
+| blanco / acento | 5.18:1 | selección de texto | supera 4.5:1 |
+| línea / papel | 1.33:1 | separadores decorativos | no se usa para identificar controles |
+
+**Resultado y límites:** los textos principales y secundarios superan 7:1; los bordes de control superan 3:1; el acento se reserva para foco/estado y no para cuerpo. El Reloj usa números tabulares en tinta, no depende solo de color, y mantiene el audio apagado por defecto. La lectura se revisó visualmente a 390 px y 1280 px; **no** hubo estudio con usuarios, prueba de 200 % ni validación clínica. El zoom/una mano y el modo noche quedan en D3; la preferencia de movimiento, en C4. Las fuentes anteriores son estándares y referencias de accesibilidad, no diagnóstico ni tratamiento del TDAH.
+
+**Trabajo de C3:** completado en cuanto a tokens, contraste medido, fuentes consultadas y revisión visual local; no presentar esta medición como auditoría formal ni como validación clínica.
 
 ## 11. Reglas para poder volver
 
@@ -413,7 +438,7 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Datos | Local-first, sin login ni envío de datos personales a un LLM en MVP |
 | Recordatorios externos | `.ics` después, sin promesa de alarma o takeover garantizados |
 | Rendimiento | Objetivo 2 s; liberación <5 s en las condiciones y mediciones de §12 |
-| Investigación | Accesibilidad por contrastar y documentar en C3; no validación clínica ya realizada |
+| Investigación | C3 midió contraste y consultó WCAG 2.2/WebAIM; lectura con usuarios, zoom y tema siguen en D3; no validación clínica |
 | Validación | Evidencia técnica y móvil diferenciadas; una semana de prueba sin exigir racha perfecta |
 
 ## 17. Alcance ejecutable del MVP

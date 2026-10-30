@@ -5,18 +5,18 @@
 
 **Última actualización:** 2026-10-30
 **Alcance vigente:** `plan.md` v1.2 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas y descanso gratuito; Runo Coins pasa a la segunda capa.
-**Fase:** MVP / Fase 1 — primer corte por franjas. Bloque B cerrado; A1/A2 técnicos; C1/C2 verificados. Siguiente C3 (El Reloj/accesibilidad); A0 es dependencia externa.
-**Bloque activo:** C — Economía y piel. **Ítem en curso:** ninguno; siguiente C3.
+**Fase:** MVP / Fase 1 — primer corte por franjas. Bloque B cerrado; A1/A2 técnicos; C1–C3 verificados. Siguiente C4 (Vigía/movimiento reducido); A0 es dependencia externa.
+**Bloque activo:** C — Economía y piel. **Ítem en curso:** ninguno; siguiente C4.
 
 ## Siguiente acción
 
-**C3 · El Reloj y accesibilidad contrastada.**
+**C4 · Vigía y movimiento reducido.**
 
-Medir contraste real de los tokens (texto, muted, acento, botones), revisar foco/zoom/lectura y anotar en `plan.md` §10 fuentes de accesibilidad realmente consultadas. No afirmar validación clínica. El Reloj debe comunicar tiempo sin depender solo de color/movimiento; mantener Lexend y la dirección minimalista.
+Añadir una señal visual de avance sincronizada con el timer y la pausa, entendible sin color/movimiento, y respetar `prefers-reduced-motion` también durante el asalto. Debe complementar los números, no reemplazarlos ni añadir presión innecesaria.
 
-**Después:** C4 (Vigía/movimiento reducido), C5 (audio opt-in), C6 (voz/presión), D1–D3 y A0/validación real.
+**Después:** C5 (audio opt-in), C6 (voz/presión), D1–D3 y A0/validación real.
 
-**Completados en este avance:** A1, A2, A7, A3–A6, B1–B7, B8–B12, C1 y C2. 174 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. Todo el bucle B, A1/A2, C1/C2 se verificaron en Chrome headless sobre build de producción; B3/A1/A2 quedan 🧪 por validación en teléfono/A0. La dirección visual minimalista y Lexend ya están aplicadas; la medición formal de contraste sigue en C3. No hay criterio G01–G16 dado por superado.
+**Completados en este avance:** A1, A2, A7, A3–A6, B1–B7, B8–B12, C1, C2 y C3. 174 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. Todo el bucle B, A1/A2, C1/C2 y los tokens C3 se verificaron en local/Chrome headless sobre build de producción; B3/A1/A2 quedan 🧪 por validación en teléfono/A0. La dirección visual minimalista y Lexend están aplicadas; C3 midió contraste y consultó fuentes. No hay criterio G01–G16 dado por superado.
 
 **Pendiente externo A0:** elegir un origen HTTPS estable y probar en el teléfono. Vercel es una opción, no una decisión ejecutada. No se ha desplegado ni confirmado una URL. Esto es necesario para validar instalación/offline en el móvil, **pero no bloquea desarrollar y probar en local**. No contratar ni publicar servicios sin autorización.
 
@@ -26,9 +26,9 @@ Medir contraste real de los tokens (texto, muted, acento, botones), revisar foco
 |---|---|---|---|---|
 | **A · Cimiento** | 8 | 7 | 5 | Datos/lógica, PWA y offline técnicos verificados; A0 y dispositivo pendientes |
 | **B · El bucle** | 12 | 12 | 11 | Bloque cerrado; B3 🧪 (wake lock móvil), resto ✅ |
-| **C · Economía y piel** | 6 | 2 | 2 | C1/C2 ✅; C3 siguiente; C4–C6 pendientes |
+| **C · Economía y piel** | 6 | 3 | 3 | C1–C3 ✅; C4 siguiente; C5–C6 pendientes |
 | **D · Ancla y pulido** | 4 | 0 | 0 | Pendiente |
-| **Total** | **30** | **21** | **18** | 21 ítems con evidencia; 18 verificados según criterio |
+| **Total** | **30** | **22** | **19** | 22 ítems con evidencia; 19 verificados según criterio |
 
 **Validación de salida:** 0 de 16 criterios. **Prueba de uso:** no iniciada.
 
@@ -104,13 +104,13 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 
 ## Bloque C — Economía y piel
 
-**C1 y C2 ya están implementados.** El descanso gratuito B11 sigue separado del canje; C3 (El Reloj/accesibilidad) es la siguiente pieza.
+**C1 y C2 ya están implementados.** El descanso gratuito B11 sigue separado del canje; C3 midió contraste y C4 es la siguiente pieza.
 
 | ID | Qué | Terminado cuando… | Estado | Evidencia |
 |---|---|---|---|---|
 | **C1** | Ledger y ganancia fija | RC enteros, premio visible y tope completo fijados desde el primer asalto; editar después no los aumenta; diferencia tras escalón; doble confirmación/reintento sin doble crédito; saldo durable | ✅ | `ledger.ts` + `completeSessionWithCredit`; `startSession` fija el restante tras el escalón. 174/174 tests: tope 15 una vez; 1+14=15; editar después no aumenta; reintento no duplica; ledger sobrevive reabrir la DB. Chrome headless: tarjetas muestran +15/+3/+1 RC; cepillo 1 RC + 2 RC = 3, con notices y ledger [1,2], sin doble. |
 | **C2** | Monedero y canje manual | Se muestran tiempo y RC; débito entero positivo hasta saldo disponible, confirmación idempotente; no deuda, préstamos ni bloqueo del descanso | ✅ | `wallet.ts` + `wallet-view.tsx`; `redeemRc` idempotente por actionId, valida entero positivo <= saldo y serializa concurrencia. 174/174 tests con saldo durable y sin negativo. Chrome headless: 5 RC ganados, revisión/cancelación sin débito, canje de 3 → saldo 2, intento de 5 muestra «No hay saldo suficiente»; ledger [5, -3] = 2. |
-| **C3** | El Reloj + accesibilidad contrastada | Tokens y lectura probados, contraste medido, fuentes de accesibilidad realmente consultadas anotadas en `plan.md` §10; no se afirma validación clínica de una fuente | ⬜ | — |
+| **C3** | El Reloj + accesibilidad contrastada | Tokens y lectura probados, contraste medido, fuentes de accesibilidad realmente consultadas anotadas en `plan.md` §10; no se afirma validación clínica de una fuente | ✅ | `plan.md` §10 documenta WCAG 2.2, WebAIM, MDN y Lexend consultados, tabla de ratios y límites. Tinta 16.15:1, gris 7.28:1, control 3.35:1, acento 4.59:1 no textual, botón 16.15:1; `--control` separa bordes de campos de las líneas decorativas. Revisión visual 390/1280; sin estudio de usuarios, zoom 200 % ni validación clínica (D3). 174/174 tests. |
 | **C4** | Vigía y movimiento reducido | Avance sincronizado con timer/pausa; modo reducido respeta la preferencia también durante el asalto y comunica progreso sin depender de movimiento/color | ⬜ | — |
 | **C5** | Audio opt-in | Ruido marrón/tic-tac opcionales; campana también respeta mute; preferencia persistente y arranque sin sonido no solicitado; falla de audio tiene fallback visual | ⬜ | — |
 | **C6** | Voz local y presión configurable | Banco de 5–10 frases sin LLM; tono normal 1 y techo inicial 2; duro solo por petición/motivo explícito; silencio disponible y cambios/vida real no causan escalada | ⬜ | — |
@@ -174,9 +174,9 @@ Una semana de observación, **no siete días perfectos como condición para no p
 | `npm run typecheck` | Exit 0, tipos de Next y TypeScript |
 | `npm run lint` | Exit 0, sin errores ni warnings |
 | `npm run build` | Exit 0, compilación y prerender de la página nueva |
-| Chrome headless / diseño | 390 px y 1280 px: franja y editor con Lexend, papel/tinta/bermellón, reglas finas y sin sombras; sin desbordes visibles. No es prueba en dispositivo. |
+| Chrome headless / diseño | 390 px y 1280 px: franja y editor con Lexend, papel/tinta/bermellón, reglas finas y sin sombras; sin desbordes visibles. C3: ratios de `plan.md` §10 medidos con la fórmula WCAG; control 3.35:1. No es prueba en dispositivo ni auditoría formal. |
 | `git diff --check` | Exit 0 |
-| Chrome headless / build producción | A1/A2 + B1–B12 + C1/C2: manifest Runo válido, iconos 192/512/maskable y apple 180 con 200; sin errores de instalabilidad reportados; service worker activo, recarga offline y arranque con servidor detenido sirvieron el shell; franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica»; descanso ofrecido tras completar, 10:00, fin sin autoinicio y terminación al empezar otra tarea; «Otra» cambia una carta, descuenta el contador, se oculta sin alternativa y la tarea diferida vuelve en la franja siguiente; el editor crea, edita días/franja/hora/franja fija/escalón, archiva y persiste; el paso corto corre 01:00, deja la tarea parcial y «Continuar 2 min» retoma el resto, con descanso solo tras la tarea completa; correr/pausar sobreviven recarga y una sesión de lunes a martes conserva la ocurrencia del lunes y deja el martes abierto; el bucle no tiene callejones, el foco muestra una sola tarea y Tareas es accesible desde franja, sesión y día cerrado; las recompensas visibles suman 1 RC de paso + 2 RC de tarea = 3 RC y el ledger registra [1,2] sin duplicar; el monedero ganó 5, canceló un canje sin débito, canjeó 3 y quedó en 2, rechazó 5 por saldo insuficiente. Sin dispositivo real; wake lock no verificado. |
+| Chrome headless / build producción | A1/A2 + B1–B12 + C1–C3: manifest Runo válido, iconos 192/512/maskable y apple 180 con 200; sin errores de instalabilidad reportados; service worker activo, recarga offline y arranque con servidor detenido sirvieron el shell; franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica»; descanso ofrecido tras completar, 10:00, fin sin autoinicio y terminación al empezar otra tarea; «Otra» cambia una carta, descuenta el contador, se oculta sin alternativa y la tarea diferida vuelve en la franja siguiente; el editor crea, edita días/franja/hora/franja fija/escalón, archiva y persiste; el paso corto corre 01:00, deja la tarea parcial y «Continuar 2 min» retoma el resto, con descanso solo tras la tarea completa; correr/pausar sobreviven recarga y una sesión de lunes a martes conserva la ocurrencia del lunes y deja el martes abierto; el bucle no tiene callejones, el foco muestra una sola tarea y Tareas es accesible desde franja, sesión y día cerrado; las recompensas visibles suman 1 RC de paso + 2 RC de tarea = 3 RC y el ledger registra [1,2] sin duplicar; el monedero ganó 5, canceló un canje sin débito, canjeó 3 y quedó en 2, rechazó 5 por saldo insuficiente. Sin dispositivo real; wake lock no verificado. |
 | Navegador / dispositivo / instalación | Navegador headless sí; dispositivo, PWA e instalación no |
 
 Pruebas de DB con fake-indexeddb, no almacenamiento de un teléfono. Las protecciones de esquema/snapshots no equivalen a tener implementados el pago y canje de C1/C2. El servidor de producción se arrancó solo para la comprobación local y se detuvo después; no se publicó una URL.
@@ -188,6 +188,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 | Fecha | ID | Qué pasó |
 |---|---|---|
 | 2026-10-30 | Diseño | Aprobadas las referencias minimalistas del dueño y Lexend como fuente base. Copiadas a `docs/design/references/`; `plan.md` §10 y §16 actualizados; tokens de papel/tinta/bermellón, foco, selección y Lexend vía `next/font`; shell, franja, timer, descanso y editor aplanados a reglas finas, sin sombras ni radios y con acciones tipográficas. 174/174 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless a 390/1280 px sin desbordes visibles; medición formal de contraste y prueba en dispositivo siguen en C3/D3. |
+| 2026-10-30 | C3 | El Reloj/accesibilidad: tokens de control separados de separadores decorativos; `plan.md` §10 registra WCAG 2.2, WebAIM, MDN y Lexend realmente consultados, tabla de contraste y límites. Tinta 16.15:1, gris 7.28:1, control 3.35:1, acento 4.59:1 no textual, botón 16.15:1; revisión 390/1280. Sin estudio de usuarios, zoom 200 %, tema ni validación clínica; D3/C4 pendientes. 174/174 tests; typecheck/lint/build pasan. C4 siguiente. |
 | 2026-10-30 | C2 | Monedero y canje manual: `getBalance` suma el ledger; `redeemRc` valida enteros >0 <= saldo, usa actionId idempotente y serializa concurrencia; UI muestra «X min · Y RC», revisión/cancelación y confirmación; sin deuda ni negativo; descanso gratuito separado. 174/174 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: 5 RC → cancelar 3 sin débito → canjear 3 → 2 RC; intento de 5 rechazado; ledger [5,-3]. C3 siguiente. |
 | 2026-10-30 | C1 | Ledger y ganancia fija: `appendLedgerEntry` idempotente por `sourceKey`; `completeSessionWithCredit` acredita tope/restante en la misma transacción que ocurrencia, evento y sesión. `startSession` fija el restante tras un escalón. Pruebas de 15 una vez, 1+14=15, edición posterior sin aumento, reintento sin doble crédito y ledger durable. 174/174 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: +15/+3/+1 RC visibles, cepillo 1+2=3, ledger [1,2]. C2 siguiente. |
 | 2026-10-30 | A2 | Service worker generado en el build: precache de 24 URLs (shell, `_next/static`, fuentes, manifest e iconos), cache-first para assets, network-first para navegación con fallback al shell y limpieza de caches viejos. Registro solo en producción. Chrome headless: SW activado; recarga offline rindió el bucle; con el servidor detenido y un navegador nuevo sobre el mismo perfil, el shell salió del cache y la DB se conservó. 174/174 tests; typecheck/lint/build pasan. A2 🧪 por teléfono/A0; siguiente C1. |
@@ -240,7 +241,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 ### Pendientes reales
 
 - **A0:** origen HTTPS autorizado y dispositivo/navegador objetivo. No se ha elegido proveedor ni se ha desplegado.
-- **C3:** investigación de accesibilidad, medición formal de contraste y prueba de lectura pendientes; Lexend y la paleta ya están implementadas, pero no se afirma que estén validadas clínicamente.
+- **C3:** contraste medido y fuentes de WCAG 2.2/WebAIM documentadas; siguen pendientes la prueba de lectura con usuarios, el zoom 200 % y el tema nocturno en D3, además de no afirmar validación clínica.
 - **Plataformas/UI:** Todo el bucle B, A1/A2 y C1/C2 se verificaron en Chrome headless, no en un teléfono. Faltan A0 (HTTPS/instalación real), C3/D3 (accesibilidad/tema), C4–C6 y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
 
 ### Contexto técnico consultado, no evidencia de implementación

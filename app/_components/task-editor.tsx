@@ -288,7 +288,7 @@ export function TaskEditor() {
                 required
                 value={form.title}
                 onChange={(event) => patch({ title: event.target.value })}
-                className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
+                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                 placeholder="Ej. Tomar creatina"
               />
             </label>
@@ -298,7 +298,7 @@ export function TaskEditor() {
                 required
                 value={form.category}
                 onChange={(event) => patch({ category: event.target.value })}
-                className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
+                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                 placeholder="personal"
               />
             </label>
@@ -311,7 +311,7 @@ export function TaskEditor() {
                 step={1}
                 value={form.durationMin}
                 onChange={(event) => patch({ durationMin: event.target.value })}
-                className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
+                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
               />
             </label>
             <label className="block">
@@ -321,7 +321,7 @@ export function TaskEditor() {
                 onChange={(event) =>
                   patch({ priority: Number(event.target.value) as 1 | 2 | 3 })
                 }
-                className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
+                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
               >
                 {[3, 2, 1].map((priority) => (
                   <option key={priority} value={priority}>
@@ -341,10 +341,10 @@ export function TaskEditor() {
                   type="button"
                   aria-pressed={form.days.includes(day.value)}
                   onClick={() => toggleDay(day.value)}
-                  className={`min-h-11 rounded-none border px-4 text-sm font-semibold ${
+                  className={`min-h-11 rounded-none border border-control px-4 text-sm font-semibold ${
                     form.days.includes(day.value)
                       ? "border-foreground bg-foreground text-background"
-                      : "border-line bg-background"
+                      : "border-control bg-background"
                   }`}
                 >
                   {day.label}
@@ -376,7 +376,7 @@ export function TaskEditor() {
                     type="time"
                     value={form.windowStart}
                     onChange={(event) => patch({ windowStart: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
+                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                   />
                 </label>
                 <label className="block">
@@ -385,7 +385,7 @@ export function TaskEditor() {
                     type="time"
                     value={form.windowEnd}
                     onChange={(event) => patch({ windowEnd: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
+                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                   />
                 </label>
               </div>
@@ -407,7 +407,7 @@ export function TaskEditor() {
                   type="time"
                   value={form.fixedTime}
                   onChange={(event) => patch({ fixedTime: event.target.value })}
-                  className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
+                  className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                 />
               </label>
             ) : null}
@@ -428,7 +428,7 @@ export function TaskEditor() {
                   <input
                     value={form.shortStepTitle}
                     onChange={(event) => patch({ shortStepTitle: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
+                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                     placeholder="Ej. Preparar el cepillo"
                   />
                 </label>
@@ -440,7 +440,7 @@ export function TaskEditor() {
                     step={1}
                     value={form.shortStepDuration}
                     onChange={(event) => patch({ shortStepDuration: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
+                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                   />
                 </label>
               </div>
@@ -465,7 +465,7 @@ export function TaskEditor() {
               type="button"
               onClick={() => setForm(null)}
               disabled={saving}
-              className="min-h-11 rounded-none border border-line px-6 text-sm font-semibold disabled:opacity-60"
+              className="min-h-11 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
             >
               Cancelar
             </button>

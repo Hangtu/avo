@@ -186,7 +186,7 @@ export function WalletView() {
                     setAmount(event.target.value);
                     setError(null);
                   }}
-                  className="mt-1 min-h-11 w-full border border-line bg-background px-3 text-base"
+                  className="mt-1 min-h-11 w-full border border-control bg-background px-3 text-base"
                   placeholder={String(Math.min(10, balance))}
                 />
               </label>

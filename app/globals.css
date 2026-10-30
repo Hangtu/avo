@@ -11,6 +11,7 @@ html {
   --muted: #544e47;
   --accent: #c43d2e;
   --line: #d8d2c6;
+  --control: #8c8275;
 }
 
 @theme inline {
@@ -20,6 +21,7 @@ html {
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-line: var(--line);
+  --color-control: var(--control);
   --font-sans: var(--font-lexend);
 }
 
