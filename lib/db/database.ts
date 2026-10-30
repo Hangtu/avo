@@ -4,7 +4,19 @@ import type {
 } from "@/lib/domain/types";
 
 export const DATABASE_NAME = "runo";
-export const DATABASE_VERSION = 1;
+export const DATABASE_VERSION = 2;
+
+const STORES = {
+  tasks: "id, archivedAt, *days",
+  occurrences: "id, &[taskId+date], taskId, date, status",
+  days: "date",
+  hands: "id, date, &[date+ordinal], status",
+  sessions: "id, occurrenceId, status, &runningSlot, updatedAt",
+  events: "id, actionId, &[actionId+type], occurrenceId, sessionId, at, type",
+  ledger: "id, &sourceKey, occurrenceId, at",
+  settings: "id",
+  metadata: "key",
+} as const;
 
 /** No module-level connection: importing this file during SSR never opens storage. */
 export class RunoDatabase extends Dexie {
@@ -20,17 +32,12 @@ export class RunoDatabase extends Dexie {
 
   constructor(name = DATABASE_NAME) {
     super(name, { autoOpen: false });
-    this.version(DATABASE_VERSION).stores({
-      tasks: "id, archivedAt, *days",
-      occurrences: "id, &[taskId+date], taskId, date, status",
-      days: "date",
-      hands: "id, date, &[date+ordinal], status",
-      sessions: "id, occurrenceId, status, &runningSlot, updatedAt",
-      events: "id, actionId, &[actionId+type], occurrenceId, sessionId, at, type",
-      ledger: "id, &sourceKey, occurrenceId, at",
-      settings: "id",
-      metadata: "key",
-    });
+    this.version(1).stores(STORES);
+    this.version(DATABASE_VERSION).stores(STORES).upgrade((tx) =>
+      tx.table("days").toCollection().modify((day: { closedAt?: number | null }) => {
+        if (day.closedAt === undefined) day.closedAt = null;
+      }),
+    );
   }
 }
 

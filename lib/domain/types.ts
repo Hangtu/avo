@@ -50,6 +50,8 @@ export interface Occurrence {
 export interface Day {
   date: LocalDate;
   swapsUsed: 0 | 1 | 2 | 3;
+  /** Set by "Terminar por hoy"; null/undefined means the day is still open. */
+  closedAt: number | null;
   createdAt: number;
 }
 

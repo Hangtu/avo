@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
-  archiveTask, completeSession, createTask, ensureDay, ensureOccurrence, expireSession,
-  getSettings, listTasks, markOccurrenceNotApplicable, occurrenceIdFor, pauseSession,
-  resumeSession, retrySession, saveSettings, startSession, updateTask,
+  archiveTask, closeDay, completeSession, createTask, ensureDay, ensureFranja,
+  ensureOccurrence, expireSession, getSettings, listTasks, markOccurrenceNotApplicable,
+  occurrenceIdFor, pauseSession, resumeSession, retrySession, saveSettings, startSession,
+  updateTask,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 import type { RunoEvent } from "@/lib/domain/types";
@@ -21,7 +22,7 @@ describe("schema versionado y almacenamiento local", () => {
 
   it("crea las ocho entidades y un marcador interno de migración", async () => {
     const db = await testDb();
-    expect(db.verno).toBe(1);
+    expect(db.verno).toBe(2);
     expect(db.tables.map((table) => table.name).sort()).toEqual([
       "days", "events", "hands", "ledger", "metadata", "occurrences", "sessions", "settings", "tasks",
     ]);
@@ -370,6 +371,106 @@ describe("pausa y reanudación", () => {
     await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
     await expect(pauseSession(db, "s1", NOW + 15 * 60 * 1000)).rejects.toThrow("venció");
     expect(await db.events.where("type").equals("paused").count()).toBe(0);
+  });
+});
+
+describe("franjas y cierre del día", () => {
+  async function readyTasks() {
+    const db = await testDb();
+    await createTask(db, "a", taskInput({ title: "A", priority: 3 }), NOW);
+    await createTask(db, "b", taskInput({ title: "B", priority: 2 }), NOW);
+    await createTask(db, "c", taskInput({ title: "C", priority: 2 }), NOW);
+    await createTask(db, "d", taskInput({ title: "D", priority: 1 }), NOW);
+    for (const id of ["a", "b", "c", "d"]) await ensureOccurrence(db, id, MONDAY, NOW);
+    await ensureDay(db, MONDAY, NOW);
+    const tasks = await listTasks(db);
+    const occurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
+    return { db, tasks, occurrences };
+  }
+
+  it("crea una franja de hasta tres y no rellena al resolver una carta", async () => {
+    const { db, tasks, occurrences } = await readyTasks();
+    const first = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+    expect(first.hand).toMatchObject({ ordinal: 1, status: "open" });
+    expect(first.tasks).toHaveLength(3);
+    expect(first.remainingEligible).toBe(1);
+    expect(first.pendingToday).toBe(4);
+
+    await db.occurrences.update(first.hand!.occurrenceIds[0], { status: "completed" });
+    const afterOne = await ensureFranja(db, {
+      date: MONDAY, now: NOW + 1000, seed: "s", tasks,
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    });
+    expect(afterOne.hand!.id).toBe(first.hand!.id);
+    expect(afterOne.tasks).toHaveLength(2);
+    expect(afterOne.remainingEligible).toBe(1);
+  });
+
+  it("cierra la franja al resolver todas y abre la siguiente con ordinal nuevo", async () => {
+    const { db, tasks, occurrences } = await readyTasks();
+    const first = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+    for (const occurrenceId of first.hand!.occurrenceIds) {
+      await db.occurrences.update(occurrenceId, { status: "not_applicable" });
+    }
+    const next = await ensureFranja(db, {
+      date: MONDAY, now: NOW + 1000, seed: "s", tasks,
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    });
+    expect(next.hand).toMatchObject({ ordinal: 2, status: "open" });
+    expect(next.tasks).toHaveLength(1);
+    expect(await db.events.where("type").equals("hand_closed").count()).toBe(1);
+    expect((await db.hands.get(first.hand!.id))!.status).toBe("closed");
+  });
+
+  it("terminar por hoy cierra la franja y el día sin pagar pendientes", async () => {
+    const { db, tasks, occurrences } = await readyTasks();
+    const first = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+    const closed = await closeDay(db, MONDAY, NOW + 1000);
+    expect(closed.closedAt).toBe(NOW + 1000);
+    expect((await db.hands.get(first.hand!.id))!.status).toBe("closed");
+    expect(await db.ledger.count()).toBe(0);
+    expect(await closeDay(db, MONDAY, NOW + 2000)).toEqual(closed);
+    expect(await db.events.where("type").equals("hand_closed").count()).toBe(1);
+
+    const after = await ensureFranja(db, {
+      date: MONDAY, now: NOW + 3000, seed: "s", tasks,
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    });
+    expect(after.hand).toBeNull();
+    await expect(startSession(db, {
+      sessionId: "blocked", taskId: "a", date: MONDAY, variant: "full", now: NOW + 3000,
+    })).rejects.toThrow("cerrado");
+  });
+
+  it("terminar por hoy con sesión pausada conserva el tiempo congelado", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await ensureDay(db, MONDAY, NOW);
+    await ensureOccurrence(db, "ropa", MONDAY, NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    await pauseSession(db, "s1", NOW + 10_000);
+    await closeDay(db, MONDAY, NOW + 20_000);
+
+    expect(await db.sessions.get("s1")).toMatchObject({ status: "abandoned", elapsedSec: 10 });
+    expect((await db.occurrences.get(occurrenceIdFor("ropa", MONDAY)))!.status).toBe("partial");
+    expect((await db.occurrences.get(occurrenceIdFor("ropa", MONDAY)))!.timerElapsedSec).toBe(10);
+    expect(await db.ledger.count()).toBe(0);
+  });
+
+  it("terminar por hoy con sesión abierta conserva el tiempo y abandona la sesión", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await ensureDay(db, MONDAY, NOW);
+    await ensureOccurrence(db, "ropa", MONDAY, NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const closed = await closeDay(db, MONDAY, NOW + 10_000);
+
+    expect(closed.closedAt).toBe(NOW + 10_000);
+    expect(await db.sessions.get("s1")).toMatchObject({ status: "abandoned", elapsedSec: 10 });
+    expect((await db.occurrences.get(occurrenceIdFor("ropa", MONDAY)))!.status).toBe("partial");
+    expect((await db.occurrences.get(occurrenceIdFor("ropa", MONDAY)))!.timerElapsedSec).toBe(10);
+    expect(await db.ledger.count()).toBe(0);
+    expect(await db.events.where("type").equals("hand_closed").count()).toBe(1);
   });
 });
 

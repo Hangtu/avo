@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
+  closeDay,
   ensureDay,
+  ensureFranja,
   ensureOccurrence,
   listTasks,
   startSession,
 } from "@/lib/db/repository";
 import { seedDatabase } from "@/lib/db/seed";
-import { currentFranja } from "@/lib/domain/franja";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
 import { SessionView } from "./session-view";
@@ -29,12 +30,14 @@ type View =
   | {
       kind: "ready";
       dateLabel: string;
+      ordinal: number;
       tasks: FranjaTask[];
       pendingToday: number;
       remainingEligible: number;
       unscheduled: number;
     }
-  | { kind: "empty"; dateLabel: string; pendingToday: number; unscheduled: number };
+  | { kind: "empty"; dateLabel: string; pendingToday: number; unscheduled: number }
+  | { kind: "closed"; dateLabel: string };
 
 function formatDate(now: number): string {
   const formatted = new Intl.DateTimeFormat("es-MX", {
@@ -70,7 +73,11 @@ export function RunoHome() {
         const dateLabel = formatDate(now);
 
         await seedDatabase(db, now);
-        await ensureDay(db, date, now);
+        const day = await ensureDay(db, date, now);
+        if ((day.closedAt ?? null) !== null) {
+          setView({ kind: "closed", dateLabel });
+          return;
+        }
 
         const tasks = await listTasks(db);
         const weekday = weekdayOf(date);
@@ -100,21 +107,17 @@ export function RunoHome() {
         }
 
         const occurrences = await db.occurrences.where("date").equals(date).toArray();
-        const franja = currentFranja({
-          tasks,
-          occurrences,
-          now,
-          seed: date,
-        });
+        const franja = await ensureFranja(db, { date, now, seed: date, tasks, occurrences });
         const unscheduled = tasks.filter((task) => task.days.length === 0).length;
 
         if (cancelled) return;
 
-        if (franja.candidates.length) {
+        if (franja.hand && franja.tasks.length) {
           setView({
             kind: "ready",
             dateLabel,
-            tasks: franja.candidates.map(({ task }) => ({
+            ordinal: franja.hand.ordinal,
+            tasks: franja.tasks.map(({ task }) => ({
               id: task.id,
               title: task.title,
               durationMin: task.durationMin,
@@ -150,12 +153,32 @@ export function RunoHome() {
     };
   }, [refreshKey]);
 
-  const finishSession = useCallback(() => {
-    setNotice("Listo.");
+  const refreshView = useCallback((message: string | null) => {
+    setNotice(message);
     setView({ kind: "loading" });
     setPendingTask(null);
     setRefreshKey((key) => key + 1);
   }, []);
+
+  const finishSession = useCallback(() => {
+    refreshView("Listo.");
+  }, [refreshView]);
+
+  const endDay = useCallback(async () => {
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      try {
+        await closeDay(db, toLocalDate(Date.now()), Date.now());
+      } finally {
+        db.close();
+      }
+      refreshView(null);
+    } catch (error) {
+      console.error("No se pudo cerrar el día", error);
+      setNotice("No se pudo cerrar el día. Inténtalo de nuevo.");
+    }
+  }, [refreshView]);
 
   const beginSession = useCallback(async (task: FranjaTask) => {
     setNotice(null);
@@ -229,9 +252,12 @@ export function RunoHome() {
                 />
               ) : null}
               {view.kind === "ready" ? (
-                <Franja view={view} onStart={setPendingTask} />
+                <Franja view={view} onStart={setPendingTask} onEndDay={endDay} />
               ) : null}
-              {view.kind === "empty" ? <EmptyState view={view} /> : null}
+              {view.kind === "empty" ? (
+                <EmptyState view={view} onEndDay={endDay} />
+              ) : null}
+              {view.kind === "closed" ? <DayClosed view={view} /> : null}
             </>
           )}
         </div>
@@ -321,9 +347,11 @@ function ErrorState({ message }: { message: string }) {
 function Franja({
   view,
   onStart,
+  onEndDay,
 }: {
   view: Extract<View, { kind: "ready" }>;
   onStart: (task: FranjaTask) => void;
+  onEndDay: () => void;
 }) {
   const countLabel = view.tasks.length === 1 ? "1 tarea" : `${view.tasks.length} tareas`;
   return (
@@ -331,7 +359,7 @@ function Franja({
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-            Franja actual
+            Franja {view.ordinal}
           </p>
           <h2 id="franja-title" className="mt-2 text-2xl font-semibold tracking-tight">
             Empieza por donde quieras.
@@ -387,11 +415,24 @@ function Franja({
           {view.unscheduled} {view.unscheduled === 1 ? "tarea sin programar" : "tareas sin programar"}.
         </p>
       ) : null}
+      <button
+        type="button"
+        onClick={onEndDay}
+        className="mt-6 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
+      >
+        Terminar por hoy
+      </button>
     </section>
   );
 }
 
-function EmptyState({ view }: { view: Extract<View, { kind: "empty" }> }) {
+function EmptyState({
+  view,
+  onEndDay,
+}: {
+  view: Extract<View, { kind: "empty" }>;
+  onEndDay: () => void;
+}) {
   return (
     <section className="rounded-2xl border border-line bg-surface p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
@@ -408,6 +449,33 @@ function EmptyState({ view }: { view: Extract<View, { kind: "empty" }> }) {
           Tienes {view.unscheduled} {view.unscheduled === 1 ? "tarea" : "tareas"} sin programar.
         </p>
       ) : null}
+      <button
+        type="button"
+        onClick={onEndDay}
+        className="mt-6 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
+      >
+        Terminar por hoy
+      </button>
+    </section>
+  );
+}
+
+function DayClosed({ view }: { view: Extract<View, { kind: "closed" }> }) {
+  return (
+    <section
+      aria-label={`Día cerrado, ${view.dateLabel}`}
+      className="rounded-2xl border border-line bg-surface p-6 sm:p-8"
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+        Día cerrado
+      </p>
+      <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+        Terminaste por hoy.
+      </h2>
+      <p className="mt-3 text-base leading-7 text-muted">
+        Lo hecho queda guardado. No se pagó lo pendiente.
+      </p>
+      <p className="mt-2 text-sm leading-6 text-muted">Mañana seguimos.</p>
     </section>
   );
 }

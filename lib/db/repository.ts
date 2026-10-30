@@ -1,14 +1,15 @@
 import type { RunoDatabase } from "./database";
 import { appendEvent, eventIdFor, taskEventContext } from "./events";
 import { occurrenceIdFor } from "@/lib/domain/occurrence";
-import { availabilityOf } from "@/lib/domain/selection";
+import { availabilityOf, eligibleCandidates, proposeHand } from "@/lib/domain/selection";
 import { assertTimestamp, parseLocalDate, toLocalDate, weekdayOf, type LocalDate } from "@/lib/domain/time";
 import {
   assertId, defaultSettings, DomainError, validateSettings, validateTaskInput,
 } from "@/lib/domain/validation";
 import {
   TERMINAL_OCCURRENCE_STATUSES,
-  type Day, type Occurrence, type Session, type SessionVariant, type Settings, type Task, type TaskInput,
+  type Day, type Hand, type Occurrence, type Session, type SessionVariant, type Settings,
+  type Task, type TaskInput,
 } from "@/lib/domain/types";
 
 export { occurrenceIdFor } from "@/lib/domain/occurrence";
@@ -100,7 +101,7 @@ export async function ensureDay(db: RunoDatabase, date: LocalDate, now: number):
   return db.transaction("rw", db.days, async () => {
     const existing = await db.days.get(date);
     if (existing) return existing;
-    const day: Day = { date, swapsUsed: 0, createdAt: now };
+    const day: Day = { date, swapsUsed: 0, closedAt: null, createdAt: now };
     await db.days.add(day);
     return day;
   });
@@ -154,7 +155,7 @@ export async function startSession(
     throw new DomainError("validation", "La versión de la tarea no es válida.");
   }
 
-  return db.transaction("rw", db.tasks, db.occurrences, db.sessions, db.events, async () => {
+  return db.transaction("rw", db.tasks, db.occurrences, db.days, db.sessions, db.events, async () => {
     const previous = await db.sessions.get(sessionId);
     if (previous) {
       if (
@@ -168,6 +169,10 @@ export async function startSession(
     const task = await db.tasks.get(taskId);
     if (!task || task.archivedAt !== null) {
       throw new DomainError("not_found", "La tarea no está disponible.");
+    }
+    const day = await db.days.get(date);
+    if (day?.closedAt != null) {
+      throw new DomainError("invalid_transition", "El día ya está cerrado.");
     }
 
     const occurrence = await db.occurrences.get(occurrenceIdFor(taskId, date)) ??
@@ -505,5 +510,183 @@ export async function resumeSession(
     };
     await db.sessions.put(resumed);
     return resumed;
+  });
+}
+
+
+export interface FranjaTaskView {
+  occurrenceId: string;
+  task: Task;
+}
+
+export interface CurrentFranja {
+  hand: Hand | null;
+  tasks: FranjaTaskView[];
+  pendingToday: number;
+  remainingEligible: number;
+}
+
+function pendingCount(occurrences: readonly Occurrence[], date: LocalDate): number {
+  return occurrences.filter(
+    (occurrence) => occurrence.date === date && !TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status),
+  ).length;
+}
+
+function taskViewsForHand(
+  hand: Hand, tasks: readonly Task[], occurrences: readonly Occurrence[],
+): FranjaTaskView[] {
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const occurrenceById = new Map(occurrences.map((occurrence) => [occurrence.id, occurrence]));
+  return hand.occurrenceIds.flatMap((occurrenceId) => {
+    const occurrence = occurrenceById.get(occurrenceId);
+    if (!occurrence || TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) return [];
+    const task = occurrence.agreement?.task ?? taskById.get(occurrence.taskId);
+    return task ? [{ occurrenceId, task }] : [];
+  });
+}
+
+async function closeHand(
+  db: RunoDatabase, hand: Hand, now: number, reason: "resolved" | "end_day",
+): Promise<void> {
+  if (hand.status === "closed") return;
+  await db.hands.update(hand.id, { status: "closed", closedAt: now });
+  await appendEvent(db, {
+    actionId: `hand-closed:${hand.id}`, type: "hand_closed", at: now, handId: hand.id,
+    context: { reason },
+  });
+}
+
+/**
+ * Keeps one open franja per date. Its slots are not refilled until every card
+ * is resolved; then the next franja is created from the remaining eligible tasks.
+ */
+export async function ensureFranja(
+  db: RunoDatabase,
+  input: {
+    date: LocalDate;
+    now: number;
+    seed: string;
+    tasks: readonly Task[];
+    occurrences: readonly Occurrence[];
+  },
+): Promise<CurrentFranja> {
+  const { date, now, seed, tasks, occurrences } = input;
+  parseLocalDate(date);
+  assertTimestamp(now);
+
+  return db.transaction("rw", db.days, db.hands, db.events, async () => {
+    const pendingToday = pendingCount(occurrences, date);
+    const day = await db.days.get(date);
+    if (day?.closedAt != null) {
+      return { hand: null, tasks: [], pendingToday, remainingEligible: 0 };
+    }
+
+    let hand = await db.hands
+      .where("date").equals(date)
+      .filter((candidate) => candidate.status === "open")
+      .first();
+
+    if (hand) {
+      const views = taskViewsForHand(hand, tasks, occurrences);
+      if (views.length === 0) {
+        await closeHand(db, hand, now, "resolved");
+        hand = undefined;
+      } else {
+        const excluded = new Set(hand.occurrenceIds);
+        const remainingEligible = eligibleCandidates({
+          tasks, occurrences, now, seed,
+          excludeOccurrenceIds: [...excluded],
+        }).length;
+        return { hand, tasks: views, pendingToday, remainingEligible };
+      }
+    }
+
+    const candidates = proposeHand({ tasks, occurrences, now, seed });
+    if (candidates.length === 0) {
+      return { hand: null, tasks: [], pendingToday, remainingEligible: 0 };
+    }
+
+    const hands = await db.hands.where("date").equals(date).toArray();
+    const ordinal = hands.reduce((max, candidate) => Math.max(max, candidate.ordinal), 0) + 1;
+    const created: Hand = {
+      id: `hand:${date}:${ordinal}`,
+      date,
+      ordinal,
+      occurrenceIds: candidates.map((candidate) => candidate.occurrenceId),
+      deferredOccurrenceIds: [],
+      status: "open",
+      createdAt: now,
+      closedAt: null,
+    };
+    await db.hands.add(created);
+
+    const excluded = new Set(created.occurrenceIds);
+    const remainingEligible = eligibleCandidates({
+      tasks, occurrences, now, seed,
+      excludeOccurrenceIds: [...excluded],
+    }).length;
+    return {
+      hand: created,
+      tasks: taskViewsForHand(created, tasks, occurrences),
+      pendingToday,
+      remainingEligible,
+    };
+  });
+}
+
+/** Explicit end-of-day exit: preserves elapsed work, pays nothing pending, closes the day. */
+export async function closeDay(
+  db: RunoDatabase, date: LocalDate, now: number,
+): Promise<Day> {
+  parseLocalDate(date);
+  assertTimestamp(now);
+  await ensureDay(db, date, now);
+
+  return db.transaction("rw", db.days, db.hands, db.sessions, db.occurrences, db.events, async () => {
+    const day = await db.days.get(date);
+    if (!day) throw new DomainError("not_found", "El día ya no existe.");
+    if (day.closedAt != null) return day;
+
+    const context: Record<string, string | number> = { reason: "end_day" };
+    const active = await db.sessions
+      .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
+      .first();
+
+    if (active) {
+      const elapsedSec = elapsedSecondsFor(active, now);
+      const occurrence = await db.occurrences.get(active.occurrenceId);
+      if (occurrence && !TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
+        await db.occurrences.put({
+          ...occurrence,
+          status: elapsedSec > 0 ? "partial" : "pending",
+          timerElapsedSec: elapsedSec,
+          updatedAt: now,
+        });
+      }
+      await db.sessions.put(closedSession(active, "abandoned", elapsedSec, now));
+      context.sessionId = active.id;
+      context.taskId = active.taskSnapshot.id;
+      context.elapsedSec = elapsedSec;
+    }
+
+    const hand = await db.hands
+      .where("date").equals(date)
+      .filter((candidate) => candidate.status === "open")
+      .first();
+    if (hand) {
+      await db.hands.update(hand.id, { status: "closed", closedAt: now });
+      context.handId = hand.id;
+    }
+
+    await appendEvent(db, {
+      actionId: `end-day:${date}`, type: "hand_closed", at: now,
+      ...(hand ? { handId: hand.id } : {}),
+      ...(active ? { sessionId: active.id, taskId: active.taskSnapshot.id } : {}),
+      context,
+    });
+
+    const closed: Day = { ...day, closedAt: now };
+    await db.days.put(closed);
+    return closed;
   });
 }

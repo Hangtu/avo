@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openDatabase } from "@/lib/db/database";
 import {
+  closeDay,
   completeSession,
   expireSession,
   markOccurrenceNotApplicable,
@@ -10,6 +11,7 @@ import {
   resumeSession,
   retrySession,
 } from "@/lib/db/repository";
+import { toLocalDate } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
 import { useWakeLock } from "./use-wake-lock";
 
@@ -177,6 +179,18 @@ export function SessionView({
     });
   }
 
+  async function endDayNow() {
+    await runAction(async () => {
+      const db = await openDatabase();
+      try {
+        await closeDay(db, toLocalDate(Date.now()), Date.now());
+        onFinished();
+      } finally {
+        db.close();
+      }
+    });
+  }
+
   function askNo() {
     setRetryId(newActionId());
     setShowNoOptions(true);
@@ -333,6 +347,19 @@ export function SessionView({
             </button>
           </div>
         </div>
+      ) : null}
+
+      {current.status === "running" ||
+      current.status === "paused" ||
+      current.status === "awaiting_confirmation" ? (
+        <button
+          type="button"
+          onClick={() => void endDayNow()}
+          disabled={busy}
+          className="mt-6 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
+        >
+          Terminar por hoy
+        </button>
       ) : null}
 
       {actionError ? (

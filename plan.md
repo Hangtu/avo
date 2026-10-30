@@ -304,7 +304,7 @@ Los tipos viven en `lib/domain/types.ts`, las validaciones en `lib/domain/valida
 |---|---|
 | **Task** | ID, título, días, duración completa en minutos, prioridad 1–3, categoría, franja opcional, hora fija opcional, escalón opcional y archivado. La franja horaria sirve para filtrar y ordenar; el editor puede ofrecer presets de mañana/tarde/noche. Ninguna dosis ni frecuencia médica generada por la app |
 | **Occurrence** | Identidad única por tarea + fecha local, estado, progreso, tope de recompensa, RC ya acreditados y marca de presentación de ancla. En MVP hay una ocurrencia por tarea/fecha; más de una diaria queda fuera |
-| **Day** | Fecha local y contador persistente de cambios voluntarios (0–3). El valor inicial es 3; el ajuste en Ajustes queda para después del primer corte |
+| **Day** | Fecha local, contador persistente de cambios voluntarios (0–3) y `closedAt` para «Terminar por hoy». El valor inicial de cambios es 3; el ajuste en Ajustes queda para después del primer corte |
 | **Hand** | ID, fecha, número de franja, hasta tres IDs de ocurrencia y estado abierto/cerrado. Solo una franja puede estar abierta a la vez; la siguiente se crea al cerrar la actual |
 | **Session** | Ocurrencia, franja si aplica, variante, snapshot de tarea/duración/recompensa, estado, restante del tramo, inicio del tramo y tiempo acumulado. Una sola sesión activa (corriendo o pausada); una pausada bloquea iniciar otra tarea; una anterior puede quedar pausada por un ancla |
 | **Event** | ID y acción idempotente, tipo canónico (§9), timestamp, referencias pertinentes y contexto/motivo explícito |
