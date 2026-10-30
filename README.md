@@ -2,7 +2,7 @@
 
 App personal de hábitos y sesiones de enfoque, local-first y sin login.
 El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PWA/offline)
-y C1 (ledger) están listos técnicamente. Falta A0/instalación real, C2 (monedero/canje),
+y C1/C2 (ledger y monedero) están listos técnicamente. Falta A0/instalación real,
 accesibilidad/tema y pruebas móviles.
 
 ## Antes de trabajar
@@ -66,7 +66,7 @@ El repositorio fija snapshots al iniciar y exige un `actionId` estable para rein
 una edición sin sobrescribir cambios posteriores. La semilla se ejecuta explícitamente,
 no al importar módulos ni durante un render de servidor.
 
-El bucle B está completo, A1/A2 cubren PWA/offline y C1 acredita RC en el ledger con
-tope por ocurrencia. Todavía faltan monedero/canje, instalación real/HTTPS,
+El bucle B está completo, A1/A2 cubren PWA/offline y C1/C2 acreditan RC en el ledger y
+permiten canje manual sin deuda. Todavía faltan instalación real/HTTPS,
 accesibilidad/tema y pruebas móviles: consultar siempre `STATUS.md` en lugar de asumir
 que los tests unitarios significan que el MVP ya está listo para uso.

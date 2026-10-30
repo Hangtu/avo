@@ -17,6 +17,7 @@ import type { Session } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
 import { SessionView } from "./session-view";
 import { TaskEditor } from "./task-editor";
+import { WalletView } from "./wallet-view";
 
 interface FranjaTask {
   id: string;
@@ -76,6 +77,7 @@ export function RunoHome() {
   const [showBreak, setShowBreak] = useState(false);
   const [swapping, setSwapping] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [showWallet, setShowWallet] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const swapBusy = useRef(false);
 
@@ -194,11 +196,19 @@ export function RunoHome() {
 
   const openEditor = useCallback(() => {
     setShowBreak(false);
+    setShowWallet(false);
     setShowEditor(true);
   }, []);
 
-  const closeEditor = useCallback(() => {
+  const openWallet = useCallback(() => {
+    setShowBreak(false);
     setShowEditor(false);
+    setShowWallet(true);
+  }, []);
+
+  const closeSecondary = useCallback(() => {
+    setShowEditor(false);
+    setShowWallet(false);
     setNotice(null);
     setView({ kind: "loading" });
     setRefreshKey((key) => key + 1);
@@ -312,20 +322,41 @@ export function RunoHome() {
             {view.kind !== "loading" && view.kind !== "error" ? (
               <p className="text-sm text-muted">{view.dateLabel}</p>
             ) : null}
-            <button
-              type="button"
-              onClick={showEditor ? closeEditor : openEditor}
-              disabled={!showEditor && pendingStart !== null}
-              className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
-            >
-              {showEditor ? "Volver a hoy" : "Tareas"}
-            </button>
+            {showEditor || showWallet ? (
+              <button
+                type="button"
+                onClick={closeSecondary}
+                className="min-h-11 text-sm font-semibold underline underline-offset-4"
+              >
+                Volver a hoy
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={openWallet}
+                  disabled={pendingStart !== null}
+                  className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+                >
+                  Monedero
+                </button>
+                <button
+                  type="button"
+                  onClick={openEditor}
+                  disabled={pendingStart !== null}
+                  className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+                >
+                  Tareas
+                </button>
+              </>
+            )}
           </div>
         </header>
 
         <div className="flex flex-1 flex-col justify-center py-8">
           {showEditor ? <TaskEditor /> : null}
-          {!showEditor && notice ? (
+          {showWallet ? <WalletView /> : null}
+          {!showEditor && !showWallet && notice ? (
             <p
               role="alert"
               className="mb-4 border-l-2 border-line pl-4 text-sm leading-6"
@@ -334,7 +365,7 @@ export function RunoHome() {
             </p>
           ) : null}
 
-          {!showEditor && pendingStart ? (
+          {!showEditor && !showWallet && pendingStart ? (
             <Countdown
               task={pendingStart.task}
               variant={pendingStart.variant}
@@ -342,7 +373,7 @@ export function RunoHome() {
               onCancel={() => setPendingStart(null)}
             />
           ) : null}
-          {!showEditor && !pendingStart ? (
+          {!showEditor && !showWallet && !pendingStart ? (
             <>
               {view.kind === "loading" ? <LoadingState /> : null}
               {view.kind === "error" ? (
