@@ -473,12 +473,19 @@ export function TaskEditor() {
         </form>
       ) : null}
 
-      {tasks === null ? (
+      {loadError ? (
+        <div className="mt-6 border-l-2 border-accent pl-4" role="alert">
+          <p className="text-sm leading-6">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((key) => key + 1)}
+            className="mt-3 min-h-11 text-sm font-semibold underline underline-offset-4"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : tasks === null ? (
         <p className="mt-6 text-sm text-muted">Cargando tareas…</p>
-      ) : loadError ? (
-        <p className="mt-6 border-l-2 border-accent pl-4 text-sm" role="alert">
-          {loadError}
-        </p>
       ) : (
         <>
           <ul className="mt-4 border-t border-line">

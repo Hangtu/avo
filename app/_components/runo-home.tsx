@@ -343,7 +343,9 @@ export function RunoHome() {
           {!showEditor && !pendingStart ? (
             <>
               {view.kind === "loading" ? <LoadingState /> : null}
-              {view.kind === "error" ? <ErrorState message={view.message} /> : null}
+              {view.kind === "error" ? (
+                <ErrorState message={view.message} onRetry={() => refreshView(null)} />
+              ) : null}
               {showBreak && (view.kind === "ready" || view.kind === "empty") ? (
                 <BreakCard onClose={() => setShowBreak(false)} />
               ) : null}
@@ -445,14 +447,27 @@ function LoadingState() {
   );
 }
 
-function ErrorState({ message }: { message: string }) {
+function ErrorState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
   return (
     <section className="border-y border-line py-6" role="alert">
       <h2 className="text-xl font-semibold">No pude abrir tus datos</h2>
       <p className="mt-2 text-base leading-7 text-muted">{message}</p>
       <p className="mt-3 text-sm leading-6 text-muted">
-        Revisa que el navegador permita IndexedDB y vuelve a cargar la página.
+        Revisa que el navegador permita IndexedDB.
       </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-4 min-h-11 text-sm font-semibold underline underline-offset-4"
+      >
+        Reintentar
+      </button>
     </section>
   );
 }
