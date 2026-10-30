@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
-  archiveTask, closeDay, completeSession, completeSessionWithCredit, createTask, ensureDay, ensureFranja,
+  archiveTask, claimAnchor, closeDay, completeSession, completeSessionWithCredit, createTask, ensureDay, ensureFranja,
   ensureOccurrence, expireSession, getSettings, listTasks, markOccurrenceNotApplicable,
-  occurrenceIdFor, pauseSession, resumeSession, retrySession, saveSettings, startSession,
+  markOccurrenceNotApplicableDirect, occurrenceIdFor, pauseSession, resumeSession,
+  retrySession, saveSettings, startSession,
   swapFranjaTask, updateTask,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
@@ -834,6 +835,66 @@ describe("economía fija", () => {
     const completed = await completeSessionWithCredit(reopened, "full", NOW + 61_000 + 14 * 60_000);
     expect(completed).toMatchObject({ creditedRc: 14, totalCreditedRc: 15 });
     expect(await reopened.ledger.count()).toBe(2);
+  });
+});
+
+describe("ancla ligera", () => {
+  const gymNow = new Date(2026, 9, 26, 18, 0).getTime();
+  const gym = taskInput({
+    title: "Gym", fixedTime: "18:00", window: { start: "18:00", end: "18:30" },
+  });
+
+  it("se reclama una vez, registra el evento y no se repite", async () => {
+    const db = await testDb();
+    await createTask(db, "gym", gym, NOW);
+    await ensureDay(db, MONDAY, NOW);
+    await ensureOccurrence(db, "gym", MONDAY, NOW);
+
+    const claimed = await claimAnchor(db, {
+      taskId: "gym", date: MONDAY, fixedTime: "18:00", now: gymNow,
+    });
+    expect(claimed).toMatchObject({ anchorPresentedAt: gymNow });
+    expect(await claimAnchor(db, {
+      taskId: "gym", date: MONDAY, fixedTime: "18:00", now: gymNow + 1000,
+    })).toBeNull();
+    expect(await db.events.where("type").equals("anchor_presented").count()).toBe(1);
+  });
+
+  it("permite iniciar el ancla con una sesión previa pausada", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await createTask(db, "gym", gym, NOW);
+    await ensureDay(db, MONDAY, NOW);
+    await ensureOccurrence(db, "ropa", MONDAY, NOW);
+    await ensureOccurrence(db, "gym", MONDAY, NOW);
+    await startSession(db, { sessionId: "ropa-session", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    await pauseSession(db, "ropa-session", NOW + 1000);
+    await claimAnchor(db, { taskId: "gym", date: MONDAY, fixedTime: "18:00", now: gymNow });
+
+    await expect(startSession(db, {
+      sessionId: "gym-session", taskId: "gym", date: MONDAY, variant: "full", now: gymNow, anchor: true,
+    })).resolves.toMatchObject({ status: "running", taskSnapshot: { title: "Gym" } });
+    expect(await db.sessions.get("ropa-session")).toMatchObject({ status: "paused" });
+  });
+
+  it("no inicia un ancla que no fue presentada", async () => {
+    const db = await testDb();
+    await createTask(db, "gym", gym, NOW);
+    await ensureDay(db, MONDAY, NOW);
+    await ensureOccurrence(db, "gym", MONDAY, NOW);
+    await expect(startSession(db, {
+      sessionId: "gym-session", taskId: "gym", date: MONDAY, variant: "full", now: gymNow, anchor: true,
+    })).rejects.toThrow("presentada");
+  });
+
+  it("no aplica desde el ancla sin abrir sesión", async () => {
+    const db = await testDb();
+    await createTask(db, "gym", gym, NOW);
+    await ensureOccurrence(db, "gym", MONDAY, NOW);
+    await markOccurrenceNotApplicableDirect(db, occurrenceIdFor("gym", MONDAY), gymNow);
+    expect((await db.occurrences.get(occurrenceIdFor("gym", MONDAY)))!.status).toBe("not_applicable");
+    expect(await db.events.where("type").equals("not_applicable").count()).toBe(1);
+    expect(await db.sessions.count()).toBe(0);
   });
 });
 

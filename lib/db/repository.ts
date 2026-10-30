@@ -96,6 +96,53 @@ export async function saveSettings(db: RunoDatabase, settings: Settings): Promis
   await db.settings.put(validateSettings(settings));
 }
 
+/** Claims one due anchor for the date; repeated calls return null. */
+export async function claimAnchor(
+  db: RunoDatabase,
+  input: { taskId: string; date: LocalDate; fixedTime: string; now: number },
+): Promise<Occurrence | null> {
+  const { taskId, date, fixedTime, now } = input;
+  assertTimestamp(now);
+  return db.transaction("rw", db.occurrences, db.events, async () => {
+    const occurrence = await db.occurrences.get(occurrenceIdFor(taskId, date));
+    if (!occurrence) return null;
+    if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status) || occurrence.status === "in_progress") {
+      return null;
+    }
+    if (occurrence.anchorPresentedAt !== null) return null;
+
+    const updated: Occurrence = { ...occurrence, anchorPresentedAt: now, updatedAt: now };
+    await db.occurrences.put(updated);
+    await appendEvent(db, {
+      actionId: `anchor-presented:${occurrence.id}`, type: "anchor_presented", at: now,
+      taskId, occurrenceId: occurrence.id, context: { fixedTime },
+    });
+    return updated;
+  });
+}
+
+/** Resolves an anchor without opening a session (the user chose "No aplica"). */
+export async function markOccurrenceNotApplicableDirect(
+  db: RunoDatabase, occurrenceId: string, now: number,
+): Promise<Occurrence> {
+  assertTimestamp(now);
+  return db.transaction("rw", db.occurrences, db.events, async () => {
+    const occurrence = await db.occurrences.get(occurrenceId);
+    if (!occurrence) throw new DomainError("not_found", "La ocurrencia ya no existe.");
+    if (occurrence.status === "not_applicable") return occurrence;
+    if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
+      throw new DomainError("invalid_transition", "Esta tarea ya se cerró.");
+    }
+    await appendEvent(db, {
+      actionId: `direct-not-applicable:${occurrence.id}`, type: "not_applicable", at: now,
+      taskId: occurrence.taskId, occurrenceId: occurrence.id, context: { source: "anchor" },
+    });
+    const updated: Occurrence = { ...occurrence, status: "not_applicable", updatedAt: now };
+    await db.occurrences.put(updated);
+    return updated;
+  });
+}
+
 export async function ensureDay(db: RunoDatabase, date: LocalDate, now: number): Promise<Day> {
   parseLocalDate(date);
   assertTimestamp(now);
@@ -142,13 +189,15 @@ export interface StartSessionInput {
   variant: SessionVariant;
   now: number;
   handId?: string;
+  /** Allows a paused previous session to coexist with the urgent anchor. */
+  anchor?: boolean;
 }
 
 /** Atomically locks the first agreement, claims the running slot and logs the start. */
 export async function startSession(
   db: RunoDatabase, input: StartSessionInput,
 ): Promise<Session> {
-  const { sessionId, taskId, date, variant, now, handId } = input;
+  const { sessionId, taskId, date, variant, now, handId, anchor } = input;
   assertId(sessionId);
   occurrenceIdFor(taskId, date);
   assertTimestamp(now);
@@ -181,6 +230,9 @@ export async function startSession(
     if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
       throw new DomainError("invalid_transition", "Esta tarea ya se cerró para esa fecha.");
     }
+    if (anchor && (!task.fixedTime || occurrence.anchorPresentedAt === null)) {
+      throw new DomainError("invalid_transition", "Este ancla no está presentada.");
+    }
     if (!occurrence.agreement &&
       (date !== toLocalDate(now) || !availabilityOf(task, occurrence, now).eligible)) {
       throw new DomainError("invalid_transition", "Esta tarea no está disponible en este horario.");
@@ -188,7 +240,7 @@ export async function startSession(
     const active = await db.sessions
       .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
       .first();
-    if (active) {
+    if (active && !(anchor && active.status === "paused")) {
       throw new DomainError("conflict", "Primero continúa o cierra la sesión que ya está abierta.");
     }
 
@@ -224,7 +276,8 @@ export async function startSession(
     await appendEvent(db, {
       actionId: `start:${sessionId}`, type: "started", at: now,
       taskId, occurrenceId: occurrence.id, sessionId,
-      ...(handId ? { handId } : {}), context: { variant },
+      ...(handId ? { handId } : {}),
+      context: { variant, ...(anchor ? { anchor: true } : {}) },
     });
     return session;
   });

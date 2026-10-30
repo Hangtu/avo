@@ -8,14 +8,17 @@ import {
   ensureFranja,
   ensureOccurrence,
   listTasks,
+  markOccurrenceNotApplicableDirect,
   startSession,
   swapFranjaTask,
 } from "@/lib/db/repository";
 import { seedDatabase } from "@/lib/db/seed";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
-import type { Session } from "@/lib/domain/types";
+import type { Occurrence, Session, Task } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
 import { SessionView } from "./session-view";
+import { AnchorView } from "./anchor-view";
+import { useAnchorWatcher } from "./use-anchor-watcher";
 import { TaskEditor } from "./task-editor";
 import { useVoicePreference } from "./use-voice-preference";
 import { VoiceControl } from "./voice-control";
@@ -39,6 +42,7 @@ type View =
   | { kind: "loading" }
   | { kind: "error"; message: string }
   | { kind: "session"; dateLabel: string; session: Session }
+  | { kind: "anchor"; dateLabel: string; task: Task; occurrence: Occurrence }
   | {
       kind: "ready";
       dateLabel: string;
@@ -82,6 +86,7 @@ export function RunoHome() {
   const [showEditor, setShowEditor] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [anchorBusy, setAnchorBusy] = useState(false);
   const voice = useVoicePreference();
   const swapBusy = useRef(false);
 
@@ -197,6 +202,77 @@ export function RunoHome() {
     setShowBreak(offerBreak);
     refreshView(message ?? (offerBreak ? "Hecho." : "Listo."));
   }, [refreshView]);
+
+  const openAnchor = useCallback((task: Task, occurrence: Occurrence) => {
+    setShowBreak(false);
+    setNotice(null);
+    setView({
+      kind: "anchor",
+      dateLabel: formatDate(Date.now()),
+      task,
+      occurrence,
+    });
+  }, []);
+
+  const beginAnchor = useCallback(async (task: Task, occurrence: Occurrence) => {
+    if (anchorBusy) return;
+    setAnchorBusy(true);
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      try {
+        const now = Date.now();
+        const session = await startSession(db, {
+          sessionId: newSessionId(),
+          taskId: task.id,
+          date: occurrence.date,
+          variant: "full",
+          now,
+          anchor: true,
+        });
+        setView({ kind: "session", dateLabel: formatDate(now), session });
+      } finally {
+        db.close();
+      }
+    } catch (error) {
+      console.error("No se pudo iniciar el ancla", error);
+      setNotice(error instanceof Error ? error.message : "No se pudo iniciar el ancla.");
+    } finally {
+      setAnchorBusy(false);
+    }
+  }, [anchorBusy]);
+
+  const leaveAnchor = useCallback(() => {
+    refreshView(null);
+  }, [refreshView]);
+
+  const notApplicableAnchor = useCallback(async (occurrence: Occurrence) => {
+    if (anchorBusy) return;
+    setAnchorBusy(true);
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      try {
+        await markOccurrenceNotApplicableDirect(db, occurrence.id, Date.now());
+      } finally {
+        db.close();
+      }
+      refreshView(null);
+    } catch (error) {
+      console.error("No se pudo marcar el ancla", error);
+      setNotice(error instanceof Error ? error.message : "No se pudo marcar el ancla.");
+    } finally {
+      setAnchorBusy(false);
+    }
+  }, [anchorBusy, refreshView]);
+
+  const anchorWatcherEnabled =
+    !showEditor &&
+    !showWallet &&
+    pendingStart === null &&
+    (view.kind === "ready" || view.kind === "empty" || view.kind === "session");
+
+  useAnchorWatcher({ enabled: anchorWatcherEnabled, onAnchor: openAnchor });
 
   const openEditor = useCallback(() => {
     setShowBreak(false);
@@ -394,6 +470,15 @@ export function RunoHome() {
                   tone={voice.tone ?? 0}
                   toneReady={voice.ready}
                   onTone={voice.setTone}
+                />
+              ) : null}
+              {view.kind === "anchor" ? (
+                <AnchorView
+                  task={view.task}
+                  busy={anchorBusy}
+                  onStart={() => void beginAnchor(view.task, view.occurrence)}
+                  onLeave={leaveAnchor}
+                  onNotApplicable={() => void notApplicableAnchor(view.occurrence)}
                 />
               ) : null}
               {view.kind === "ready" ? (
