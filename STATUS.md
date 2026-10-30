@@ -16,7 +16,7 @@ Conectar el primer paso corto configurado en el editor: iniciar una sesión `sho
 
 **Después:** B6 restauración/medianoche, B7 navegación mínima y la segunda capa C1/C2. A1/A2 siguen pendientes antes de la validación móvil.
 
-**Completados en este avance:** A7, A3–A6, B1, B2, B3, B4, B5, B8, B10, B11 y B12. 155 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. B1/B2/B3/B4/B5/B8/B10/B11/B12 se verificaron en Chrome headless sobre build de producción; el wake lock real sigue pendiente de dispositivo. No hay criterio G01–G16 dado por superado.
+**Completados en este avance:** A7, A3–A6, B1, B2, B3, B4, B5, B8, B10, B11 y B12. 155 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. B1/B2/B3/B4/B5/B8/B10/B11/B12 se verificaron en Chrome headless sobre build de producción; el wake lock real sigue pendiente de dispositivo. La dirección visual minimalista y Lexend ya están aplicadas; la medición formal de contraste sigue en C3. No hay criterio G01–G16 dado por superado.
 
 **Pendiente externo A0:** elegir un origen HTTPS estable y probar en el teléfono. Vercel es una opción, no una decisión ejecutada. No se ha desplegado ni confirmado una URL. Esto es necesario para validar instalación/offline en el móvil, **pero no bloquea desarrollar y probar en local**. No contratar ni publicar servicios sin autorización.
 
@@ -174,6 +174,7 @@ Una semana de observación, **no siete días perfectos como condición para no p
 | `npm run typecheck` | Exit 0, tipos de Next y TypeScript |
 | `npm run lint` | Exit 0, sin errores ni warnings |
 | `npm run build` | Exit 0, compilación y prerender de la página nueva |
+| Chrome headless / diseño | 390 px y 1280 px: franja y editor con Lexend, papel/tinta/bermellón, reglas finas y sin sombras; sin desbordes visibles. No es prueba en dispositivo. |
 | `git diff --check` | Exit 0 |
 | Chrome headless / build producción | B1/B2/B3/B4/B5/B8/B10/B11/B12: franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica»; descanso ofrecido tras completar, 10:00, fin sin autoinicio y terminación al empezar otra tarea; «Otra» cambia una carta, descuenta el contador, se oculta sin alternativa y la tarea diferida vuelve en la franja siguiente; el editor crea, edita días/franja/hora/franja fija/escalón, archiva y persiste. Sin dispositivo real; wake lock no verificado. |
 | Navegador / dispositivo / instalación | Navegador headless sí; dispositivo, PWA e instalación no |
@@ -186,6 +187,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 | Fecha | ID | Qué pasó |
 |---|---|---|
+| 2026-10-30 | Diseño | Aprobadas las referencias minimalistas del dueño y Lexend como fuente base. Copiadas a `docs/design/references/`; `plan.md` §10 y §16 actualizados; tokens de papel/tinta/bermellón, foco, selección y Lexend vía `next/font`; shell, franja, timer, descanso y editor aplanados a reglas finas, sin sombras ni radios y con acciones tipográficas. 155/155 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless a 390/1280 px sin desbordes visibles; medición formal de contraste y prueba en dispositivo siguen en C3/D3. |
 | 2026-10-30 | B8 | Editor de tareas: lista activas/archivadas, alta, edición y archivo con días, duración, prioridad, franja, hora fija y escalón. La UI y el repositorio validan; editar no cambia snapshots de sesión y archivar conserva historial. 155/155 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: creó «Tomar creatina» Lun/Mar, la editó con franja/hora/escalón, la archivó y la tarea persistió; volver al día mantuvo la franja. B9 siguiente. |
 | 2026-10-30 | B2 | Cambios de franja: `swapFranjaTask` reemplaza una carta, incrementa `Day.swapsUsed` (máx. 3), agrega la original a `Hand.deferredOccurrenceIds` y registra `swapped`. Sin alternativa o con sesión activa no gasta. `ensureFranja` expone `swapsRemaining`/`canSwap`; la UI oculta «Otra» cuando no aplica. 155/155 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: café→baño, contador 2, sin alternativa, café diferido volvió en franja 2. B8 siguiente. |
 | 2026-10-30 | B11 | Descanso gratuito en `break-card.tsx`: oferta tras completar, sin autoinicio, 10:00, saltable, franja visible y `Empezar` activo durante el descanso; al iniciar una tarea el descanso termina. Sin sesión ni ledger. 155/155 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: oferta, 10:00, fin a los 10 min, «Seguir» y terminación al iniciar tarea. B2 siguiente. |
@@ -204,6 +206,12 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 | 2026-10-29 | Documentación | Primera versión del plan y seguimiento, con decisiones iniciales y consultas a las guías de Next. La revisión v1.1 sustituye las reglas que entraban en contradicción con el contexto. |
 
 ## Descubrimientos y decisiones pendientes
+
+### Decisiones de diseño (2026-10-30)
+
+- **Minimalismo editorial aprobado.** Tipografía grande, mucho aire, reglas finas, sin sombras ni tarjetas anidadas, un solo acento bermellón para un marcador/foco puntual. Referencias del dueño en `docs/design/references/`.
+- **Lexend es la fuente base**, self-hosted con `next/font`; Atkinson queda solo como alternativa si C3 encuentra una razón de lectura. Tokens: papel `#F4F1EA`, tinta `#171512`, gris `#544E47`, línea `#D8D2C6`, acento `#C43D2E`.
+- **La app arranca en papel claro.** La referencia TURA alimenta el modo noche posterior; no se añade tema oscuro nuevo antes de C3/D3.
 
 ### Decisiones v1.2 (2026-10-30)
 
@@ -225,7 +233,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 ### Pendientes reales
 
 - **A0:** origen HTTPS autorizado y dispositivo/navegador objetivo. No se ha elegido proveedor ni se ha desplegado.
-- **C3:** investigación de accesibilidad y prueba de lectura pendientes; no hay bibliografía consultada que valide las afirmaciones de la primera versión.
+- **C3:** investigación de accesibilidad, medición formal de contraste y prueba de lectura pendientes; Lexend y la paleta ya están implementadas, pero no se afirma que estén validadas clínicamente.
 - **Plataformas/UI:** B1, B2, B3, B4, B5, B8, B10, B11 y B12 se verificaron en Chrome headless, no en un teléfono. Faltan B6, B7, B9, instalación, shell offline y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
 
 ### Contexto técnico consultado, no evidencia de implementación

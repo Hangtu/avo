@@ -197,8 +197,8 @@ export function SessionView({
   }
 
   return (
-    <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm sm:p-8">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+    <section className="border-y border-line py-8 sm:py-10">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {current.status === "running"
           ? "En curso"
           : current.status === "awaiting_confirmation"
@@ -216,7 +216,7 @@ export function SessionView({
           <p
             role="timer"
             aria-label="Tiempo restante"
-            className="mt-8 text-center font-mono text-6xl font-semibold tracking-tight tabular-nums sm:text-7xl"
+            className="mt-8 text-center text-7xl font-semibold tracking-tight tabular-nums sm:text-8xl"
           >
             {formatRemaining(remainingMs)}
           </p>
@@ -232,7 +232,7 @@ export function SessionView({
               type="button"
               onClick={() => void complete()}
               disabled={busy}
-              className="min-h-12 rounded-full bg-accent px-7 text-base font-semibold text-white disabled:opacity-60"
+              className="min-h-12 rounded-none bg-foreground px-7 text-base font-semibold text-background disabled:opacity-60"
             >
               {busy ? "Guardando…" : "Terminé"}
             </button>
@@ -240,7 +240,7 @@ export function SessionView({
               type="button"
               onClick={() => void pauseNow()}
               disabled={busy}
-              className="min-h-12 rounded-full border border-line px-6 text-sm font-semibold disabled:opacity-60"
+              className="min-h-12 rounded-none border border-line px-6 text-sm font-semibold disabled:opacity-60"
             >
               Pausar
             </button>
@@ -248,7 +248,7 @@ export function SessionView({
               type="button"
               onClick={() => void pauseNow("baby")}
               disabled={busy}
-              className="min-h-12 rounded-full border border-line px-6 text-sm font-semibold disabled:opacity-60"
+              className="min-h-12 rounded-none border border-line px-6 text-sm font-semibold disabled:opacity-60"
             >
               El bebé
             </button>
@@ -269,7 +269,7 @@ export function SessionView({
                   type="button"
                   onClick={() => void complete()}
                   disabled={busy}
-                  className="min-h-12 flex-1 rounded-full bg-accent px-5 text-sm font-semibold text-white disabled:opacity-60"
+                  className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
                 >
                   {busy ? "Guardando…" : "Sí, terminé"}
                 </button>
@@ -277,7 +277,7 @@ export function SessionView({
                   type="button"
                   onClick={askNo}
                   disabled={busy}
-                  className="min-h-12 flex-1 rounded-full border border-line px-5 text-sm font-semibold disabled:opacity-60"
+                  className="min-h-12 flex-1 rounded-none border border-line px-5 text-sm font-semibold disabled:opacity-60"
                 >
                   No terminé
                 </button>
@@ -294,7 +294,7 @@ export function SessionView({
                   type="button"
                   onClick={() => void retry()}
                   disabled={busy}
-                  className="min-h-12 flex-1 rounded-full bg-accent px-5 text-sm font-semibold text-white disabled:opacity-60"
+                  className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
                 >
                   {busy ? "Guardando…" : "Reintentar 5 min"}
                 </button>
@@ -302,7 +302,7 @@ export function SessionView({
                   type="button"
                   onClick={() => void notApplicable()}
                   disabled={busy}
-                  className="min-h-12 flex-1 rounded-full border border-line px-5 text-sm font-semibold disabled:opacity-60"
+                  className="min-h-12 flex-1 rounded-none border border-line px-5 text-sm font-semibold disabled:opacity-60"
                 >
                   No aplica
                 </button>
@@ -324,7 +324,7 @@ export function SessionView({
         <div className="mt-6 space-y-4">
           <p className="text-base leading-7 text-muted">
             El tiempo está congelado en{" "}
-            <span className="font-mono text-lg font-semibold text-foreground">
+            <span className="text-lg font-semibold tabular-nums text-foreground">
               {formatRemaining(current.remainingSecAtStart * 1000)}
             </span>.
           </p>
@@ -337,7 +337,7 @@ export function SessionView({
               type="button"
               onClick={() => void resumeNow()}
               disabled={busy}
-              className="min-h-12 flex-1 rounded-full bg-accent px-5 text-sm font-semibold text-white disabled:opacity-60"
+              className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
             >
               {busy ? "Guardando…" : "Continuar"}
             </button>
@@ -345,7 +345,7 @@ export function SessionView({
               type="button"
               onClick={() => void notApplicable()}
               disabled={busy}
-              className="min-h-12 flex-1 rounded-full border border-line px-5 text-sm font-semibold disabled:opacity-60"
+              className="min-h-12 flex-1 rounded-none border border-line px-5 text-sm font-semibold disabled:opacity-60"
             >
               No aplica
             </button>
@@ -367,18 +367,18 @@ export function SessionView({
       ) : null}
 
       {actionError ? (
-        <p className="mt-5 rounded-xl border border-line bg-background p-4 text-sm leading-6" role="alert">
+        <p className="mt-5 border-l-2 border-accent pl-4 text-sm leading-6" role="alert">
           {actionError}
         </p>
       ) : null}
 
       {expiryError ? (
-        <div className="mt-5 rounded-xl border border-line bg-background p-4" role="alert">
+        <div className="mt-5 border-l-2 border-accent pl-4" role="alert">
           <p className="text-sm leading-6">{expiryError}</p>
           <button
             type="button"
             onClick={() => void expire()}
-            className="mt-3 min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-white"
+            className="mt-3 min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background"
           >
             Reintentar
           </button>

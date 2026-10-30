@@ -42,6 +42,13 @@ Para probar el build de producción: `npm run build` y luego `npm run start`.
 El funcionamiento offline necesita además el service worker previsto en A2;
 IndexedDB por sí solo no permite cargar la app en modo avión.
 
+## Diseño
+
+Dirección minimalista editorial: Lexend self-hosted con `next/font`, papel cálido,
+tinta oscura, un acento bermellón y reglas finas sin sombras. Referencias y reglas en
+[`plan.md` §10](./plan.md#10-diseño-accesibilidad-e-investigación-pendiente) y
+[`docs/design/references/`](./docs/design/references/README.md).
+
 ## Datos
 
 La capa de datos usa IndexedDB por origen mediante Dexie, con esquema versionado.

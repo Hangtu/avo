@@ -282,13 +282,14 @@ export function RunoHome() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-8 sm:px-8 sm:py-12">
+      <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16">
         <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
               Runo
+              <span aria-hidden className="ml-2 inline-block h-2 w-2 bg-accent align-middle" />
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
               Tu día, por franjas.
             </h1>
           </div>
@@ -300,7 +301,7 @@ export function RunoHome() {
               type="button"
               onClick={showEditor ? closeEditor : openEditor}
               disabled={!showEditor && pendingTask !== null}
-              className="min-h-11 rounded-full border border-line bg-surface px-4 text-sm font-semibold disabled:opacity-60"
+              className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
             >
               {showEditor ? "Volver a hoy" : "Tareas"}
             </button>
@@ -312,7 +313,7 @@ export function RunoHome() {
           {!showEditor && notice ? (
             <p
               role="alert"
-              className="mb-4 rounded-xl border border-line bg-surface px-4 py-3 text-sm leading-6"
+              className="mb-4 border-l-2 border-line pl-4 text-sm leading-6"
             >
               {notice}
             </p>
@@ -349,7 +350,7 @@ export function RunoHome() {
                 />
               ) : null}
               {view.kind === "empty" ? (
-                <EmptyState view={view} onEndDay={endDay} />
+                <EmptyState onEndDay={endDay} />
               ) : null}
               {view.kind === "closed" ? <DayClosed view={view} /> : null}
             </>
@@ -390,14 +391,14 @@ function Countdown({
 
   return (
     <section
-      className="rounded-2xl border border-line bg-surface p-6 text-center shadow-sm sm:p-8"
+      className="border-y border-line py-8 text-center sm:py-10"
       aria-live="polite"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         Empezando
       </p>
       <h2 className="mt-3 text-2xl font-semibold leading-tight">{task.title}</h2>
-      <p className="mt-6 font-mono text-8xl font-semibold tabular-nums text-accent">
+      <p className="mt-6 text-8xl font-semibold tabular-nums text-foreground">
         {count === 0 ? "…" : count}
       </p>
       <p className="mt-4 text-sm leading-6 text-muted">
@@ -407,7 +408,7 @@ function Countdown({
         <button
           type="button"
           onClick={onCancel}
-          className="mt-6 min-h-11 rounded-full border border-line px-6 text-sm font-semibold"
+          className="mt-6 min-h-11 rounded-none border border-line px-6 text-sm font-semibold"
         >
           Cancelar
         </button>
@@ -420,15 +421,15 @@ function LoadingState() {
   return (
     <div className="space-y-3" role="status">
       <p className="text-sm text-muted">Preparando tu día…</p>
-      <div className="h-24 animate-pulse rounded-2xl bg-surface" />
-      <div className="h-24 animate-pulse rounded-2xl bg-surface" />
+      <div className="h-24 animate-pulse rounded-none bg-surface" />
+      <div className="h-24 animate-pulse rounded-none bg-surface" />
     </div>
   );
 }
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <section className="rounded-2xl border border-line bg-surface p-6" role="alert">
+    <section className="border-y border-line py-6" role="alert">
       <h2 className="text-xl font-semibold">No pude abrir tus datos</h2>
       <p className="mt-2 text-base leading-7 text-muted">{message}</p>
       <p className="mt-3 text-sm leading-6 text-muted">
@@ -456,7 +457,7 @@ function Franja({
     <section aria-labelledby="franja-title">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
             Franja {view.ordinal}
           </p>
           <h2 id="franja-title" className="mt-2 text-2xl font-semibold tracking-tight">
@@ -466,14 +467,14 @@ function Franja({
         <p className="text-sm text-muted">{countLabel} ahora</p>
       </div>
 
-      <ol className="mt-6 space-y-3">
+      <ol className="mt-4 border-t border-line">
         {view.tasks.map((task, index) => (
           <li
             key={task.id}
-            className="flex flex-wrap items-start gap-4 rounded-2xl border border-line bg-surface p-5 shadow-sm"
+            className="flex flex-wrap items-start gap-4 border-b border-line py-5"
           >
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background text-sm font-semibold text-accent">
-              {index + 1}
+            <span className="mt-1 w-6 shrink-0 text-xs font-semibold tabular-nums text-muted">
+              {String(index + 1).padStart(2, "0")}
             </span>
             <div className="min-w-0 flex-1">
               <h3 className="text-lg font-semibold leading-7">{task.title}</h3>
@@ -482,12 +483,12 @@ function Franja({
                 {task.shortStepMin ? ` · paso corto ${task.shortStepMin} min` : ""}
               </p>
             </div>
-            <div className="flex w-full gap-2 sm:w-auto">
+            <div className="flex w-full gap-5 sm:w-auto">
               <button
                 type="button"
                 onClick={() => onStart(task)}
                 disabled={swapping}
-                className="min-h-11 flex-1 rounded-full bg-accent px-5 text-sm font-semibold text-white disabled:opacity-60 sm:flex-none"
+                className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
               >
                 Empezar
               </button>
@@ -496,7 +497,7 @@ function Franja({
                   type="button"
                   onClick={() => void onSwap(task)}
                   disabled={swapping}
-                  className="min-h-11 flex-1 rounded-full border border-line px-4 text-sm font-semibold disabled:opacity-60 sm:flex-none"
+                  className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
                 >
                   Otra
                 </button>
@@ -516,23 +517,13 @@ function Franja({
       <p className="mt-2 text-sm leading-6 text-muted">
         {view.swapsRemaining > 0
           ? `${view.swapsRemaining} ${
-              view.swapsRemaining === 1 ? "cambio disponible" : "cambios disponibles"
-            }${view.canSwap ? "" : " · no hay otra tarea elegible ahora"}.`
+              view.swapsRemaining === 1 ? "cambio" : "cambios"
+            }${view.canSwap ? "" : " · sin otra tarea elegible"}.`
           : "Ya usaste los 3 cambios de hoy."}
       </p>
       <p className="mt-2 text-sm leading-6 text-muted">
-        La siguiente franja se abre cuando resuelvas esta.
+        Resuelve esta franja para abrir la siguiente.
       </p>
-      {view.pendingToday > view.tasks.length ? (
-        <p className="mt-2 text-sm leading-6 text-muted">
-          Las demás no están disponibles en este momento o ya pasó su horario.
-        </p>
-      ) : null}
-      {view.unscheduled > 0 ? (
-        <p className="mt-2 text-sm leading-6 text-muted">
-          {view.unscheduled} {view.unscheduled === 1 ? "tarea sin programar" : "tareas sin programar"}.
-        </p>
-      ) : null}
       <button
         type="button"
         onClick={onEndDay}
@@ -544,29 +535,18 @@ function Franja({
   );
 }
 
-function EmptyState({
-  view,
-  onEndDay,
-}: {
-  view: Extract<View, { kind: "empty" }>;
-  onEndDay: () => void;
-}) {
+function EmptyState({ onEndDay }: { onEndDay: () => void }) {
   return (
-    <section className="rounded-2xl border border-line bg-surface p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+    <section className="border-t border-line pt-6">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         Franja actual
       </p>
       <h2 className="mt-3 text-2xl font-semibold tracking-tight">
         No hay tareas elegibles ahora.
       </h2>
       <p className="mt-2 text-base leading-7 text-muted">
-        Puedes volver más tarde o revisar tu programación.
+        Puedes volver más tarde o revisar tus tareas.
       </p>
-      {view.unscheduled > 0 ? (
-        <p className="mt-3 text-sm leading-6 text-muted">
-          Tienes {view.unscheduled} {view.unscheduled === 1 ? "tarea" : "tareas"} sin programar.
-        </p>
-      ) : null}
       <button
         type="button"
         onClick={onEndDay}
@@ -582,9 +562,9 @@ function DayClosed({ view }: { view: Extract<View, { kind: "closed" }> }) {
   return (
     <section
       aria-label={`Día cerrado, ${view.dateLabel}`}
-      className="rounded-2xl border border-line bg-surface p-6 sm:p-8"
+      className="border-y border-line py-8 sm:py-10"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         Día cerrado
       </p>
       <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">

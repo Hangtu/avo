@@ -246,10 +246,10 @@ export function TaskEditor() {
     <section aria-labelledby="tasks-title">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
             Configuración
           </p>
-          <h2 id="tasks-title" className="mt-2 text-3xl font-semibold tracking-tight">
+          <h2 id="tasks-title" className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
             Tus tareas
           </h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
@@ -260,14 +260,14 @@ export function TaskEditor() {
         <button
           type="button"
           onClick={startNew}
-          className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-white"
+          className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background"
         >
           Nueva tarea
         </button>
       </div>
 
       {notice ? (
-        <p className="mt-4 rounded-xl border border-line bg-surface px-4 py-3 text-sm" role="status">
+        <p className="mt-4 border-l-2 border-line pl-4 text-sm" role="status">
           {notice}
         </p>
       ) : null}
@@ -275,7 +275,7 @@ export function TaskEditor() {
       {form ? (
         <form
           onSubmit={save}
-          className="mt-5 rounded-2xl border border-line bg-surface p-5 shadow-sm sm:p-6"
+          className="mt-5 border-y border-line py-6"
         >
           <h3 className="text-xl font-semibold">
             {form.id ? "Editar tarea" : "Nueva tarea"}
@@ -288,7 +288,7 @@ export function TaskEditor() {
                 required
                 value={form.title}
                 onChange={(event) => patch({ title: event.target.value })}
-                className="mt-1 min-h-11 w-full rounded-xl border border-line bg-background px-3 text-base"
+                className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
                 placeholder="Ej. Tomar creatina"
               />
             </label>
@@ -298,7 +298,7 @@ export function TaskEditor() {
                 required
                 value={form.category}
                 onChange={(event) => patch({ category: event.target.value })}
-                className="mt-1 min-h-11 w-full rounded-xl border border-line bg-background px-3 text-base"
+                className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
                 placeholder="personal"
               />
             </label>
@@ -311,7 +311,7 @@ export function TaskEditor() {
                 step={1}
                 value={form.durationMin}
                 onChange={(event) => patch({ durationMin: event.target.value })}
-                className="mt-1 min-h-11 w-full rounded-xl border border-line bg-background px-3 text-base"
+                className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
               />
             </label>
             <label className="block">
@@ -321,7 +321,7 @@ export function TaskEditor() {
                 onChange={(event) =>
                   patch({ priority: Number(event.target.value) as 1 | 2 | 3 })
                 }
-                className="mt-1 min-h-11 w-full rounded-xl border border-line bg-background px-3 text-base"
+                className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
               >
                 {[3, 2, 1].map((priority) => (
                   <option key={priority} value={priority}>
@@ -341,9 +341,9 @@ export function TaskEditor() {
                   type="button"
                   aria-pressed={form.days.includes(day.value)}
                   onClick={() => toggleDay(day.value)}
-                  className={`min-h-11 rounded-full border px-4 text-sm font-semibold ${
+                  className={`min-h-11 rounded-none border px-4 text-sm font-semibold ${
                     form.days.includes(day.value)
-                      ? "border-accent bg-accent text-white"
+                      ? "border-foreground bg-foreground text-background"
                       : "border-line bg-background"
                   }`}
                 >
@@ -376,7 +376,7 @@ export function TaskEditor() {
                     type="time"
                     value={form.windowStart}
                     onChange={(event) => patch({ windowStart: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-line bg-background px-3 text-base"
+                    className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
                   />
                 </label>
                 <label className="block">
@@ -385,7 +385,7 @@ export function TaskEditor() {
                     type="time"
                     value={form.windowEnd}
                     onChange={(event) => patch({ windowEnd: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-line bg-background px-3 text-base"
+                    className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
                   />
                 </label>
               </div>
@@ -407,7 +407,7 @@ export function TaskEditor() {
                   type="time"
                   value={form.fixedTime}
                   onChange={(event) => patch({ fixedTime: event.target.value })}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-line bg-background px-3 text-base"
+                  className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
                 />
               </label>
             ) : null}
@@ -428,7 +428,7 @@ export function TaskEditor() {
                   <input
                     value={form.shortStepTitle}
                     onChange={(event) => patch({ shortStepTitle: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-line bg-background px-3 text-base"
+                    className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
                     placeholder="Ej. Preparar el cepillo"
                   />
                 </label>
@@ -440,7 +440,7 @@ export function TaskEditor() {
                     step={1}
                     value={form.shortStepDuration}
                     onChange={(event) => patch({ shortStepDuration: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-line bg-background px-3 text-base"
+                    className="mt-1 min-h-11 w-full rounded-none border border-line bg-background px-3 text-base"
                   />
                 </label>
               </div>
@@ -448,7 +448,7 @@ export function TaskEditor() {
           </div>
 
           {formError ? (
-            <p className="mt-4 rounded-xl border border-line bg-background px-4 py-3 text-sm" role="alert">
+            <p className="mt-4 border-l-2 border-accent pl-4 text-sm" role="alert">
               {formError}
             </p>
           ) : null}
@@ -457,7 +457,7 @@ export function TaskEditor() {
             <button
               type="submit"
               disabled={saving}
-              className="min-h-11 rounded-full bg-accent px-6 text-sm font-semibold text-white disabled:opacity-60"
+              className="min-h-11 rounded-none bg-foreground px-6 text-sm font-semibold text-background disabled:opacity-60"
             >
               {saving ? "Guardando…" : "Guardar"}
             </button>
@@ -465,7 +465,7 @@ export function TaskEditor() {
               type="button"
               onClick={() => setForm(null)}
               disabled={saving}
-              className="min-h-11 rounded-full border border-line px-6 text-sm font-semibold disabled:opacity-60"
+              className="min-h-11 rounded-none border border-line px-6 text-sm font-semibold disabled:opacity-60"
             >
               Cancelar
             </button>
@@ -476,18 +476,18 @@ export function TaskEditor() {
       {tasks === null ? (
         <p className="mt-6 text-sm text-muted">Cargando tareas…</p>
       ) : loadError ? (
-        <p className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-sm" role="alert">
+        <p className="mt-6 border-l-2 border-accent pl-4 text-sm" role="alert">
           {loadError}
         </p>
       ) : (
         <>
-          <ul className="mt-6 space-y-3">
+          <ul className="mt-4 border-t border-line">
             {active.map((task) => (
               <li
                 key={task.id}
-                className="rounded-2xl border border-line bg-surface p-5 shadow-sm"
+                className="border-b border-line py-5"
               >
-                <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
                   <div className="min-w-0">
                     <h3 className="text-lg font-semibold">{task.title}</h3>
                     <p className="mt-1 text-sm leading-6 text-muted">
@@ -504,11 +504,11 @@ export function TaskEditor() {
                         : ""}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-4 sm:justify-self-end">
                     <button
                       type="button"
                       onClick={() => startEdit(task)}
-                      className="min-h-11 rounded-full border border-line px-4 text-sm font-semibold"
+                      className="min-h-11 text-sm font-semibold underline underline-offset-4"
                     >
                       Editar
                     </button>
@@ -519,14 +519,14 @@ export function TaskEditor() {
                           type="button"
                           onClick={() => void archive(task)}
                           disabled={archivingId === task.id}
-                          className="min-h-11 rounded-full bg-accent px-4 text-sm font-semibold text-white disabled:opacity-60"
+                          className="min-h-11 rounded-none bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
                         >
                           {archivingId === task.id ? "Archivando…" : "Sí"}
                         </button>
                         <button
                           type="button"
                           onClick={() => setArchiveId(null)}
-                          className="min-h-11 rounded-full border border-line px-4 text-sm font-semibold"
+                          className="min-h-11 text-sm font-semibold underline underline-offset-4"
                         >
                           Cancelar
                         </button>
@@ -535,7 +535,7 @@ export function TaskEditor() {
                       <button
                         type="button"
                         onClick={() => setArchiveId(task.id)}
-                        className="min-h-11 rounded-full border border-line px-4 text-sm font-semibold"
+                        className="min-h-11 text-sm font-semibold underline underline-offset-4"
                       >
                         Archivar
                       </button>
@@ -556,7 +556,7 @@ export function TaskEditor() {
               </h3>
               <ul className="mt-3 space-y-2">
                 {archived.map((task) => (
-                  <li key={task.id} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted">
+                  <li key={task.id} className="border-b border-line py-3 text-sm text-muted">
                     {task.title} · archivada
                   </li>
                 ))}

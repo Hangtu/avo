@@ -229,16 +229,41 @@ Desde el primer día se guardan eventos con fecha, tarea/ocurrencia/sesión cuan
 
 El research solicitado en el contexto original **no se considera realizado**. Las preferencias siguientes son decisiones iniciales de diseño, no un tratamiento ni una selección «aprobada para TDAH».
 
-**Base a probar:** Lexend como candidata principal; Atkinson Hyperlegible como alternativa si la prueba de lectura lo justifica. No se añaden varias familias de acento ni un selector de fuentes al MVP por defecto.
+### Dirección visual: minimalismo editorial
 
-- Cuerpo de 18–20 px, títulos de 32–48 px y timer responsivo, sin desbordes en pantallas pequeñas.
+La referencia aprobada por el dueño es **super minimalista**: tipografía grande, mucho aire, pocos elementos, líneas finas y un solo acento. Las imágenes de referencia viven en `docs/design/references/`:
+
+- [`tura-dark-typography.png`](./docs/design/references/tura-dark-typography.png): estudio oscuro, navegación mínima, una sola pieza tipográfica central.
+- [`minimalism-light-editorial.png`](./docs/design/references/minimalism-light-editorial.png): composición clara, tipografía enorme, reglas finas y un único acento rojo.
+
+Son dirección de tono, no assets para copiar. La app no reproduce logotipos, textos ni composiciones de las referencias.
+
+**Reglas de la dirección visual:**
+
+- **Una jerarquía clara:** una acción principal por tarjeta o vista; el resto son enlaces o controles secundarios discretos.
+- **Sin sombras, sin degradados y sin tarjetas dentro de tarjetas.** Las secciones se separan con reglas finas y espacio, no con elevación.
+- **Un solo acento bermellón** para un marcador pequeño, el foco o una acción puntual; las acciones principales pueden ser tinta. El resto es papel, tinta y gris. No usar el acento en todo.
+- **Tipografía protagonista:** títulos grandes y breves; etiquetas pequeñas en mayúsculas con tracking; cuerpo legible; números tabulares para el timer.
+- **Mucho espacio en blanco** y un ancho de lectura corto; la pantalla debe respirar incluso en móvil.
+- **El timer es la pieza central** durante el asalto. La franja es una lista serena; el editor es una vista secundaria tranquila, no un dashboard.
+- **Esquinas rectas o casi rectas** y bordes de 1 px; evitar el look de tarjetas redondeadas y almohadillas.
+- **Oscuro es referencia posterior.** La imagen TURA alimenta el modo noche futuro; el MVP arranca en papel cálido claro y no añade un tema oscuro nuevo antes de C3/D3.
+
+### Tipografía
+
+**Lexend es la fuente base de la app**, self-hosted con `next/font` (sin request a Google en el navegador). Es una decisión aprobada, no una candidata pendiente. Atkinson Hyperlegible queda solo como alternativa si la prueba de lectura de C3 muestra una razón concreta. No se añade un selector de fuentes ni familias de acento en el MVP.
+
+- Cuerpo de 18–20 px; títulos de 40–64 px en escritorio y 32–40 px en móvil; timer responsivo de 64–112 px, sin desbordes.
 - Interlineado de 1.5–1.7, alineación izquierda, jerarquía clara y pocos elementos simultáneos.
-- Objetivo de contraste de 7:1 para texto de cuerpo, medido en ambas paletas. Fondo cálido e tinta oscura como elección inicial, no prohibición clínica del blanco o negro puros.
+- Números tabulares en timer, cuenta 3-2-1 y descanso para evitar saltos de ancho.
+- Objetivo de contraste de 7:1 para texto de cuerpo, medido en la paleta de papel cálido. El acento bermellón se usa en botones/estado y también debe superar contraste con el texto que contenga.
 - Controles de al menos 44 × 44 px, foco visible, etiquetas comprensibles, compatibilidad con lector de pantalla y zoom al 200 % sin pérdida funcional.
 - `prefers-reduced-motion` también aplica al **timer y al Vigía**. El avance debe poder entenderse sin animación, color ni sonido.
-- Modo noche cálido automático desde las 20:00, con cambio manual persistente; no se fuerza contra una elección del usuario.
+- Modo noche cálido automático desde las 20:00, con cambio manual persistente; no se fuerza contra una elección del usuario. Su variante visual puede inspirarse en TURA, pero se valida después de C3/D3.
 - Feedback visual siempre disponible. Vibración breve solo si la API funciona; su ausencia no bloquea ni cuenta como fallo en iOS.
 - Español de México, tuteo directo y sin caricaturizar el habla. En tiempos, números exactos: «faltan 7 min», no «ahorita».
+
+**Paleta inicial a medir en C3:** papel `#F4F1EA`, tinta `#171512`, gris `#544E47`, línea `#D8D2C6`, acento bermellón `#C43D2E`. Son tokens, no una afirmación de contraste ya validada.
 
 **Trabajo de C3:** contrastar estas decisiones con fuentes identificables de accesibilidad (incluidas WCAG), anotar en esta sección referencias realmente consultadas y límites de evidencia, medir contraste y probar lectura. No presentar investigación pendiente como completada ni usar hallazgos sobre dislexia como si demostraran efectos sobre TDAH.
 
@@ -383,6 +408,7 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Descanso | 10 min gratis tras completar, saltable, sin RC y sin bloquear la siguiente tarea |
 | Tono inicial | Techo 2, tono efectivo normal 1; modo duro solicitado o con motivo explícito; no por usar cambios |
 | Elian / nivel 3 | Reservados para una fase posterior, con habilitación explícita y sin descalificación personal |
+| Dirección visual | Minimalismo editorial: Lexend, papel/tinta/bermellón, sin sombras, una acción principal; referencias en `docs/design/references/` |
 | Variación del MVP | El Reloj y 5–10 frases locales; audio apagado inicialmente |
 | Datos | Local-first, sin login ni envío de datos personales a un LLM en MVP |
 | Recordatorios externos | `.ics` después, sin promesa de alarma o takeover garantizados |

@@ -53,9 +53,9 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
   return (
     <section
       aria-label="Descanso"
-      className="mb-5 rounded-2xl border border-line bg-surface p-5 shadow-sm"
+      className="mb-5 border-y border-line py-5"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         Descanso
       </p>
 
@@ -69,14 +69,14 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               onClick={start}
-              className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-white"
+              className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background"
             >
               Empezar descanso
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-full border border-line px-5 text-sm font-semibold"
+              className="min-h-11 rounded-none border border-line px-5 text-sm font-semibold"
             >
               Ahora no
             </button>
@@ -89,7 +89,7 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
           <p
             role="timer"
             aria-label="Tiempo de descanso restante"
-            className="mt-3 font-mono text-5xl font-semibold tabular-nums text-accent"
+            className="mt-3 text-5xl font-semibold tabular-nums text-foreground"
           >
             {formatRemaining(remainingMs)}
           </p>
@@ -99,7 +99,7 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            className="mt-4 min-h-11 rounded-full border border-line px-5 text-sm font-semibold"
+            className="mt-4 min-h-11 rounded-none border border-line px-5 text-sm font-semibold"
           >
             Saltar descanso
           </button>
@@ -113,7 +113,7 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            className="mt-4 min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-white"
+            className="mt-4 min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background"
           >
             Seguir
           </button>
