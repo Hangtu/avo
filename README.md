@@ -4,8 +4,9 @@ App personal de hábitos y sesiones de enfoque, local-first y sin login.
 El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PWA/offline),
 C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla), D2
 (fallbacks de plataforma), D3 (una mano y tema cálido) y la validación local
-de D4 (12/16 criterios) están listos técnicamente. Falta A0/instalación real y
-el cierre móvil de G01/G02/G03/G13.
+de D4 (12/16 criterios) están listos técnicamente. El origen HTTPS es
+**https://runo-mu.vercel.app**. Falta la instalación/prueba en teléfono y el
+cierre móvil de G01/G02/G03/G13.
 
 ## Antes de trabajar
 
@@ -23,7 +24,7 @@ npm run dev
 ```
 
 Abrir la URL indicada por Next. No hace falta HTTPS para desarrollar en localhost.
-Instalación y validación móvil requieren un origen HTTPS estable todavía pendiente.
+La instalación y la validación móvil se hacen desde el origen HTTPS desplegado.
 
 ## Verificación
 
@@ -40,8 +41,20 @@ solo se carga desde el setup de tests: sus resultados no certifican soporte móv
 Las pruebas no requieren red, cuentas ni claves de API.
 
 Para probar el build de producción: `npm run build` y luego `npm run start`.
-`npm run build` genera también `public/sw.js` con el precache del shell, los estáticos
-y las fuentes. El service worker se registra solo en producción; `next dev` no lo activa.
+`npm run build` genera también `public/sw.js`; al instalar descubre los assets reales
+del HTML (chunks, CSS y fuentes) para tolerar las rutas de Vercel. El service worker
+se registra solo en producción; `next dev` no lo activa.
+
+## Probar en el teléfono
+
+Origen estable: **https://runo-mu.vercel.app**
+
+1. Ábrelo en el navegador del teléfono.
+2. Añádelo a inicio / instálalo y ábrelo standalone.
+3. Cierra la app, activa modo avión y vuelve a abrirla.
+4. Comprueba que aparecen tus tareas y que una sesión o saldo ya guardados siguen ahí.
+
+No hay datos de uso en el servidor: IndexedDB vive en el teléfono.
 
 ## Diseño
 
@@ -71,6 +84,7 @@ no al importar módulos ni durante un render de servidor.
 El bucle B está completo, A1/A2 cubren PWA/offline, C1/C2 acreditan y canjean RC, C3
 documenta contraste real con WCAG/WebAIM, C4 añade el Vigía, C5 el audio opt-in, C6
 la voz local, D1 el ancla visible, D2 los fallbacks de plataforma, D3 la
-accesibilidad de una mano/tema y D4 la validación local. Todavía faltan A0,
-instalación real/HTTPS y las pruebas móviles de G01/G02/G03/G13: consultar siempre `STATUS.md` en lugar de
+accesibilidad de una mano/tema y D4 la validación local. El origen HTTPS
+**https://runo-mu.vercel.app** ya está desplegado. Todavía faltan la instalación
+en teléfono y las pruebas móviles de G01/G02/G03/G13: consultar siempre `STATUS.md` en lugar de
 asumir que los tests unitarios significan que el MVP ya está listo para uso.
