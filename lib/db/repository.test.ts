@@ -12,6 +12,7 @@ import type { RunoEvent } from "@/lib/domain/types";
 import { setupTestDatabase } from "@/tests/database";
 
 const testDb = setupTestDatabase();
+const TUESDAY = "2026-10-27" as const;
 
 describe("schema versionado y almacenamiento local", () => {
   it("no abre una conexión al construir la clase", () => {
@@ -691,6 +692,64 @@ describe("escalones", () => {
     const occurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
     const franja = await ensureFranja(db, { date: MONDAY, now: NOW + 61_000, seed: "s", tasks, occurrences });
     expect(franja.tasks[0]).toMatchObject({ shortStepCompleted: true, remainingMin: 14 });
+  });
+});
+
+describe("cruce de medianoche", () => {
+  const daily = taskInput({ days: [0, 1, 2, 3, 4, 5, 6] });
+  const lateMonday = new Date(2026, 9, 26, 23, 50).getTime();
+  const afterMidnight = new Date(2026, 9, 27, 0, 5).getTime();
+
+  it("completa la ocurrencia original y crea una nueva para el día siguiente", async () => {
+    const db = await testDb();
+    await createTask(db, "diaria", daily, NOW);
+    const started = await startSession(db, {
+      sessionId: "s1", taskId: "diaria", date: MONDAY, variant: "full", now: lateMonday,
+    });
+    const completed = await completeSession(db, "s1", afterMidnight);
+
+    expect(completed.occurrenceId).toBe(started.occurrenceId);
+    expect((await db.occurrences.get(started.occurrenceId))!.status).toBe("completed");
+    const next = await ensureOccurrence(db, "diaria", TUESDAY, afterMidnight);
+    expect(next).toMatchObject({ date: TUESDAY, status: "pending" });
+    expect(next.id).not.toBe(started.occurrenceId);
+    expect(await db.ledger.count()).toBe(0);
+  });
+
+  it("una pausa que cruza medianoche conserva el restante y la ocurrencia", async () => {
+    const db = await testDb();
+    await createTask(db, "diaria", daily, NOW);
+    const started = await startSession(db, {
+      sessionId: "s1", taskId: "diaria", date: MONDAY, variant: "full", now: lateMonday,
+    });
+    const paused = await pauseSession(db, "s1", lateMonday + 5 * 60_000);
+    expect(paused).toMatchObject({ status: "paused", remainingSecAtStart: 10 * 60 });
+
+    const resumed = await resumeSession(db, "s1", afterMidnight);
+    expect(resumed).toMatchObject({ status: "running", startedAt: afterMidnight });
+    await completeSession(db, "s1", afterMidnight + 5 * 60_000);
+    expect((await db.occurrences.get(started.occurrenceId))).toMatchObject({
+      date: MONDAY, status: "completed", timerElapsedSec: 10 * 60,
+    });
+    expect(await ensureOccurrence(db, "diaria", TUESDAY, afterMidnight)).toMatchObject({
+      date: TUESDAY, status: "pending",
+    });
+    expect(await db.ledger.count()).toBe(0);
+  });
+
+  it("cerrar el día de una sesión anterior no cierra el día nuevo", async () => {
+    const db = await testDb();
+    await createTask(db, "diaria", daily, NOW);
+    const started = await startSession(db, {
+      sessionId: "s1", taskId: "diaria", date: MONDAY, variant: "full", now: lateMonday,
+    });
+    const closed = await closeDay(db, MONDAY, afterMidnight);
+    expect(closed.closedAt).toBe(afterMidnight);
+    expect(await db.sessions.get("s1")).toMatchObject({ status: "abandoned" });
+    expect((await db.occurrences.get(started.occurrenceId))!.date).toBe(MONDAY);
+    expect((await db.occurrences.get(started.occurrenceId))!.status).toBe("partial");
+    expect((await ensureDay(db, TUESDAY, afterMidnight)).closedAt).toBeNull();
+    expect(await db.ledger.count()).toBe(0);
   });
 });
 

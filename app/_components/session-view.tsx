@@ -11,6 +11,7 @@ import {
   resumeSession,
   retrySession,
 } from "@/lib/db/repository";
+import { dateFromOccurrenceId } from "@/lib/domain/occurrence";
 import { toLocalDate } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
 import { useWakeLock } from "./use-wake-lock";
@@ -54,13 +55,25 @@ export function SessionView({
   const [showNoOptions, setShowNoOptions] = useState(false);
   const [retryId, setRetryId] = useState(() => newActionId());
   const [busy, setBusy] = useState(false);
+  const [today, setToday] = useState<string | null>(null);
   const busyRef = useRef(false);
   const isShort = current.variant === "short";
+  const sessionDate = dateFromOccurrenceId(current.occurrenceId);
+  const isTodaySession = today === null || sessionDate === today;
   const displayTitle = isShort
     ? current.taskSnapshot.shortStep?.title ?? current.taskSnapshot.title
     : current.taskSnapshot.title;
 
   useWakeLock(current.status === "running");
+
+  useEffect(() => {
+    function updateToday() {
+      setToday(toLocalDate(Date.now()));
+    }
+    updateToday();
+    const interval = window.setInterval(updateToday, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const expire = useCallback(async () => {
     try {
@@ -87,6 +100,7 @@ export function SessionView({
     function update() {
       const next = Math.max(0, startedAt + remainingAtStart * 1000 - Date.now());
       setRemainingMs(next);
+      setToday(toLocalDate(Date.now()));
       if (next === 0 && !fired) {
         fired = true;
         void expire();
@@ -187,7 +201,7 @@ export function SessionView({
     await runAction(async () => {
       const db = await openDatabase();
       try {
-        await closeDay(db, toLocalDate(Date.now()), Date.now());
+        await closeDay(db, sessionDate, Date.now());
         onFinished(false);
       } finally {
         db.close();
@@ -214,6 +228,11 @@ export function SessionView({
       <h2 className="mt-3 text-2xl font-semibold leading-tight sm:text-3xl">
         {displayTitle}
       </h2>
+      {!isTodaySession ? (
+        <p className="mt-2 text-sm leading-6 text-muted">
+          Sesión de un día anterior; conserva su tarea original.
+        </p>
+      ) : null}
 
       {current.status === "running" ? (
         <>
@@ -372,7 +391,7 @@ export function SessionView({
           disabled={busy}
           className="mt-6 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
         >
-          Terminar por hoy
+          {isTodaySession ? "Terminar por hoy" : "Cerrar sesión anterior"}
         </button>
       ) : null}
 

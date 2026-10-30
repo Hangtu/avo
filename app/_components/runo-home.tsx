@@ -91,21 +91,6 @@ export function RunoHome() {
 
         await seedDatabase(db, now);
         const day = await ensureDay(db, date, now);
-        if ((day.closedAt ?? null) !== null) {
-          setView({ kind: "closed", dateLabel });
-          return;
-        }
-
-        const tasks = await listTasks(db);
-        const weekday = weekdayOf(date);
-        for (const task of tasks) {
-          if (!task.days.includes(weekday)) continue;
-          try {
-            await ensureOccurrence(db, task.id, date, now);
-          } catch {
-            // A task can be archived or edited between listing and materializing.
-          }
-        }
 
         const active = await db.sessions
           .filter(
@@ -121,6 +106,22 @@ export function RunoHome() {
         if (active) {
           setView({ kind: "session", dateLabel, session: active });
           return;
+        }
+
+        if ((day.closedAt ?? null) !== null) {
+          setView({ kind: "closed", dateLabel });
+          return;
+        }
+
+        const tasks = await listTasks(db);
+        const weekday = weekdayOf(date);
+        for (const task of tasks) {
+          if (!task.days.includes(weekday)) continue;
+          try {
+            await ensureOccurrence(db, task.id, date, now);
+          } catch {
+            // A task can be archived or edited between listing and materializing.
+          }
         }
 
         const occurrences = await db.occurrences.where("date").equals(date).toArray();
