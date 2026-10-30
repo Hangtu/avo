@@ -121,9 +121,10 @@ export async function claimAnchor(
   });
 }
 
-/** Resolves an anchor without opening a session (the user chose "No aplica"). */
+/** Resolves an occurrence without opening a session (anchor or franja correction). */
 export async function markOccurrenceNotApplicableDirect(
   db: RunoDatabase, occurrenceId: string, now: number,
+  source: "anchor" | "franja" = "anchor",
 ): Promise<Occurrence> {
   assertTimestamp(now);
   return db.transaction("rw", db.occurrences, db.events, async () => {
@@ -133,11 +134,40 @@ export async function markOccurrenceNotApplicableDirect(
     if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
       throw new DomainError("invalid_transition", "Esta tarea ya se cerró.");
     }
+    if (occurrence.status === "in_progress") {
+      throw new DomainError("invalid_transition", "La tarea está en curso; resuelve su sesión primero.");
+    }
     await appendEvent(db, {
       actionId: `direct-not-applicable:${occurrence.id}`, type: "not_applicable", at: now,
-      taskId: occurrence.taskId, occurrenceId: occurrence.id, context: { source: "anchor" },
+      taskId: occurrence.taskId, occurrenceId: occurrence.id, context: { source },
     });
     const updated: Occurrence = { ...occurrence, status: "not_applicable", updatedAt: now };
+    await db.occurrences.put(updated);
+    return updated;
+  });
+}
+
+/** Marks an occurrence as already done without a session, work time, or retroactive RC. */
+export async function markOccurrenceAlreadyDoneDirect(
+  db: RunoDatabase, occurrenceId: string, now: number,
+  source: "franja" = "franja",
+): Promise<Occurrence> {
+  assertTimestamp(now);
+  return db.transaction("rw", db.occurrences, db.events, async () => {
+    const occurrence = await db.occurrences.get(occurrenceId);
+    if (!occurrence) throw new DomainError("not_found", "La ocurrencia ya no existe.");
+    if (occurrence.status === "already_done") return occurrence;
+    if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
+      throw new DomainError("invalid_transition", "Esta tarea ya se cerró.");
+    }
+    if (occurrence.status === "in_progress") {
+      throw new DomainError("invalid_transition", "La tarea está en curso; resuelve su sesión primero.");
+    }
+    await appendEvent(db, {
+      actionId: `direct-already-done:${occurrence.id}`, type: "already_done", at: now,
+      taskId: occurrence.taskId, occurrenceId: occurrence.id, context: { source },
+    });
+    const updated: Occurrence = { ...occurrence, status: "already_done", updatedAt: now };
     await db.occurrences.put(updated);
     return updated;
   });

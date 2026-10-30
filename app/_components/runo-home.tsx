@@ -8,6 +8,7 @@ import {
   ensureFranja,
   ensureOccurrence,
   listTasks,
+  markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicableDirect,
   startSession,
   swapFranjaTask,
@@ -89,9 +90,11 @@ export function RunoHome() {
   const [showWallet, setShowWallet] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
+  const [correctingId, setCorrectingId] = useState<string | null>(null);
   const voice = useVoicePreference();
   const theme = useThemePreference();
   const swapBusy = useRef(false);
+  const correctBusy = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +276,7 @@ export function RunoHome() {
     !showEditor &&
     !showWallet &&
     pendingStart === null &&
+    correctingId === null &&
     (view.kind === "ready" || view.kind === "empty" || view.kind === "session");
 
   useAnchorWatcher({ enabled: anchorWatcherEnabled, onAnchor: openAnchor });
@@ -311,6 +315,36 @@ export function RunoHome() {
     } catch (error) {
       console.error("No se pudo cerrar el día", error);
       setNotice("No se pudo cerrar el día. Inténtalo de nuevo.");
+    }
+  }, [refreshView]);
+
+  const correctTask = useCallback(async (
+    task: FranjaTask,
+    kind: "already_done" | "not_applicable",
+  ) => {
+    if (correctBusy.current) return;
+    correctBusy.current = true;
+    setCorrectingId(task.occurrenceId);
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      try {
+        const now = Date.now();
+        if (kind === "already_done") {
+          await markOccurrenceAlreadyDoneDirect(db, task.occurrenceId, now, "franja");
+        } else {
+          await markOccurrenceNotApplicableDirect(db, task.occurrenceId, now, "franja");
+        }
+      } finally {
+        db.close();
+      }
+      refreshView(kind === "already_done" ? "Ya la hice." : "Hoy no aplica.");
+    } catch (error) {
+      console.error("No se pudo corregir la tarea", error);
+      setNotice(error instanceof Error ? error.message : "No se pudo corregir la tarea.");
+    } finally {
+      correctBusy.current = false;
+      setCorrectingId(null);
     }
   }, [refreshView]);
 
@@ -489,8 +523,11 @@ export function RunoHome() {
                   view={view}
                   onStart={(task, variant) => setPendingStart({ task, variant })}
                   onSwap={swapTask}
+                  onAlreadyDone={(task) => void correctTask(task, "already_done")}
+                  onNotApplicable={(task) => void correctTask(task, "not_applicable")}
                   onEndDay={endDay}
                   swapping={swapping}
+                  correctingId={correctingId}
                   tone={voice.tone ?? 0}
                   toneReady={voice.ready}
                   onTone={voice.setTone}
@@ -616,8 +653,11 @@ function Franja({
   view,
   onStart,
   onSwap,
+  onAlreadyDone,
+  onNotApplicable,
   onEndDay,
   swapping,
+  correctingId,
   tone,
   toneReady,
   onTone,
@@ -625,8 +665,11 @@ function Franja({
   view: Extract<View, { kind: "ready" }>;
   onStart: (task: FranjaTask, variant: "full" | "short") => void;
   onSwap: (task: FranjaTask) => void | Promise<void>;
+  onAlreadyDone: (task: FranjaTask) => void;
+  onNotApplicable: (task: FranjaTask) => void;
   onEndDay: () => void;
   swapping: boolean;
+  correctingId: string | null;
   tone: VoiceTone;
   toneReady: boolean;
   onTone: (tone: VoiceTone) => void;
@@ -671,35 +714,55 @@ function Franja({
                   : ""}
               </p>
             </div>
-            <div className="flex w-full flex-wrap gap-x-5 gap-y-2 sm:w-auto">
-              <button
-                type="button"
-                onClick={() => onStart(task, "full")}
-                disabled={swapping}
-                className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
-              >
-                {task.shortStepDone ? `Continuar ${task.remainingMin} min` : "Empezar"}
-              </button>
-              {task.shortStepMin && !task.shortStepDone ? (
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+              <div className="flex w-full flex-wrap gap-x-5 gap-y-2 sm:w-auto">
                 <button
                   type="button"
-                  onClick={() => onStart(task, "short")}
-                  disabled={swapping}
-                  className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
+                  onClick={() => onStart(task, "full")}
+                  disabled={swapping || correctingId !== null}
+                  className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
                 >
-                  Paso {task.shortStepMin} min
+                  {task.shortStepDone ? `Continuar ${task.remainingMin} min` : "Empezar"}
                 </button>
-              ) : null}
-              {view.canSwap ? (
+                {task.shortStepMin && !task.shortStepDone ? (
+                  <button
+                    type="button"
+                    onClick={() => onStart(task, "short")}
+                    disabled={swapping || correctingId !== null}
+                    className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
+                  >
+                    Paso {task.shortStepMin} min
+                  </button>
+                ) : null}
+                {view.canSwap ? (
+                  <button
+                    type="button"
+                    onClick={() => void onSwap(task)}
+                    disabled={swapping || correctingId !== null}
+                    className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
+                  >
+                    Otra
+                  </button>
+                ) : null}
+              </div>
+              <div className="flex w-full flex-wrap gap-x-4 gap-y-1 text-sm text-muted sm:w-auto">
                 <button
                   type="button"
-                  onClick={() => void onSwap(task)}
-                  disabled={swapping}
+                  onClick={() => onAlreadyDone(task)}
+                  disabled={swapping || correctingId !== null}
                   className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
                 >
-                  Otra
+                  Ya la hice
                 </button>
-              ) : null}
+                <button
+                  type="button"
+                  onClick={() => onNotApplicable(task)}
+                  disabled={swapping || correctingId !== null}
+                  className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
+                >
+                  No aplica
+                </button>
+              </div>
             </div>
           </li>
         ))}

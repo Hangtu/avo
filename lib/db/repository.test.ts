@@ -3,8 +3,8 @@ import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
   archiveTask, claimAnchor, closeDay, completeSession, completeSessionWithCredit, createTask, ensureDay, ensureFranja,
-  ensureOccurrence, expireSession, getSettings, listTasks, markOccurrenceNotApplicable,
-  markOccurrenceNotApplicableDirect, occurrenceIdFor, pauseSession, resumeSession,
+  ensureOccurrence, expireSession, getSettings, listTasks, markOccurrenceAlreadyDoneDirect,
+  markOccurrenceNotApplicable, markOccurrenceNotApplicableDirect, occurrenceIdFor, pauseSession, resumeSession,
   retrySession, saveSettings, startSession,
   swapFranjaTask, updateTask,
 } from "./repository";
@@ -895,6 +895,53 @@ describe("ancla ligera", () => {
     expect((await db.occurrences.get(occurrenceIdFor("gym", MONDAY)))!.status).toBe("not_applicable");
     expect(await db.events.where("type").equals("not_applicable").count()).toBe(1);
     expect(await db.sessions.count()).toBe(0);
+  });
+});
+
+describe("correcciones directas de la franja", () => {
+  it("«Ya la hice» cierra sin sesión, tiempo ni RC y es idempotente", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await ensureOccurrence(db, "ropa", MONDAY, NOW);
+    const id = occurrenceIdFor("ropa", MONDAY);
+
+    const first = await markOccurrenceAlreadyDoneDirect(db, id, NOW + 1000);
+    expect(first.status).toBe("already_done");
+    expect(first.timerElapsedSec).toBe(0);
+    expect(first.creditedRc).toBe(0);
+    expect(await db.sessions.count()).toBe(0);
+    expect(await db.ledger.count()).toBe(0);
+    const events = await db.events.where("type").equals("already_done").toArray();
+    expect(events).toHaveLength(1);
+    expect(events[0].context).toMatchObject({ source: "franja" });
+
+    await markOccurrenceAlreadyDoneDirect(db, id, NOW + 2000);
+    expect(await db.events.where("type").equals("already_done").count()).toBe(1);
+  });
+
+  it("«No aplica» desde la franja usa la fuente correcta y no abre sesión", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await ensureOccurrence(db, "ropa", MONDAY, NOW);
+    const id = occurrenceIdFor("ropa", MONDAY);
+
+    await markOccurrenceNotApplicableDirect(db, id, NOW + 1000, "franja");
+    expect((await db.occurrences.get(id))!.status).toBe("not_applicable");
+    expect(await db.sessions.count()).toBe(0);
+    expect(await db.ledger.count()).toBe(0);
+    expect((await db.events.where("type").equals("not_applicable").first())!.context)
+      .toMatchObject({ source: "franja" });
+  });
+
+  it("rechaza corregir una ocurrencia en curso", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await ensureOccurrence(db, "ropa", MONDAY, NOW);
+    const id = occurrenceIdFor("ropa", MONDAY);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+
+    await expect(markOccurrenceAlreadyDoneDirect(db, id, NOW + 1000)).rejects.toThrow("en curso");
+    await expect(markOccurrenceNotApplicableDirect(db, id, NOW + 1000, "franja")).rejects.toThrow("en curso");
   });
 });
 
