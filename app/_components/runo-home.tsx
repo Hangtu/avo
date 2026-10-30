@@ -16,6 +16,7 @@ import { toLocalDate, weekdayOf } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
 import { SessionView } from "./session-view";
+import { TaskEditor } from "./task-editor";
 
 interface FranjaTask {
   id: string;
@@ -67,6 +68,7 @@ export function RunoHome() {
   const [notice, setNotice] = useState<string | null>(null);
   const [showBreak, setShowBreak] = useState(false);
   const [swapping, setSwapping] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const swapBusy = useRef(false);
 
@@ -178,6 +180,18 @@ export function RunoHome() {
     refreshView(offerBreak ? "Hecho." : "Listo.");
   }, [refreshView]);
 
+  const openEditor = useCallback(() => {
+    setShowBreak(false);
+    setShowEditor(true);
+  }, []);
+
+  const closeEditor = useCallback(() => {
+    setShowEditor(false);
+    setNotice(null);
+    setView({ kind: "loading" });
+    setRefreshKey((key) => key + 1);
+  }, []);
+
   const endDay = useCallback(async () => {
     setShowBreak(false);
     setNotice(null);
@@ -278,13 +292,24 @@ export function RunoHome() {
               Tu día, por franjas.
             </h1>
           </div>
-          {view.kind !== "loading" && view.kind !== "error" ? (
-            <p className="pb-1 text-sm text-muted">{view.dateLabel}</p>
-          ) : null}
+          <div className="flex flex-wrap items-center justify-end gap-3 pb-1">
+            {view.kind !== "loading" && view.kind !== "error" ? (
+              <p className="text-sm text-muted">{view.dateLabel}</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={showEditor ? closeEditor : openEditor}
+              disabled={!showEditor && pendingTask !== null}
+              className="min-h-11 rounded-full border border-line bg-surface px-4 text-sm font-semibold disabled:opacity-60"
+            >
+              {showEditor ? "Volver a hoy" : "Tareas"}
+            </button>
+          </div>
         </header>
 
         <div className="flex flex-1 flex-col justify-center py-8">
-          {notice ? (
+          {showEditor ? <TaskEditor /> : null}
+          {!showEditor && notice ? (
             <p
               role="alert"
               className="mb-4 rounded-xl border border-line bg-surface px-4 py-3 text-sm leading-6"
@@ -293,13 +318,14 @@ export function RunoHome() {
             </p>
           ) : null}
 
-          {pendingTask ? (
+          {!showEditor && pendingTask ? (
             <Countdown
               task={pendingTask}
               onDone={beginSession}
               onCancel={() => setPendingTask(null)}
             />
-          ) : (
+          ) : null}
+          {!showEditor && !pendingTask ? (
             <>
               {view.kind === "loading" ? <LoadingState /> : null}
               {view.kind === "error" ? <ErrorState message={view.message} /> : null}
@@ -327,7 +353,7 @@ export function RunoHome() {
               ) : null}
               {view.kind === "closed" ? <DayClosed view={view} /> : null}
             </>
-          )}
+          ) : null}
         </div>
 
         <footer className="border-t border-line pt-5 text-sm leading-6 text-muted">
