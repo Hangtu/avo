@@ -41,7 +41,7 @@ export function SessionView({
   onFinished,
 }: {
   session: Session;
-  onFinished: () => void;
+  onFinished: (offerBreak?: boolean) => void;
 }) {
   const [current, setCurrent] = useState(session);
   const [remainingMs, setRemainingMs] = useState(() =>
@@ -123,7 +123,7 @@ export function SessionView({
       const db = await openDatabase();
       try {
         await completeSession(db, current.id, Date.now());
-        onFinished();
+        onFinished(true);
       } finally {
         db.close();
       }
@@ -135,7 +135,7 @@ export function SessionView({
       const db = await openDatabase();
       try {
         await markOccurrenceNotApplicable(db, current.id, Date.now());
-        onFinished();
+        onFinished(false);
       } finally {
         db.close();
       }
@@ -184,7 +184,7 @@ export function SessionView({
       const db = await openDatabase();
       try {
         await closeDay(db, toLocalDate(Date.now()), Date.now());
-        onFinished();
+        onFinished(false);
       } finally {
         db.close();
       }

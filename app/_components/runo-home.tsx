@@ -13,6 +13,7 @@ import {
 import { seedDatabase } from "@/lib/db/seed";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
+import { BreakCard } from "./break-card";
 import { SessionView } from "./session-view";
 
 interface FranjaTask {
@@ -59,6 +60,7 @@ export function RunoHome() {
   const [view, setView] = useState<View>({ kind: "loading" });
   const [pendingTask, setPendingTask] = useState<FranjaTask | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [showBreak, setShowBreak] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -160,11 +162,13 @@ export function RunoHome() {
     setRefreshKey((key) => key + 1);
   }, []);
 
-  const finishSession = useCallback(() => {
-    refreshView("Listo.");
+  const finishSession = useCallback((offerBreak = false) => {
+    setShowBreak(offerBreak);
+    refreshView(offerBreak ? "Hecho." : "Listo.");
   }, [refreshView]);
 
   const endDay = useCallback(async () => {
+    setShowBreak(false);
     setNotice(null);
     try {
       const db = await openDatabase();
@@ -181,6 +185,7 @@ export function RunoHome() {
   }, [refreshView]);
 
   const beginSession = useCallback(async (task: FranjaTask) => {
+    setShowBreak(false);
     setNotice(null);
     try {
       const db = await openDatabase();
@@ -244,6 +249,9 @@ export function RunoHome() {
             <>
               {view.kind === "loading" ? <LoadingState /> : null}
               {view.kind === "error" ? <ErrorState message={view.message} /> : null}
+              {showBreak && (view.kind === "ready" || view.kind === "empty") ? (
+                <BreakCard onClose={() => setShowBreak(false)} />
+              ) : null}
               {view.kind === "session" ? (
                 <SessionView
                   key={view.session.id}

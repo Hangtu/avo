@@ -5,18 +5,18 @@
 
 **Última actualización:** 2026-10-30
 **Alcance vigente:** `plan.md` v1.2 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas y descanso gratuito; Runo Coins pasa a la segunda capa.
-**Fase:** MVP / Fase 1 — primer corte por franjas. B1 ✅, B3 🧪, B4 ✅, B5 ✅, B10 ✅ y B12 ✅; descanso B11 siguiente; instalación pendiente.
-**Bloque activo:** B — El bucle. **Ítem en curso:** ninguno; siguiente B11.
+**Fase:** MVP / Fase 1 — primer corte por franjas. B1 ✅, B3 🧪, B4 ✅, B5 ✅, B10 ✅, B11 ✅ y B12 ✅; cambios B2 siguiente; instalación pendiente.
+**Bloque activo:** B — El bucle. **Ítem en curso:** ninguno; siguiente B2.
 
 ## Siguiente acción
 
-**B11 · Descanso gratuito.**
+**B2 · Tirada y tres cambios diarios.**
 
-Al completar una tarea, ofrecer 10 min de descanso gratis y saltable. No paga RC, no bloquea la siguiente tarea, no se autoinicia y termina si empiezas otra tarea. No es una sesión ni genera ledger. Probar que no se confunde con una tarea ni con el canje de ocio.
+Implementar «Otra» sobre la franja persistente: tres cambios por fecha local compartidos entre franjas, persistidos en `Day.swapsUsed`; elegir entre las visibles es libre y no consume; sin alternativa no se gasta; al agotarse desaparece. La tarea cambiada queda diferida y puede volver en una franja posterior. No introducir «Casi» ni «dejar pendiente».
 
-**Después:** B2 cambios y B8/B9 si el bucle queda estable. A1/A2 siguen pendientes antes de la validación móvil.
+**Después:** B8/B9 (editor y escalones) y la segunda capa C1/C2. A1/A2 siguen pendientes antes de la validación móvil.
 
-**Completados en este avance:** A7, A3–A6, B1, B3, B4, B5, B10 y B12. 150 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. B1/B3/B4/B5/B10/B12 se verificaron en Chrome headless sobre build de producción; el wake lock real sigue pendiente de dispositivo. No hay criterio G01–G16 dado por superado.
+**Completados en este avance:** A7, A3–A6, B1, B3, B4, B5, B10, B11 y B12. 150 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. B1/B3/B4/B5/B10/B11/B12 se verificaron en Chrome headless sobre build de producción; el wake lock real sigue pendiente de dispositivo. No hay criterio G01–G16 dado por superado.
 
 **Pendiente externo A0:** elegir un origen HTTPS estable y probar en el teléfono. Vercel es una opción, no una decisión ejecutada. No se ha desplegado ni confirmado una URL. Esto es necesario para validar instalación/offline en el móvil, **pero no bloquea desarrollar y probar en local**. No contratar ni publicar servicios sin autorización.
 
@@ -25,10 +25,10 @@ Al completar una tarea, ofrecer 10 min de descanso gratis y saltable. No paga RC
 | Bloque | Ítems | Implementados con evidencia técnica (🧪 o ✅) | Verificados según criterio (✅) | Estado |
 |---|---|---|---|---|
 | **A · Cimiento** | 8 | 5 | 5 | Datos/lógica verificados técnicamente; A0–A2 pendientes |
-| **B · El bucle** | 12 | 6 | 5 | B1 ✅, B3 🧪 (wake lock móvil), B4 ✅, B5 ✅, B10 ✅, B12 ✅; B11 siguiente |
+| **B · El bucle** | 12 | 7 | 6 | B1 ✅, B3 🧪 (wake lock móvil), B4 ✅, B5 ✅, B10 ✅, B11 ✅, B12 ✅; B2 siguiente |
 | **C · Economía y piel** | 6 | 0 | 0 | C1/C2 en segunda capa; resto pendiente |
 | **D · Ancla y pulido** | 4 | 0 | 0 | Pendiente |
-| **Total** | **30** | **11** | **10** | 11 ítems con evidencia; 10 verificados según criterio |
+| **Total** | **30** | **12** | **11** | 12 ítems con evidencia; 11 verificados según criterio |
 
 **Validación de salida:** 0 de 16 criterios. **Prueba de uso:** no iniciada.
 
@@ -95,7 +95,7 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 | **B8** | Editor básico de tareas | Agregar, editar y archivar cualquier día; duración, días, franja/hora, prioridad y escalón validados; Proyecto A lunes/B martes funciona; no altera historial o sesión activa | ⬜ | — |
 | **B9** | Escalón y progreso parcial | Paso corto opcional y concreto; completarlo no declara completa la tarea; permite continuar el resto y no permite cobrar el mismo paso repetidamente | ⬜ | — |
 | **B10** | Pausa / reanudación explícitas | Pausa guarda restante, incluida vida real; una pausada sigue bloqueando otra tarea; cerrar/reabrir mantiene la pausa; continuar retoma el restante exacto sin contar el tiempo pausado | ✅ | `pauseSession`/`resumeSession` y UI con «Pausar»/«El bebé». 150/150 tests. Chrome headless producción: café pausado en 05:00, 10 min después y tras recargar seguía en 05:00; «Continuar» retomó 05:00 y un minuto después mostró 04:00; «El bebé» registró `paused` + `life_real`. Una pausada rechaza `startSession` de otra tarea. |
-| **B11** | Descanso gratuito | Tras completar, ofrece 10 min gratis y saltable; no paga RC, no bloquea la siguiente tarea, no se autoinicia y termina si empieza otra tarea | ⬜ | — |
+| **B11** | Descanso gratuito | Tras completar, ofrece 10 min gratis y saltable; no paga RC, no bloquea la siguiente tarea, no se autoinicia y termina si empieza otra tarea | ✅ | `break-card.tsx`; UI efímera, sin sesión ni ledger. Chrome headless producción: al completar apareció la oferta; el descanso no inició solo; al empezar corrió 10:00; al avanzar el reloj terminó sin iniciar otra tarea; la franja siguió visible y «Empezar» funcionó durante el descanso, terminándolo. 150/150 tests, typecheck/lint/build pasan. |
 | **B12** | Bloqueo de tarea y franja | Con sesión activa no se inicia otra tarea; pausar no libera; «no aplica» o «terminar por hoy» son las salidas explícitas; no se pasa a la siguiente franja con pendientes | ✅ | `startSession` rechaza mientras hay sesión corriendo, pausada o esperando confirmación; `ensureFranja` mantiene la franja abierta. 150/150 tests. Chrome headless producción: corriendo, pausada y esperando confirmación no ofrecieron «Empezar»; «No aplica» devolvió la franja. La franja sin relleno ya se verificó en B5. |
 
 **B3/B6/B10:** cerrar sin pausar no equivale a pausar. No se infiere distracción de la visibilidad. Si el tiempo ya venció, se restaura en confirmación; si se deja parcial, queda pendiente y puede continuarse. Si el restante es cero, «Reintentar 5 min» añade un tramo sin nuevo premio. Una sesión pausada sigue bloqueando el inicio de otra tarea.
@@ -175,7 +175,7 @@ Una semana de observación, **no siete días perfectos como condición para no p
 | `npm run lint` | Exit 0, sin errores ni warnings |
 | `npm run build` | Exit 0, compilación y prerender de la página nueva |
 | `git diff --check` | Exit 0 |
-| Chrome headless / build producción | B1/B3/B4/B5/B10/B12: franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica». Sin dispositivo real; wake lock no verificado. |
+| Chrome headless / build producción | B1/B3/B4/B5/B10/B11/B12: franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica»; descanso ofrecido tras completar, 10:00, fin sin autoinicio y terminación al empezar otra tarea. Sin dispositivo real; wake lock no verificado. |
 | Navegador / dispositivo / instalación | Navegador headless sí; dispositivo, PWA e instalación no |
 
 Pruebas de DB con fake-indexeddb, no almacenamiento de un teléfono. Las protecciones de esquema/snapshots no equivalen a tener implementados el pago y canje de C1/C2. El servidor de producción se arrancó solo para la comprobación local y se detuvo después; no se publicó una URL.
@@ -186,6 +186,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 | Fecha | ID | Qué pasó |
 |---|---|---|
+| 2026-10-30 | B11 | Descanso gratuito en `break-card.tsx`: oferta tras completar, sin autoinicio, 10:00, saltable, franja visible y `Empezar` activo durante el descanso; al iniciar una tarea el descanso termina. Sin sesión ni ledger. 150/150 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: oferta, 10:00, fin a los 10 min, «Seguir» y terminación al iniciar tarea. B2 siguiente. |
 | 2026-10-30 | B12 | Bloqueo consolidado: `startSession` rechaza otra tarea con sesión corriendo, pausada o esperando confirmación; la UI no muestra «Empezar» en esos estados; «No aplica» y «Terminar por hoy» son las salidas; la franja no se rellena (B5). 150/150 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: running/paused/awaiting sin «Empezar»; «No aplica» devuelve la franja. B11 siguiente. |
 | 2026-10-30 | B5 | Franja persistente en `Hand`: no se rellena al resolver una carta; al resolver las tres se cierra, emite `hand_closed` y crea la siguiente con ordinal nuevo. `closeDay` marca `Day.closedAt`, cierra la franja y abandona una sesión abierta conservando el tiempo como parcial, sin ledger. UI: «Terminar por hoy» en franja y sesión, vista de día cerrado. 150/150 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: franja 1 → franja 2, cierre persistente y cierre con sesión abierta. B12 siguiente. |
 | 2026-10-30 | B10 | Pausa/reanudación: `pauseSession` congela el restante, emite `paused` y `life_real` con «El bebé», y `resumeSession` retoma exactamente. `startSession` rechaza otra tarea mientras hay una sesión activa (incluida pausada). 143/143 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: 05:00 pausado persistió 10 min y recarga; continuar retomó 05:00; un minuto después 04:00; eventos `paused`/`life_real` verificados. B5 siguiente. |
@@ -223,7 +224,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 - **A0:** origen HTTPS autorizado y dispositivo/navegador objetivo. No se ha elegido proveedor ni se ha desplegado.
 - **C3:** investigación de accesibilidad y prueba de lectura pendientes; no hay bibliografía consultada que valide las afirmaciones de la primera versión.
-- **Plataformas/UI:** B1, B3, B4, B5, B10 y B12 se verificaron en Chrome headless, no en un teléfono. Faltan B11, B2, instalación, shell offline y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
+- **Plataformas/UI:** B1, B3, B4, B5, B10, B11 y B12 se verificaron en Chrome headless, no en un teléfono. Faltan B2, instalación, shell offline y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
 
 ### Contexto técnico consultado, no evidencia de implementación
 
