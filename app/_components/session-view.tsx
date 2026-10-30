@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { openDatabase } from "@/lib/db/database";
 import {
   closeDay,
-  completeSession,
+  completeSessionWithCredit,
   expireSession,
   markOccurrenceNotApplicable,
   pauseSession,
@@ -42,7 +42,7 @@ export function SessionView({
   onFinished,
 }: {
   session: Session;
-  onFinished: (offerBreak?: boolean) => void;
+  onFinished: (offerBreak?: boolean, message?: string) => void;
 }) {
   const [current, setCurrent] = useState(session);
   const [remainingMs, setRemainingMs] = useState(() =>
@@ -140,8 +140,11 @@ export function SessionView({
     await runAction(async () => {
       const db = await openDatabase();
       try {
-        await completeSession(db, current.id, Date.now());
-        onFinished(!isShort);
+        const result = await completeSessionWithCredit(db, current.id, Date.now());
+        onFinished(
+          !isShort,
+          result.creditedRc > 0 ? `Ganaste ${result.creditedRc} RC` : "Sin RC nuevo.",
+        );
       } finally {
         db.close();
       }
@@ -228,6 +231,9 @@ export function SessionView({
       <h2 className="mt-3 text-2xl font-semibold leading-tight sm:text-3xl">
         {displayTitle}
       </h2>
+      <p className="mt-2 text-sm leading-6 text-muted">
+        Recompensa: +{current.rewardTargetRc} RC
+      </p>
       {!isTodaySession ? (
         <p className="mt-2 text-sm leading-6 text-muted">
           Sesión de un día anterior; conserva su tarea original.

@@ -28,6 +28,7 @@ interface FranjaTask {
   shortStepMin?: number;
   shortStepDone: boolean;
   remainingMin: number;
+  remainingRc: number;
 }
 
 type View =
@@ -136,7 +137,7 @@ export function RunoHome() {
             dateLabel,
             handId: franja.hand.id,
             ordinal: franja.hand.ordinal,
-            tasks: franja.tasks.map(({ task, occurrenceId, shortStepCompleted, remainingMin }) => ({
+            tasks: franja.tasks.map(({ task, occurrenceId, shortStepCompleted, remainingMin, remainingRc }) => ({
               id: task.id,
               occurrenceId,
               title: task.title,
@@ -146,6 +147,7 @@ export function RunoHome() {
               shortStepMin: task.shortStep?.durationMin,
               shortStepDone: shortStepCompleted,
               remainingMin,
+              remainingRc,
             })),
             pendingToday: franja.pendingToday,
             remainingEligible: franja.remainingEligible,
@@ -185,9 +187,9 @@ export function RunoHome() {
     setRefreshKey((key) => key + 1);
   }, []);
 
-  const finishSession = useCallback((offerBreak = false) => {
+  const finishSession = useCallback((offerBreak = false, message?: string) => {
     setShowBreak(offerBreak);
-    refreshView(offerBreak ? "Hecho." : "Listo.");
+    refreshView(message ?? (offerBreak ? "Hecho." : "Listo."));
   }, [refreshView]);
 
   const openEditor = useCallback(() => {
@@ -513,11 +515,11 @@ function Franja({
               <h3 className="text-lg font-semibold leading-7">{task.title}</h3>
               <p className="mt-1 text-sm text-muted">
                 {task.remainingMin} min{task.shortStepDone ? " restantes" : ""} ·{" "}
-                {task.category}
+                {task.category} · +{task.remainingRc} RC
                 {task.shortStepMin
                   ? task.shortStepDone
                     ? " · paso hecho"
-                    : ` · paso: ${task.shortStepTitle ?? "primer paso"} (${task.shortStepMin} min)`
+                    : ` · paso: ${task.shortStepTitle ?? "primer paso"} (${task.shortStepMin} min, +${task.shortStepMin} RC)`
                   : ""}
               </p>
             </div>

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
-  archiveTask, closeDay, completeSession, createTask, ensureDay, ensureFranja,
+  archiveTask, closeDay, completeSession, completeSessionWithCredit, createTask, ensureDay, ensureFranja,
   ensureOccurrence, expireSession, getSettings, listTasks, markOccurrenceNotApplicable,
   occurrenceIdFor, pauseSession, resumeSession, retrySession, saveSettings, startSession,
   swapFranjaTask, updateTask,
@@ -227,7 +227,8 @@ describe("resultados y correcciones", () => {
     expect((await db.occurrences.get(started.occurrenceId))!.status).toBe("completed");
     expect(await db.sessions.where("runningSlot").equals("running").count()).toBe(0);
     expect(await db.events.where("type").equals("completed").count()).toBe(1);
-    expect(await db.ledger.count()).toBe(0);
+    expect(await db.ledger.count()).toBe(1);
+    expect((await db.ledger.toArray())[0]).toMatchObject({ deltaRc: 15, reason: "full_completion" });
 
     expect(await completeSession(db, "s1", NOW + 20_000)).toEqual(completed);
     expect(await db.events.where("type").equals("completed").count()).toBe(1);
@@ -654,7 +655,8 @@ describe("escalones", () => {
       status: "partial", shortStepCompleted: true, timerElapsedSec: 60,
     });
     expect(await db.events.where("type").equals("completed").count()).toBe(1);
-    expect(await db.ledger.count()).toBe(0);
+    expect(await db.ledger.count()).toBe(1);
+    expect((await db.ledger.toArray())[0]).toMatchObject({ deltaRc: 1, reason: "short_step" });
 
     await expect(startSession(db, {
       sessionId: "short-again", taskId: "ropa", date: MONDAY, variant: "short", now: NOW + 61_000,
@@ -672,14 +674,16 @@ describe("escalones", () => {
     });
     expect(full).toMatchObject({
       variant: "full", durationSec: 15 * 60, remainingSecAtStart: 14 * 60,
-      elapsedSec: 60, rewardTargetRc: 15, rewardCapRc: 15,
+      elapsedSec: 60, rewardTargetRc: 14, rewardCapRc: 15,
     });
     const completed = await completeSession(db, "full", NOW + 61_000 + 14 * 60_000);
     expect(completed).toMatchObject({ status: "completed", elapsedSec: 15 * 60 });
     expect(await db.occurrences.get(occurrenceIdFor("ropa", MONDAY))).toMatchObject({
       status: "completed", shortStepCompleted: true, timerElapsedSec: 15 * 60,
+      creditedRc: 15,
     });
-    expect(await db.ledger.count()).toBe(0);
+    expect(await db.ledger.count()).toBe(2);
+    expect((await db.ledger.toArray()).reduce((sum, entry) => sum + entry.deltaRc, 0)).toBe(15);
   });
 
   it("la franja muestra el paso hecho y los minutos restantes", async () => {
@@ -713,7 +717,7 @@ describe("cruce de medianoche", () => {
     const next = await ensureOccurrence(db, "diaria", TUESDAY, afterMidnight);
     expect(next).toMatchObject({ date: TUESDAY, status: "pending" });
     expect(next.id).not.toBe(started.occurrenceId);
-    expect(await db.ledger.count()).toBe(0);
+    expect(await db.ledger.count()).toBe(1);
   });
 
   it("una pausa que cruza medianoche conserva el restante y la ocurrencia", async () => {
@@ -734,7 +738,7 @@ describe("cruce de medianoche", () => {
     expect(await ensureOccurrence(db, "diaria", TUESDAY, afterMidnight)).toMatchObject({
       date: TUESDAY, status: "pending",
     });
-    expect(await db.ledger.count()).toBe(0);
+    expect(await db.ledger.count()).toBe(1);
   });
 
   it("cerrar el día de una sesión anterior no cierra el día nuevo", async () => {
@@ -750,6 +754,86 @@ describe("cruce de medianoche", () => {
     expect((await db.occurrences.get(started.occurrenceId))!.status).toBe("partial");
     expect((await ensureDay(db, TUESDAY, afterMidnight)).closedAt).toBeNull();
     expect(await db.ledger.count()).toBe(0);
+  });
+});
+
+describe("economía fija", () => {
+  it("paga el tope completo una vez y no duplica al reintentar", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const result = await completeSessionWithCredit(db, "s1", NOW + 10_000);
+
+    expect(result).toMatchObject({ creditedRc: 15, totalCreditedRc: 15 });
+    expect(result.session).toMatchObject({ status: "completed", rewardTargetRc: 15, rewardCapRc: 15 });
+    expect((await db.occurrences.get(occurrenceIdFor("ropa", MONDAY)))!.creditedRc).toBe(15);
+    expect(await db.ledger.count()).toBe(1);
+    expect((await db.ledger.toArray())[0]).toMatchObject({
+      deltaRc: 15, reason: "full_completion", occurrenceId: occurrenceIdFor("ropa", MONDAY),
+    });
+
+    const retry = await completeSessionWithCredit(db, "s1", NOW + 20_000);
+    expect(retry).toMatchObject({ creditedRc: 0, totalCreditedRc: 15 });
+    expect(await db.ledger.count()).toBe(1);
+  });
+
+  it("paga 1 por el paso y 14 al completar, no 16", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await startSession(db, { sessionId: "short", taskId: "ropa", date: MONDAY, variant: "short", now: NOW });
+    const short = await completeSessionWithCredit(db, "short", NOW + 60_000);
+    expect(short).toMatchObject({ creditedRc: 1, totalCreditedRc: 1 });
+
+    const full = await startSession(db, {
+      sessionId: "full", taskId: "ropa", date: MONDAY, variant: "full", now: NOW + 61_000,
+    });
+    expect(full).toMatchObject({ rewardTargetRc: 14, rewardCapRc: 15 });
+    const completed = await completeSessionWithCredit(db, "full", NOW + 61_000 + 14 * 60_000);
+
+    expect(completed).toMatchObject({ creditedRc: 14, totalCreditedRc: 15 });
+    expect((await db.occurrences.get(occurrenceIdFor("ropa", MONDAY)))!.creditedRc).toBe(15);
+    const entries = await db.ledger.orderBy("at").toArray();
+    expect(entries.map((entry) => [entry.deltaRc, entry.reason])).toEqual([
+      [1, "short_step"],
+      [14, "full_completion"],
+    ]);
+    expect(entries.reduce((sum, entry) => sum + entry.deltaRc, 0)).toBe(15);
+  });
+
+  it("editar la tarea después del primer asalto no aumenta el acuerdo", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await startSession(db, { sessionId: "short", taskId: "ropa", date: MONDAY, variant: "short", now: NOW });
+    await completeSessionWithCredit(db, "short", NOW + 60_000);
+    await updateTask(db, "ropa", taskInput({ durationMin: 30, title: "Ropa nueva" }), NOW + 61_000, "edit-after-start");
+
+    const full = await startSession(db, {
+      sessionId: "full", taskId: "ropa", date: MONDAY, variant: "full", now: NOW + 62_000,
+    });
+    expect(full).toMatchObject({
+      durationSec: 15 * 60, remainingSecAtStart: 14 * 60,
+      rewardTargetRc: 14, rewardCapRc: 15,
+      taskSnapshot: { title: "Lavar ropa", durationMin: 15 },
+    });
+  });
+
+  it("el saldo del ledger sobrevive cerrar y reabrir la DB", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await startSession(db, { sessionId: "short", taskId: "ropa", date: MONDAY, variant: "short", now: NOW });
+    await completeSessionWithCredit(db, "short", NOW + 60_000);
+    db.close();
+
+    const reopened = await testDb(db.name);
+    expect(await reopened.ledger.count()).toBe(1);
+    expect((await reopened.occurrences.get(occurrenceIdFor("ropa", MONDAY)))!.creditedRc).toBe(1);
+    const full = await startSession(reopened, {
+      sessionId: "full", taskId: "ropa", date: MONDAY, variant: "full", now: NOW + 61_000,
+    });
+    expect(full).toMatchObject({ rewardTargetRc: 14 });
+    const completed = await completeSessionWithCredit(reopened, "full", NOW + 61_000 + 14 * 60_000);
+    expect(completed).toMatchObject({ creditedRc: 14, totalCreditedRc: 15 });
+    expect(await reopened.ledger.count()).toBe(2);
   });
 });
 

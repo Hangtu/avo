@@ -1,5 +1,6 @@
 import type { RunoDatabase } from "./database";
 import { appendEvent, eventIdFor, taskEventContext } from "./events";
+import { appendLedgerEntry, creditSourceKey } from "./ledger";
 import { occurrenceIdFor } from "@/lib/domain/occurrence";
 import { availabilityOf, eligibleCandidates, proposeHand } from "@/lib/domain/selection";
 import { assertTimestamp, parseLocalDate, toLocalDate, weekdayOf, type LocalDate } from "@/lib/domain/time";
@@ -203,7 +204,8 @@ export async function startSession(
     const durationMin = variant === "short"
       ? agreement.task.shortStep!.durationMin : agreement.task.durationMin;
     const rewardTargetRc = variant === "short"
-      ? agreement.shortStepRc! : agreement.rewardCapRc;
+      ? agreement.shortStepRc!
+      : Math.max(0, agreement.rewardCapRc - occurrence.creditedRc);
     const durationSec = durationMin * 60;
     const elapsedBefore = Math.min(durationSec, Math.max(0, occurrence.timerElapsedSec));
     const remainingSec = variant === "short"
@@ -304,15 +306,24 @@ function closedSession(
 }
 
 /** A confirmed completion closes both the session and its occurrence. No RC yet. */
-export async function completeSession(
+export interface CompletionResult {
+  session: Session;
+  creditedRc: number;
+  totalCreditedRc: number;
+}
+
+export async function completeSessionWithCredit(
   db: RunoDatabase, sessionId: string, now: number,
-): Promise<Session> {
+): Promise<CompletionResult> {
   assertId(sessionId);
   assertTimestamp(now);
-  return db.transaction("rw", db.sessions, db.occurrences, db.events, async () => {
+  return db.transaction("rw", db.sessions, db.occurrences, db.events, db.ledger, async () => {
     const session = await db.sessions.get(sessionId);
     if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
-    if (session.status === "completed") return session;
+    if (session.status === "completed") {
+      const occurrence = await db.occurrences.get(session.occurrenceId);
+      return { session, creditedRc: 0, totalCreditedRc: occurrence?.creditedRc ?? 0 };
+    }
     if (session.status !== "running" && session.status !== "awaiting_confirmation") {
       throw new DomainError("invalid_transition", "Esta sesión no se puede completar.");
     }
@@ -324,23 +335,52 @@ export async function completeSession(
 
     const elapsedSec = elapsedSecondsFor(session, now);
     const isShort = session.variant === "short";
+    const creditedRc = Math.max(
+      0,
+      Math.min(session.rewardTargetRc, session.rewardCapRc - occurrence.creditedRc),
+    );
+    const totalCreditedRc = occurrence.creditedRc + creditedRc;
+
     await appendEvent(db, {
       actionId: `complete:${sessionId}`, type: "completed", at: now,
       taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
       sessionId, ...(session.handId ? { handId: session.handId } : {}),
-      context: { early: session.status === "running", elapsedSec, shortStep: isShort },
+      context: {
+        early: session.status === "running",
+        elapsedSec,
+        shortStep: isShort,
+        creditedRc,
+        totalCreditedRc,
+      },
     });
+    if (creditedRc > 0) {
+      await appendLedgerEntry(db, {
+        sourceKey: creditSourceKey(session.occurrenceId, isShort ? "short" : "full"),
+        occurrenceId: session.occurrenceId,
+        deltaRc: creditedRc,
+        reason: isShort ? "short_step" : "full_completion",
+        at: now,
+      });
+    }
     await db.occurrences.put({
       ...occurrence,
       status: isShort ? "partial" : "completed",
       shortStepCompleted: occurrence.shortStepCompleted || isShort,
       timerElapsedSec: elapsedSec,
+      creditedRc: totalCreditedRc,
       updatedAt: now,
     });
     const completed = closedSession(session, "completed", elapsedSec, now);
     await db.sessions.put(completed);
-    return completed;
+    return { session: completed, creditedRc, totalCreditedRc };
   });
+}
+
+/** Backwards-compatible session-only result; UI actions use the credit result. */
+export async function completeSession(
+  db: RunoDatabase, sessionId: string, now: number,
+): Promise<Session> {
+  return (await completeSessionWithCredit(db, sessionId, now)).session;
 }
 
 /** Resolves the occurrence as not applicable and abandons its open session. */
@@ -526,6 +566,8 @@ export interface FranjaTaskView {
   task: Task;
   shortStepCompleted: boolean;
   remainingMin: number;
+  creditedRc: number;
+  remainingRc: number;
 }
 
 export interface CurrentFranja {
@@ -561,6 +603,8 @@ function taskViewsForHand(
         1,
         Math.ceil((task.durationMin * 60 - occurrence.timerElapsedSec) / 60),
       ),
+      creditedRc: occurrence.creditedRc,
+      remainingRc: Math.max(0, task.durationMin - occurrence.creditedRc),
     }];
   });
 }
