@@ -5,18 +5,18 @@
 
 **Última actualización:** 2026-10-30
 **Alcance vigente:** `plan.md` v1.2 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas y descanso gratuito; Runo Coins pasa a la segunda capa.
-**Fase:** MVP / Fase 1 — primer corte por franjas. B1 ✅ y B3 🧪; B4 siguiente; instalación pendiente.
-**Bloque activo:** B — El bucle. **Ítem en curso:** ninguno; siguiente B4.
+**Fase:** MVP / Fase 1 — primer corte por franjas. B1 ✅, B3 🧪 y B4 ✅; pausa B10 siguiente; instalación pendiente.
+**Bloque activo:** B — El bucle. **Ítem en curso:** ninguno; siguiente B10.
 
 ## Siguiente acción
 
-**B4 · Resultado y correcciones.**
+**B10 · Pausa y reanudación explícitas.**
 
-Al vencer o al terminar antes, permitir «Sí, terminé» y «No terminé»; «No terminé» deja la tarjeta en foco con reintentar 5 min, pausar, no aplica o terminar por hoy. Persistir resultado/evento de forma atómica y mantener el bloqueo de tarea. No introducir «Casi» ni «dejar pendiente» en sesión activa.
+Agregar pausa durante una sesión corriendo, con motivo opcional y atajo «El bebé»; congelar el restante, persistir la pausa al recargar y no reanudar sola. Una pausada debe seguir bloqueando el inicio de otra tarea. Al continuar se retoma el restante exacto sin contar el tiempo pausado.
 
-**Después:** B10 pausa/reanudación, B12 bloqueo de franja, B11 descanso y B2 cambios. A1/A2 siguen pendientes antes de la validación móvil.
+**Después:** B5 cierre de franja/terminar por hoy, B12 bloqueo de franja, B11 descanso y B2 cambios. A1/A2 siguen pendientes antes de la validación móvil.
 
-**Completados en este avance:** A7, A3–A6, B1 y B3. 133 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. B1 y B3 se verificaron en Chrome headless sobre build de producción; el wake lock real sigue pendiente de dispositivo. No hay criterio G01–G16 dado por superado.
+**Completados en este avance:** A7, A3–A6, B1, B3 y B4. 138 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. B1/B3/B4 se verificaron en Chrome headless sobre build de producción; el wake lock real sigue pendiente de dispositivo. No hay criterio G01–G16 dado por superado.
 
 **Pendiente externo A0:** elegir un origen HTTPS estable y probar en el teléfono. Vercel es una opción, no una decisión ejecutada. No se ha desplegado ni confirmado una URL. Esto es necesario para validar instalación/offline en el móvil, **pero no bloquea desarrollar y probar en local**. No contratar ni publicar servicios sin autorización.
 
@@ -25,10 +25,10 @@ Al vencer o al terminar antes, permitir «Sí, terminé» y «No terminé»; «N
 | Bloque | Ítems | Implementados con evidencia técnica (🧪 o ✅) | Verificados según criterio (✅) | Estado |
 |---|---|---|---|---|
 | **A · Cimiento** | 8 | 5 | 5 | Datos/lógica verificados técnicamente; A0–A2 pendientes |
-| **B · El bucle** | 12 | 2 | 1 | B1 ✅; B3 🧪 pendiente de wake lock móvil; B4 siguiente |
+| **B · El bucle** | 12 | 3 | 2 | B1 ✅, B3 🧪 (wake lock móvil), B4 ✅; B10 siguiente |
 | **C · Economía y piel** | 6 | 0 | 0 | C1/C2 en segunda capa; resto pendiente |
 | **D · Ancla y pulido** | 4 | 0 | 0 | Pendiente |
-| **Total** | **30** | **7** | **6** | 7 ítems con evidencia; 6 verificados según criterio |
+| **Total** | **30** | **8** | **7** | 8 ítems con evidencia; 7 verificados según criterio |
 
 **Validación de salida:** 0 de 16 criterios. **Prueba de uso:** no iniciada.
 
@@ -87,8 +87,8 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 |---|---|---|---|---|
 | **B1** | Apertura y franja actual | Si hay sesión activa, se abre primero; si no, propone hasta tres elegibles de la franja actual, sin rellenar ni crear franjas vacías; muestra pendientes del día y no lee IndexedDB durante SSR | ✅ | `app/_components/runo-home.tsx` + `lib/domain/franja.ts`; 133/133 tests. Chrome headless sobre `npm run build` + `start`: a las 08:00 America/Mexico_City mostró 3 (café, cepillo, desayuno); a las 12:09, 2 elegibles y 5 pendientes sin rellenar; con las ocurrencias cerradas mostró el estado vacío sin inventar tarjetas. Sesión pausada sintética: precedencia mostrada. Sin dispositivo. |
 | **B2** | Tirada y tres cambios diarios | Tres «Otra» por fecha local, compartidos entre franjas y persistentes; elegir entre las visibles es libre; sin alternativa no se gasta; al agotarse desaparece, pero las correcciones siguen accesibles | ⬜ | — |
-| **B3** | Timer, 3-2-1 y pantalla encendida | Cuenta 3-2-1 cancelable; reloj de pared sin deriva por intervalos; wake lock intentado y recuperado al volver donde se soporte; rechazo no rompe el timer; vencimiento va a confirmación | 🧪 | `session-view.tsx`, `use-wake-lock.ts` y `expireSession`. 133/133 tests, typecheck/lint/build pasan. Chrome headless producción: «Empezar» mostró 3-2-1 cancelable; café 05:00; al avanzar el reloj de pared venció y persistió «Tiempo cumplido» tras recargar. El rechazo/ausencia de wake lock no rompió el timer. Falta probar wake lock y pantalla encendida en dispositivo real. |
-| **B4** | Resultado y correcciones | «Sí, terminé» y «No terminé» producen estados/eventos distintos; «No terminé» deja la tarjeta en foco con reintentar/pausar/no aplica/terminar; no hay «Casi»; no se completa por tiempo agotado ni se exigen formularios | ⬜ | — |
+| **B3** | Timer, 3-2-1 y pantalla encendida | Cuenta 3-2-1 cancelable; reloj de pared sin deriva por intervalos; wake lock intentado y recuperado al volver donde se soporte; rechazo no rompe el timer; vencimiento va a confirmación | 🧪 | `session-view.tsx`, `use-wake-lock.ts` y `expireSession`. 138/138 tests, typecheck/lint/build pasan. Chrome headless producción: «Empezar» mostró 3-2-1 cancelable; café 05:00; al avanzar el reloj de pared venció y persistió «Tiempo cumplido» tras recargar. El rechazo/ausencia de wake lock no rompió el timer. Falta probar wake lock y pantalla encendida en dispositivo real. |
+| **B4** | Resultado y correcciones | «Sí, terminé» y «No terminé» producen estados/eventos distintos; «No terminé» deja la tarjeta en foco con reintentar/no aplica; pausar y terminar por hoy se completan en B10/B5; no hay «Casi»; no se completa por tiempo agotado ni se exigen formularios | ✅ | `completeSession`, `markOccurrenceNotApplicable` y `retrySession`; 138/138 tests. Chrome headless producción: café completado antes de tiempo y fuera de la franja; cepillo vence, «No terminé» → «Reintentar 5 min» → 05:00 → segundo vencimiento → «No aplica» → fuera de la franja; desayuno vence y «Sí, terminé» → fuera. Sin RC/ledger. Pausar y terminar por hoy quedan en B10/B5. |
 | **B5** | Cierre de franja / terminar por hoy | No se pasa a la siguiente franja hasta resolver las cartas actuales; se pueden hacer más de tres tareas en el día; cerrar conserva lo ganado sin pagar pendientes ni perder progreso | ⬜ | — |
 | **B6** | Restauración y fecha local | Reabrir restaura corriendo/pausada/confirmación según corresponda; sesión que cruza medianoche conserva su ocurrencia y no duplica tareas ni créditos | ⬜ | — |
 | **B7** | Flujo y navegación mínimos | Bucle sin callejones; foco de una carta durante el trabajo; configuración accesible sin un dashboard obligatorio ni capas de modales | ⬜ | — |
@@ -168,14 +168,14 @@ Una semana de observación, **no siete días perfectos como condición para no p
 
 | Comando | Resultado observado |
 |---|---|
-| `npm test` | 133/133 tests, 7 archivos |
-| `TZ=UTC npm test` | 133/133 |
-| `TZ=America/Mexico_City npm test` | 133/133 |
+| `npm test` | 138/138 tests, 7 archivos |
+| `TZ=UTC npm test` | 138/138 |
+| `TZ=America/Mexico_City npm test` | 138/138 |
 | `npm run typecheck` | Exit 0, tipos de Next y TypeScript |
 | `npm run lint` | Exit 0, sin errores ni warnings |
 | `npm run build` | Exit 0, compilación y prerender de la página nueva |
 | `git diff --check` | Exit 0 |
-| Chrome headless / build producción | B1: 3 tarjetas a las 08:00, 2 a las 12:09, estado vacío y precedencia de sesión. B3: 3-2-1 cancelable, café 05:00, vencimiento por reloj de pared y «Tiempo cumplido» persistido tras recargar. Sin dispositivo real; wake lock no verificado. |
+| Chrome headless / build producción | B1/B3/B4: franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento por reloj de pared, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica». Las tareas resueltas salen de la franja. Sin dispositivo real; wake lock no verificado. |
 | Navegador / dispositivo / instalación | Navegador headless sí; dispositivo, PWA e instalación no |
 
 Pruebas de DB con fake-indexeddb, no almacenamiento de un teléfono. Las protecciones de esquema/snapshots no equivalen a tener implementados el pago y canje de C1/C2. El servidor de producción se arrancó solo para la comprobación local y se detuvo después; no se publicó una URL.
@@ -186,6 +186,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 | Fecha | ID | Qué pasó |
 |---|---|---|
+| 2026-10-30 | B4 | Resultado y correcciones: `completeSession` cierra sesión/ocurrencia sin RC; `markOccurrenceNotApplicable` resuelve sin fallo; `retrySession` añade 5 min con actionId idempotente y sin nuevo acuerdo. UI: «Terminé» antes de cero, «Sí, terminé» al cero, «No terminé» → reintentar/no aplica. 138/138 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: las tres rutas resueltas desaparecen de la franja. Pausar/terminar por hoy quedan en B10/B5. |
 | 2026-10-30 | B3 | Timer conectado a `startSession`: 3-2-1 cancelable, reloj de pared por `startedAt`/restante, wake lock con detección y liberación, y `expireSession` idempotente hacia confirmación. 133/133 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless producción: cancelar 3-2-1 vuelve a la franja; café corre 05:00; avanzar el reloj de pared vence y el estado persiste tras recargar. Wake lock real pendiente de dispositivo; B4 siguiente. |
 | 2026-10-30 | B1 + v1.2 | Aprobadas franjas de hasta 3, 3 cambios/día, bloqueo de tarea/franja, descanso gratuito, 3-2-1, RC en segunda capa y «Casi» fuera. `plan.md` y `AGENTS.md` actualizados; `STATUS.md` a 30 IDs y 16 criterios. B1 implementado con `runo-home.tsx` y `franja.ts`: 131/131 tests, typecheck/lint/build pasan; Chrome headless sobre build de producción mostró 3 tarjetas a las 08:00, 2 a las 12:09 y precedencia de sesión pausada. Sin dispositivo ni prueba de uso; siguiente B3. |
 | 2026-10-30 | A6 | Motor puro y guardia de inicio por horario implementados. 128/128 tests en local, UTC y America/Mexico_City; typecheck, lint, build y diff-check pasan. Cierre de este avance con A7/A3–A6 verificados técnicamente; siguiente A1. Sin interfaz o validación móvil todavía. |
@@ -219,7 +220,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 - **A0:** origen HTTPS autorizado y dispositivo/navegador objetivo. No se ha elegido proveedor ni se ha desplegado.
 - **C3:** investigación de accesibilidad y prueba de lectura pendientes; no hay bibliografía consultada que valide las afirmaciones de la primera versión.
-- **Plataformas/UI:** B1 y B3 se verificaron en Chrome headless, no en un teléfono. Faltan B4–B12, instalación, shell offline y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
+- **Plataformas/UI:** B1, B3 y B4 se verificaron en Chrome headless, no en un teléfono. Faltan B5, B10–B12, B2, instalación, shell offline y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
 
 ### Contexto técnico consultado, no evidencia de implementación
 

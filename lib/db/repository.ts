@@ -1,5 +1,5 @@
 import type { RunoDatabase } from "./database";
-import { appendEvent, taskEventContext } from "./events";
+import { appendEvent, eventIdFor, taskEventContext } from "./events";
 import { occurrenceIdFor } from "@/lib/domain/occurrence";
 import { availabilityOf } from "@/lib/domain/selection";
 import { assertTimestamp, parseLocalDate, toLocalDate, weekdayOf, type LocalDate } from "@/lib/domain/time";
@@ -241,7 +241,7 @@ export async function expireSession(
     }
 
     await appendEvent(db, {
-      actionId: `timer-expired:${sessionId}`, type: "timer_expired", at: now,
+      actionId: `timer-expired:${sessionId}:${session.startedAt}`, type: "timer_expired", at: now,
       taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
       sessionId, ...(session.handId ? { handId: session.handId } : {}),
       context: { durationSec: session.durationSec },
@@ -265,5 +265,155 @@ export async function expireSession(
     };
     await db.sessions.put(expired);
     return expired;
+  });
+}
+
+
+function elapsedSecondsFor(session: Session, now: number): number {
+  if (session.status !== "running") return session.elapsedSec;
+  const segmentSec = Math.min(
+    session.remainingSecAtStart,
+    Math.max(0, Math.floor((now - session.startedAt) / 1000)),
+  );
+  return session.elapsedSec + segmentSec;
+}
+
+function closedSession(
+  session: Session, status: "completed" | "abandoned", elapsedSec: number, now: number,
+): Session {
+  const closed = {
+    ...session,
+    status,
+    startedAt: null,
+    remainingSecAtStart: 0,
+    elapsedSec,
+    updatedAt: now,
+  } as Session;
+  delete (closed as { runningSlot?: unknown }).runningSlot;
+  return closed;
+}
+
+/** A confirmed completion closes both the session and its occurrence. No RC yet. */
+export async function completeSession(
+  db: RunoDatabase, sessionId: string, now: number,
+): Promise<Session> {
+  assertId(sessionId);
+  assertTimestamp(now);
+  return db.transaction("rw", db.sessions, db.occurrences, db.events, async () => {
+    const session = await db.sessions.get(sessionId);
+    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (session.status === "completed") return session;
+    if (session.status !== "running" && session.status !== "awaiting_confirmation") {
+      throw new DomainError("invalid_transition", "Esta sesión no se puede completar.");
+    }
+    const occurrence = await db.occurrences.get(session.occurrenceId);
+    if (!occurrence) throw new DomainError("not_found", "La tarea de la sesión ya no existe.");
+    if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status) && occurrence.status !== "completed") {
+      throw new DomainError("invalid_transition", "Esta tarea ya se cerró de otra forma.");
+    }
+
+    const elapsedSec = elapsedSecondsFor(session, now);
+    await appendEvent(db, {
+      actionId: `complete:${sessionId}`, type: "completed", at: now,
+      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
+      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      context: { early: session.status === "running", elapsedSec },
+    });
+    await db.occurrences.put({
+      ...occurrence,
+      status: "completed",
+      timerElapsedSec: elapsedSec,
+      updatedAt: now,
+    });
+    const completed = closedSession(session, "completed", elapsedSec, now);
+    await db.sessions.put(completed);
+    return completed;
+  });
+}
+
+/** Resolves the occurrence as not applicable and abandons its open session. */
+export async function markOccurrenceNotApplicable(
+  db: RunoDatabase, sessionId: string, now: number,
+): Promise<Session> {
+  assertId(sessionId);
+  assertTimestamp(now);
+  return db.transaction("rw", db.sessions, db.occurrences, db.events, async () => {
+    const session = await db.sessions.get(sessionId);
+    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (session.status === "abandoned") return session;
+    if (
+      session.status !== "running" &&
+      session.status !== "awaiting_confirmation" &&
+      session.status !== "paused"
+    ) {
+      throw new DomainError("invalid_transition", "Esta sesión ya no se puede cerrar así.");
+    }
+    const occurrence = await db.occurrences.get(session.occurrenceId);
+    if (!occurrence) throw new DomainError("not_found", "La tarea de la sesión ya no existe.");
+    if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
+      throw new DomainError("invalid_transition", "Esta tarea ya se cerró.");
+    }
+
+    const elapsedSec = elapsedSecondsFor(session, now);
+    await appendEvent(db, {
+      actionId: `not-applicable:${sessionId}`, type: "not_applicable", at: now,
+      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
+      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      context: { elapsedSec },
+    });
+    await db.occurrences.put({
+      ...occurrence,
+      status: "not_applicable",
+      timerElapsedSec: elapsedSec,
+      updatedAt: now,
+    });
+    const closed = closedSession(session, "abandoned", elapsedSec, now);
+    await db.sessions.put(closed);
+    return closed;
+  });
+}
+
+/**
+ * Adds a short segment to an expired session. The reward agreement is untouched.
+ * The caller supplies a stable actionId so a double tap cannot open two segments.
+ */
+export async function retrySession(
+  db: RunoDatabase, sessionId: string, actionId: string, now: number, extensionMin = 5,
+): Promise<Session> {
+  assertId(sessionId);
+  assertId(actionId);
+  assertTimestamp(now);
+  const extensionSec = extensionMin * 60;
+
+  return db.transaction("rw", db.sessions, db.events, async () => {
+    const session = await db.sessions.get(sessionId);
+    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (session.status === "running") {
+      const previous = await db.events.get(eventIdFor(`retry:${actionId}`, "resumed"));
+      if (previous) return session;
+      throw new DomainError("invalid_transition", "El timer todavía está corriendo.");
+    }
+    if (session.status !== "awaiting_confirmation") {
+      throw new DomainError("invalid_transition", "Esta sesión no se puede reintentar.");
+    }
+
+    const { inserted } = await appendEvent(db, {
+      actionId: `retry:${actionId}`, type: "resumed", at: now,
+      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
+      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      context: { extensionMin, remainingSec: extensionSec },
+    });
+    if (!inserted) return session;
+
+    const resumed: Session = {
+      ...session,
+      status: "running",
+      startedAt: now,
+      runningSlot: "running",
+      remainingSecAtStart: extensionSec,
+      updatedAt: now,
+    };
+    await db.sessions.put(resumed);
+    return resumed;
   });
 }

@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
-  archiveTask, createTask, ensureDay, ensureOccurrence, expireSession, getSettings, listTasks,
-  occurrenceIdFor, saveSettings, startSession, updateTask,
+  archiveTask, completeSession, createTask, ensureDay, ensureOccurrence, expireSession,
+  getSettings, listTasks, markOccurrenceNotApplicable, occurrenceIdFor, retrySession,
+  saveSettings, startSession, updateTask,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 import type { RunoEvent } from "@/lib/domain/types";
@@ -211,6 +212,82 @@ describe("ocurrencias y acuerdos", () => {
       expect(await db.sessions.count()).toBe(0);
     },
   );
+});
+
+describe("resultados y correcciones", () => {
+  it("completa antes de tiempo sin cerrar por el timer y sin duplicar el evento", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const completed = await completeSession(db, "s1", NOW + 10_000);
+
+    expect(completed).toMatchObject({ status: "completed", startedAt: null, elapsedSec: 10 });
+    expect((await db.occurrences.get(started.occurrenceId))!.status).toBe("completed");
+    expect(await db.sessions.where("runningSlot").equals("running").count()).toBe(0);
+    expect(await db.events.where("type").equals("completed").count()).toBe(1);
+    expect(await db.ledger.count()).toBe(0);
+
+    expect(await completeSession(db, "s1", NOW + 20_000)).toEqual(completed);
+    expect(await db.events.where("type").equals("completed").count()).toBe(1);
+  });
+
+  it("completa una sesión ya vencida y conserva el tiempo completo", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    await expireSession(db, "s1", NOW + 15 * 60 * 1000);
+    const completed = await completeSession(db, "s1", NOW + 15 * 60 * 1000 + 1000);
+
+    expect(completed).toMatchObject({ status: "completed", elapsedSec: 15 * 60 });
+    expect((await db.occurrences.get(started.occurrenceId))!.timerElapsedSec).toBe(15 * 60);
+    expect(await db.events.where("type").equals("timer_expired").count()).toBe(1);
+    expect(await db.events.where("type").equals("completed").count()).toBe(1);
+  });
+
+  it("marca no aplica, cierra la sesión como abandonada y es idempotente", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const closed = await markOccurrenceNotApplicable(db, "s1", NOW + 10_000);
+
+    expect(closed).toMatchObject({ status: "abandoned", elapsedSec: 10 });
+    expect((await db.occurrences.get(started.occurrenceId))!.status).toBe("not_applicable");
+    expect(await db.events.where("type").equals("not_applicable").count()).toBe(1);
+    expect(await markOccurrenceNotApplicable(db, "s1", NOW + 20_000)).toEqual(closed);
+    expect(await db.events.where("type").equals("not_applicable").count()).toBe(1);
+  });
+
+  it("reintenta cinco minutos sin cambiar el acuerdo ni duplicar con el mismo actionId", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const deadline = NOW + 15 * 60 * 1000;
+    await expireSession(db, "s1", deadline);
+
+    const retried = await retrySession(db, "s1", "retry-1", deadline + 1000);
+    expect(retried).toMatchObject({
+      status: "running", remainingSecAtStart: 300, rewardTargetRc: started.rewardTargetRc,
+      elapsedSec: 15 * 60,
+    });
+    expect(await retrySession(db, "s1", "retry-1", deadline + 2000)).toEqual(retried);
+    expect(await db.events.where("type").equals("resumed").count()).toBe(1);
+
+    await expect(retrySession(db, "s1", "retry-2", deadline + 3000)).rejects.toThrow("corriendo");
+  });
+
+  it("permite un segundo vencimiento tras reintentar y registra eventos separados", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const firstDeadline = NOW + 15 * 60 * 1000;
+    await expireSession(db, "s1", firstDeadline);
+    const retryAt = firstDeadline + 1000;
+    await retrySession(db, "s1", "retry-1", retryAt);
+
+    const second = await expireSession(db, "s1", retryAt + 5 * 60 * 1000);
+    expect(second).toMatchObject({ status: "awaiting_confirmation", elapsedSec: 15 * 60 + 5 * 60 });
+    expect(await db.events.where("type").equals("timer_expired").count()).toBe(2);
+  });
 });
 
 describe("atomicidad y concurrencia", () => {

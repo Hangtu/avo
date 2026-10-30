@@ -56,6 +56,7 @@ export function RunoHome() {
   const [view, setView] = useState<View>({ kind: "loading" });
   const [pendingTask, setPendingTask] = useState<FranjaTask | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +148,13 @@ export function RunoHome() {
       cancelled = true;
       db?.close();
     };
+  }, [refreshKey]);
+
+  const finishSession = useCallback(() => {
+    setNotice("Listo.");
+    setView({ kind: "loading" });
+    setPendingTask(null);
+    setRefreshKey((key) => key + 1);
   }, []);
 
   const beginSession = useCallback(async (task: FranjaTask) => {
@@ -214,7 +222,11 @@ export function RunoHome() {
               {view.kind === "loading" ? <LoadingState /> : null}
               {view.kind === "error" ? <ErrorState message={view.message} /> : null}
               {view.kind === "session" ? (
-                <SessionView key={view.session.id} session={view.session} />
+                <SessionView
+                  key={view.session.id}
+                  session={view.session}
+                  onFinished={finishSession}
+                />
               ) : null}
               {view.kind === "ready" ? (
                 <Franja view={view} onStart={setPendingTask} />
