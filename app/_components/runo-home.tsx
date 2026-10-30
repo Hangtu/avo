@@ -424,7 +424,7 @@ export function RunoHome() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16">
+      <div className="runo-shell mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16">
         <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
@@ -439,34 +439,36 @@ export function RunoHome() {
             {view.kind !== "loading" && view.kind !== "error" ? (
               <p className="text-sm text-muted">{view.dateLabel}</p>
             ) : null}
-            {showEditor || showWallet ? (
-              <button
-                type="button"
-                onClick={closeSecondary}
-                className="min-h-11 text-sm font-semibold underline underline-offset-4"
-              >
-                Volver a hoy
-              </button>
-            ) : (
-              <>
+            <div className="hidden items-center justify-end gap-3 sm:flex">
+              {showEditor || showWallet ? (
                 <button
                   type="button"
-                  onClick={openWallet}
-                  disabled={pendingStart !== null}
-                  className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+                  onClick={closeSecondary}
+                  className="min-h-11 text-sm font-semibold underline underline-offset-4"
                 >
-                  Monedero
+                  Volver a hoy
                 </button>
-                <button
-                  type="button"
-                  onClick={openEditor}
-                  disabled={pendingStart !== null}
-                  className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
-                >
-                  Tareas
-                </button>
-              </>
-            )}
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={openWallet}
+                    disabled={pendingStart !== null}
+                    className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+                  >
+                    Monedero
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openEditor}
+                    disabled={pendingStart !== null}
+                    className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+                  >
+                    Tareas
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
@@ -553,6 +555,35 @@ export function RunoHome() {
             />
           </div>
         </footer>
+
+        <nav className="runo-dock" aria-label="Navegación principal">
+          <button
+            type="button"
+            onClick={() => {
+              if (showEditor || showWallet) closeSecondary();
+            }}
+            disabled={pendingStart !== null}
+            aria-current={!showEditor && !showWallet ? "page" : undefined}
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            onClick={openEditor}
+            disabled={pendingStart !== null}
+            aria-current={showEditor ? "page" : undefined}
+          >
+            Tareas
+          </button>
+          <button
+            type="button"
+            onClick={openWallet}
+            disabled={pendingStart !== null}
+            aria-current={showWallet ? "page" : undefined}
+          >
+            Monedero
+          </button>
+        </nav>
       </div>
     </main>
   );

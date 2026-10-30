@@ -265,6 +265,8 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 
 **Paleta implementada:** papel `#F4F1EA`, tinta `#171512`, gris `#544E47`, línea `#D8D2C6` (solo separadores decorativos), control `#8C8275` (bordes de campos/controles) y acento bermellón `#C43D2E`. Los ratios se midieron en C3; el acento no se usa como texto de cuerpo.
 
+**Base elegida después de la exploración (Liquid Focus, 2026-10-30):** fondo ambiental `#EFF6F5`, tinta `#17252A`, superficies de vidrio con fallback sólido, muted `#3B5457`, acento `#4F6BFF`, primario `#3948C8` y timer circular. En móvil la navegación principal baja a un dock de vidrio; en escritorio queda arriba. Modo noche `#0C161B`/`#EAF7F6`/`#8EA2FF`. Lexend se mantiene; el vidrio nunca es la única capa de legibilidad.
+
 **Paleta de noche (D3):** fondo `#1B1815`, tinta `#F3EEE5`, superficie `#24201B`, gris `#C4BBAD`, línea `#463F35` (decorativa), control `#9A8F80` y acento `#E0705F`. La tinta, el gris y el control miden 15.30:1, 9.31:1 y 5.57:1 sobre el fondo; la línea y la superficie son decorativas. La selección usa tinta oscura sobre el acento (5.77:1).
 
 ### C3 — medición de contraste (2026-10-30)
@@ -435,7 +437,7 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Descanso | 10 min gratis tras completar, saltable, sin RC y sin bloquear la siguiente tarea |
 | Tono inicial | Techo 2, tono efectivo normal 1; modo duro solicitado o con motivo explícito; no por usar cambios |
 | Elian / nivel 3 | Reservados para una fase posterior, con habilitación explícita y sin descalificación personal |
-| Dirección visual | Minimalismo editorial: Lexend, papel/tinta/bermellón, sin sombras, una acción principal; referencias en `docs/design/references/` |
+| Dirección visual | Minimalismo editorial evolucionado a **Liquid Focus**: Lexend, fondo ambiental, vidrio con fallback, índigo, una acción principal y dock móvil; referencias en `docs/design/references/` |
 | Variación del MVP | El Reloj y 5–10 frases locales; audio apagado inicialmente |
 | Datos | Local-first, sin login ni envío de datos personales a un LLM en MVP |
 | Recordatorios externos | `.ics` después, sin promesa de alarma o takeover garantizados |

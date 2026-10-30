@@ -36,13 +36,14 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#F4F1EA",
+  themeColor: "#EFF6F5",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es-MX"
+      data-ui="liquid"
       className={`${lexend.variable} h-full antialiased`}
       suppressHydrationWarning
     >

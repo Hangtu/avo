@@ -74,3 +74,352 @@ select {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+
+/* ── UI experiment: Liquid Focus ─────────────────────────────────────────── */
+:root[data-ui="liquid"] {
+  color-scheme: light;
+  --background: #eef5f4;
+  --foreground: #17252a;
+  --surface: rgba(255, 255, 255, 0.5);
+  --surface-2: rgba(255, 255, 255, 0.3);
+  --muted: #3b5457;
+  --accent: #4f6bff;
+  --line: rgba(23, 37, 42, 0.1);
+  --control: #6f8b8e;
+  --primary: #3948c8;
+  --primary-2: #3d48c0;
+  --primary-fg: #ffffff;
+  --chip: rgba(255, 255, 255, 0.38);
+  --surface-border: rgba(255, 255, 255, 0.7);
+  --surface-shadow: 0 30px 80px -40px rgba(35, 65, 95, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --card: rgba(255, 255, 255, 0.34);
+  --card-shadow: 0 22px 55px -35px rgba(35, 65, 95, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --radius: 32px;
+  --card-radius: 24px;
+  --timer-bg: radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.35) 34%, transparent 68%), linear-gradient(135deg, rgba(197, 240, 241, 0.8), rgba(217, 207, 255, 0.72));
+  --timer-border: rgba(255, 255, 255, 0.85);
+  --timer-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 30px 80px -35px rgba(58, 80, 150, 0.55);
+  --timer-radius: 50%;
+  --progress: #4f6bff;
+  --progress-2: #6dd7d0;
+  --progress-track: rgba(255, 255, 255, 0.4);
+  --display-weight: 500;
+  --blur: blur(22px) saturate(135%);
+}
+
+:root[data-ui="liquid"][data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0c161b;
+  --foreground: #eaf7f6;
+  --surface: rgba(22, 37, 42, 0.56);
+  --surface-2: rgba(255, 255, 255, 0.05);
+  --muted: #a9c0bf;
+  --accent: #8aa0ff;
+  --line: rgba(234, 247, 246, 0.08);
+  --control: #7e9c9d;
+  --primary: #8ea2ff;
+  --primary-2: #a3b4ff;
+  --primary-fg: #0c161b;
+  --chip: rgba(255, 255, 255, 0.05);
+  --surface-border: rgba(255, 255, 255, 0.14);
+  --surface-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --card: rgba(255, 255, 255, 0.05);
+  --card-shadow: 0 22px 55px -35px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --timer-bg: radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.04) 36%, transparent 70%), linear-gradient(135deg, rgba(34, 70, 78, 0.9), rgba(47, 42, 80, 0.86));
+  --timer-border: rgba(255, 255, 255, 0.16);
+  --timer-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 30px 80px -35px rgba(0, 0, 0, 0.85);
+  --progress-track: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-ui="liquid"] body {
+  background:
+    radial-gradient(circle at 10% 0%, #cfeff0 0, transparent 34%),
+    radial-gradient(circle at 100% 10%, #e5d6ff 0, transparent 36%),
+    radial-gradient(circle at 50% 100%, #f8e5d8 0, transparent 40%),
+    #eff6f5;
+  background-attachment: fixed;
+}
+
+:root[data-ui="liquid"][data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 10% 0%, #16343b 0, transparent 36%),
+    radial-gradient(circle at 100% 10%, #2c2445 0, transparent 38%),
+    radial-gradient(circle at 50% 100%, #3a2820 0, transparent 40%),
+    #0a1519;
+}
+
+:root[data-ui="liquid"] body::before {
+  content: "";
+  position: fixed;
+  inset: -18%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 25% 30%, rgba(114, 224, 222, 0.4), transparent 24%),
+    radial-gradient(circle at 75% 20%, rgba(178, 157, 255, 0.4), transparent 24%),
+    radial-gradient(circle at 60% 80%, rgba(255, 191, 163, 0.35), transparent 26%);
+  filter: blur(55px);
+  opacity: 0.8;
+}
+
+:root[data-ui="liquid"][data-theme="dark"] body::before {
+  background:
+    radial-gradient(circle at 25% 30%, rgba(37, 150, 160, 0.3), transparent 24%),
+    radial-gradient(circle at 75% 20%, rgba(101, 79, 190, 0.3), transparent 24%),
+    radial-gradient(circle at 60% 80%, rgba(180, 101, 75, 0.22), transparent 26%);
+  opacity: 0.9;
+}
+
+:root[data-ui="liquid"] main {
+  background: transparent;
+}
+
+:root[data-ui="liquid"] header {
+  border-bottom: 0;
+  padding-bottom: 1.25rem;
+}
+
+:root[data-ui="liquid"] footer {
+  border-top: 0;
+}
+
+:root[data-ui="liquid"] section {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius);
+  padding: clamp(1.2rem, 4vw, 2rem);
+  box-shadow: var(--surface-shadow);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+
+:root[data-ui="liquid"] ol,
+:root[data-ui="liquid"] ul,
+:root[data-ui="liquid"] form {
+  border-top: 0;
+  border-bottom: 0;
+  border-color: transparent;
+}
+
+:root[data-ui="liquid"] ol > li,
+:root[data-ui="liquid"] ul > li {
+  background: var(--card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
+  padding: 1rem;
+  margin: 0.7rem 0;
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+:root[data-ui="liquid"] form {
+  padding: 0;
+}
+
+:root[data-ui="liquid"] header button {
+  background: var(--chip);
+  border: 1px solid var(--surface-border);
+  padding-inline: 0.9rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+:root[data-ui="liquid"] button {
+  border-radius: 999px;
+  text-decoration: none;
+  transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+:root[data-ui="liquid"] button.bg-foreground {
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  color: var(--primary-fg);
+  border-color: transparent;
+  box-shadow: 0 16px 35px -20px rgba(66, 89, 232, 0.8);
+}
+
+:root[data-ui="liquid"] button.border-control {
+  background: var(--surface-2);
+  border-color: var(--surface-border);
+  color: var(--foreground);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+:root[data-ui="liquid"] select,
+:root[data-ui="liquid"] input:not([type="checkbox"]) {
+  background: var(--surface-2);
+  border-color: var(--surface-border);
+  border-radius: 0.9rem;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+:root[data-ui="liquid"] h1 {
+  font-weight: var(--display-weight);
+  letter-spacing: -0.05em;
+  font-size: clamp(2.8rem, 8vw, 4.6rem);
+}
+
+:root[data-ui="liquid"] h2 {
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+:root[data-ui="liquid"] h3 {
+  font-weight: 500;
+}
+
+:root[data-ui="liquid"] [role="progressbar"] {
+  height: 0.55rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--progress-track);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-ui="liquid"] .vigia-fill {
+  background: linear-gradient(90deg, var(--progress), var(--progress-2));
+  border-radius: 999px;
+  box-shadow: 0 0 18px rgba(79, 107, 255, 0.4);
+}
+
+:root[data-ui="liquid"] p[role="timer"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(62vw, 16rem);
+  aspect-ratio: 1;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 0.3em;
+  background: var(--timer-bg);
+  border: 1px solid var(--timer-border);
+  border-radius: var(--timer-radius);
+  box-shadow: var(--timer-shadow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+
+
+
+:root[data-ui="liquid"] {
+  --surface-solid: #f4fbf9;
+}
+
+:root[data-ui="liquid"][data-theme="dark"] {
+  --surface-solid: #15272c;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-ui="liquid"] section,
+  :root[data-ui="liquid"] ol > li,
+  :root[data-ui="liquid"] ul > li,
+  :root[data-ui="liquid"] .runo-dock {
+    background: var(--surface-solid);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-ui="liquid"] section,
+  :root[data-ui="liquid"] ol > li,
+  :root[data-ui="liquid"] ul > li,
+  :root[data-ui="liquid"] .runo-dock {
+    background: var(--surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+:root[data-ui="liquid"] .runo-dock {
+  position: fixed;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: max(0.6rem, env(safe-area-inset-bottom));
+  z-index: 50;
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: 0 24px 60px -28px rgba(35, 65, 95, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+}
+
+:root[data-ui="liquid"][data-theme="dark"] .runo-dock {
+  background: rgba(22, 37, 42, 0.72);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+:root[data-ui="liquid"] .runo-dock button {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+:root[data-ui="liquid"] .runo-dock button {
+  white-space: nowrap;
+}
+
+@media (max-width: 240px) {
+  :root[data-ui="liquid"] .runo-dock button {
+    font-size: 0.64rem;
+  }
+}
+
+:root[data-ui="liquid"] .runo-dock button[aria-current="page"] {
+  background: var(--primary);
+  color: var(--primary-fg);
+  box-shadow: 0 10px 24px -18px rgba(66, 89, 232, 0.8);
+}
+
+@media (max-width: 240px) {
+  :root[data-ui="liquid"] p[role="timer"] {
+    width: min(100%, 9rem);
+    font-size: 2rem;
+    padding: 0.2em;
+  }
+}
+
+@media (min-width: 640px) {
+  :root[data-ui="liquid"] .runo-dock {
+    display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  :root[data-ui="liquid"] .runo-shell {
+    padding-bottom: 7.5rem;
+  }
+}
+
+/* Shared experiment layer: keep the content above the decorative background. */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ui] button {
+    transition: none;
+  }
+}
+
+:root[data-ui="liquid"] ol > li > div:last-child > div:first-child > button:first-child {
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-color: transparent;
+  padding-inline: 1rem;
+  box-shadow: 0 12px 24px -18px rgba(0, 0, 0, 0.4);
+}
