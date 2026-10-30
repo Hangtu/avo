@@ -5,18 +5,18 @@
 
 **Última actualización:** 2026-10-30
 **Alcance vigente:** `plan.md` v1.2 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas y descanso gratuito; Runo Coins pasa a la segunda capa.
-**Fase:** MVP / Fase 1 — primer corte por franjas. Bloque B cerrado; A1/A2 técnicos; C1–C4/C6 y D1 verificados; C5 y D2 pendientes de teléfono/A0. Siguiente D3 (una mano y tema); A0 es dependencia externa.
-**Bloque activo:** D — Ancla y pulido. **Ítem en curso:** ninguno; siguiente D3.
+**Fase:** MVP / Fase 1 — primer corte por franjas. Bloque B cerrado; A1/A2 técnicos; C1–C4/C6 y D1 verificados; C5, D2 y D3 pendientes de teléfono/A0. Siguiente D4 (validación de salida); A0 es dependencia externa.
+**Bloque activo:** D — Ancla y pulido. **Ítem en curso:** ninguno; siguiente D4.
 
 ## Siguiente acción
 
-**D3 · Una mano y preferencias visuales.**
+**D4 · Validación de salida.**
 
-Controles alcanzables y ≥44 px, zoom 200 % funcional, tema cálido automático/manual persistente, foco visible y etiquetas legibles. Revisar en viewport móvil y sin depender únicamente del color.
+Recorrer los 16 criterios G01–G16 con commit, dispositivo/navegador, pasos, resultado y limitación. Separar la evidencia técnica de la que exige teléfono; no dar por superada una prueba móvil que no se hizo. Dejar preparada la semana de uso posterior a la liberación.
 
-**Después:** D4 y A0/validación real. C5 (audio) y D2 (iPhone) siguen 🧪.
+**Después:** A0/validación real y cierre de C5/D2/D3 en dispositivo; después, la semana de prueba. No desplegar sin autorización.
 
-**Completados en este avance:** A1, A2, A7, A3–A6, B1–B7, B8–B12, C1–C6, D1 y D2. 189 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. Todo el bucle B, A1/A2, C1–C4/C6, D1 y D2 se verificaron en local/Chrome headless sobre build de producción; B3/A1/A2, el audio real de C5 y la vibración en iPhone de D2 quedan 🧪 por validación en teléfono/A0. La dirección visual minimalista y Lexend están aplicadas; C3 midió contraste, C4 respeta movimiento reducido, C6 usa voz local. No hay criterio G01–G16 dado por superado.
+**Completados en este avance:** A1, A2, A7, A3–A6, B1–B7, B8–B12, C1–C6, D1, D2 y D3. 192 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. Todo el bucle B, A1/A2, C1–C4/C6, D1–D3 se verificaron en local/Chrome headless sobre build de producción; B3/A1/A2, el audio real de C5, la vibración en iPhone de D2 y la validación en dispositivo de D3 quedan 🧪 por teléfono/A0. La dirección visual minimalista, Lexend, el tema nocturno y los tamaños de control están aplicadas; C3 midió contraste, C4 respeta movimiento reducido, C6 usa voz local. No hay criterio G01–G16 dado por superado.
 
 **Pendiente externo A0:** elegir un origen HTTPS estable y probar en el teléfono. Vercel es una opción, no una decisión ejecutada. No se ha desplegado ni confirmado una URL. Esto es necesario para validar instalación/offline en el móvil, **pero no bloquea desarrollar y probar en local**. No contratar ni publicar servicios sin autorización.
 
@@ -27,8 +27,8 @@ Controles alcanzables y ≥44 px, zoom 200 % funcional, tema cálido automático
 | **A · Cimiento** | 8 | 7 | 5 | Datos/lógica, PWA y offline técnicos verificados; A0 y dispositivo pendientes |
 | **B · El bucle** | 12 | 12 | 11 | Bloque cerrado; B3 🧪 (wake lock móvil), resto ✅ |
 | **C · Economía y piel** | 6 | 6 | 5 | C1–C4/C6 ✅; C5 🧪 audio real |
-| **D · Ancla y pulido** | 4 | 2 | 1 | D1 ✅; D2 🧪; D3 siguiente |
-| **Total** | **30** | **27** | **22** | 27 ítems con evidencia; 22 verificados según criterio |
+| **D · Ancla y pulido** | 4 | 3 | 1 | D1 ✅; D2/D3 🧪; D4 siguiente |
+| **Total** | **30** | **28** | **22** | 28 ítems con evidencia; 22 verificados según criterio |
 
 **Validación de salida:** 0 de 16 criterios. **Prueba de uso:** no iniciada.
 
@@ -104,7 +104,7 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 
 ## Bloque C — Economía y piel
 
-**C1–C6, D1 y D2 ya están implementados.** El descanso gratuito B11 sigue separado del canje; C5 queda 🧪 por audio real y D2 por vibración/iPhone en dispositivo; D3 es la siguiente pieza.
+**C1–C6, D1, D2 y D3 ya están implementados.** El descanso gratuito B11 sigue separado del canje; C5 queda 🧪 por audio real, D2 por vibración/iPhone y D3 por la prueba en dispositivo; D4 es la siguiente pieza.
 
 | ID | Qué | Terminado cuando… | Estado | Evidencia |
 |---|---|---|---|---|
@@ -123,7 +123,7 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 |---|---|---|---|---|
 | **D1** | Ancla ligera visible | Se presenta una vez por ocurrencia al llegar su hora o volver dentro de su franja; antes pausa y guarda otra sesión; no inicia sola, no consume cambios ni mueve citas; lo vencido no se fuerza como vigente | ✅ | `findDueAnchor` + `claimAnchor`, watcher cada 30 s/visibility y `AnchorView`. Chrome headless: a las 18:01 apareció «Hora fija · 18:00» sin timer; «Dejar pendiente» volvió a la franja y no reapareció tras recarga; con una sesión de 15 min corriendo, el ancla pausó la anterior y «Empezar» abrió el gym dejando la anterior pausada. `claimAnchor` registra `anchor_presented` una vez; `markOccurrenceNotApplicableDirect` cubre «No aplica». Fuera de 18:00–18:30 no se presenta. |
 | **D2** | Feedback y fallbacks de plataforma | Feedback visual siempre; vibración solo donde funcione, sin fallar en iPhone si no existe; no se promete sonido o wake lock con la app cerrada | 🧪 | `lib/platform/haptics.ts` con detección/captura de errores; `pulse("timer")` al vencer y `pulse("anchor")` al presentar. Chrome headless: con `navigator.vibrate` simulado, el timer registró `[120,80,120]` y el ancla `[60,40,60]` con su aviso visual; sin vibración, el ancla siguió visible; sin `wakeLock` el timer corrió; sin `AudioContext`, activar sonido mostró «El audio no está disponible…» y el timer siguió. Copia visible «Sin alarma ni aviso con la app cerrada» y «la pantalla puede apagarse»; el vencimiento tiene `role=status`. 189/189 tests. Falta iPhone/A0 real para cerrar la ausencia de vibración en Safari. |
-| **D3** | Una mano y preferencias visuales | Controles alcanzables y ≥44 px, zoom 200 % funcional, tema cálido automático/manual persistente, foco/etiquetas legibles en el dispositivo objetivo | ⬜ | — |
+| **D3** | Una mano y preferencias visuales | Controles alcanzables y ≥44 px, zoom 200 % funcional, tema cálido automático/manual persistente, foco/etiquetas legibles en el dispositivo objetivo | 🧪 | `lib/domain/theme.ts` (auto 20:00–07:00, manual gana), `use-theme-preference`, `ThemeControl` al pie y bootstrap pre-pintado; paleta noche con tinta 15.30:1, gris 9.31:1, control 5.57:1 y foco 5.60:1. Global 44×44, etiquetas de checkbox de 50 px, timer/descanso con `clamp`, `overflow-wrap` y botones envueltos. Chrome headless: a las 20:30 entró oscuro y actualizó `theme-color`; «Claro» persistió tras recarga; «Automático» volvió a oscuro a las 22:00; foco de teclado 2 px bermellón; todos los controles ≥44 px a 390 y a 195 CSS px (aproximación de 200 %), sin scroll horizontal; timer 150 px y descanso 150 px a 195. 192/192 tests. Falta la prueba en teléfono/A0 con zoom real y safe areas. |
 | **D4** | Validación de salida | Se verifican y documentan los 16 criterios siguientes; se conocen las limitaciones y se deja lista la semana de prueba, sin afirmar utilidad ya validada | ⬜ | — |
 
 **Límite de D1:** el MVP no garantiza avisos con el teléfono bloqueado o la app cerrada. `.ics` es fase 2 y depende del calendario/permisos; no es un takeover del sistema ni una alarma garantizada.
@@ -168,15 +168,15 @@ Una semana de observación, **no siete días perfectos como condición para no p
 
 | Comando | Resultado observado |
 |---|---|
-| `npm test` | 189/189 tests, 13 archivos |
-| `TZ=UTC npm test` | 189/189 |
-| `TZ=America/Mexico_City npm test` | 189/189 |
+| `npm test` | 192/192 tests, 14 archivos |
+| `TZ=UTC npm test` | 192/192 |
+| `TZ=America/Mexico_City npm test` | 192/192 |
 | `npm run typecheck` | Exit 0, tipos de Next y TypeScript |
 | `npm run lint` | Exit 0, sin errores ni warnings |
 | `npm run build` | Exit 0, compilación y prerender de la página nueva |
 | Chrome headless / diseño | 390 px y 1280 px: franja y editor con Lexend, papel/tinta/bermellón, reglas finas y sin sombras; sin desbordes visibles. C3: ratios de `plan.md` §10 medidos con la fórmula WCAG; control 3.35:1. No es prueba en dispositivo ni auditoría formal. |
 | `git diff --check` | Exit 0 |
-| Chrome headless / build producción | A1/A2 + B1–B12 + C1–C6 + D1–D2: manifest Runo válido, iconos 192/512/maskable y apple 180 con 200; sin errores de instalabilidad reportados; service worker activo, recarga offline y arranque con servidor detenido sirvieron el shell; franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica»; descanso ofrecido tras completar, 10:00, fin sin autoinicio y terminación al empezar otra tarea; «Otra» cambia una carta, descuenta el contador, se oculta sin alternativa y la tarea diferida vuelve en la franja siguiente; el editor crea, edita días/franja/hora/franja fija/escalón, archiva y persiste; el paso corto corre 01:00, deja la tarea parcial y «Continuar 2 min» retoma el resto, con descanso solo tras la tarea completa; correr/pausar sobreviven recarga y una sesión de lunes a martes conserva la ocurrencia del lunes y deja el martes abierto; el bucle no tiene callejones, el foco muestra una sola tarea y Tareas es accesible desde franja, sesión y día cerrado; las recompensas visibles suman 1 RC de paso + 2 RC de tarea = 3 RC y el ledger registra [1,2] sin duplicar; el monedero ganó 5, canceló un canje sin débito, canjeó 3 y quedó en 2, rechazó 5 por saldo insuficiente; el Vigía avanzó 0→20 % y se congeló en pausa; con `prefers-reduced-motion` su transición fue `none`; audio apagado por defecto, preferencia brown/tick persistente y mute reversible; voz normal, silencio, cierre y empujón solo a pedido, con `maxTone` persistente; el ancla apareció una vez sin timer, pausó una sesión previa y no reapareció tras dejarla pendiente; el timer y el ancla vibraron con un stub de `navigator.vibrate`, y sin vibración/audio/wakeLock el flujo visual siguió y mostró errores visibles. Sin dispositivo real; wake lock, audio audible e iPhone no verificados. |
+| Chrome headless / build producción | A1/A2 + B1–B12 + C1–C6 + D1–D3: manifest Runo válido, iconos 192/512/maskable y apple 180 con 200; sin errores de instalabilidad reportados; service worker activo, recarga offline y arranque con servidor detenido sirvieron el shell; franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica»; descanso ofrecido tras completar, 10:00, fin sin autoinicio y terminación al empezar otra tarea; «Otra» cambia una carta, descuenta el contador, se oculta sin alternativa y la tarea diferida vuelve en la franja siguiente; el editor crea, edita días/franja/hora/franja fija/escalón, archiva y persiste; el paso corto corre 01:00, deja la tarea parcial y «Continuar 2 min» retoma el resto, con descanso solo tras la tarea completa; correr/pausar sobreviven recarga y una sesión de lunes a martes conserva la ocurrencia del lunes y deja el martes abierto; el bucle no tiene callejones, el foco muestra una sola tarea y Tareas es accesible desde franja, sesión y día cerrado; las recompensas visibles suman 1 RC de paso + 2 RC de tarea = 3 RC y el ledger registra [1,2] sin duplicar; el monedero ganó 5, canceló un canje sin débito, canjeó 3 y quedó en 2, rechazó 5 por saldo insuficiente; el Vigía avanzó 0→20 % y se congeló en pausa; con `prefers-reduced-motion` su transición fue `none`; audio apagado por defecto, preferencia brown/tick persistente y mute reversible; voz normal, silencio, cierre y empujón solo a pedido, con `maxTone` persistente; el ancla apareció una vez sin timer, pausó una sesión previa y no reapareció tras dejarla pendiente; el timer y el ancla vibraron con un stub de `navigator.vibrate`, y sin vibración/audio/wakeLock el flujo visual siguió y mostró errores visibles; a las 20:30 el tema automático fue oscuro, «Claro» persistió y los controles midieron ≥44 px a 390 y 195 CSS px, sin scroll horizontal. Sin dispositivo real; wake lock, audio audible, iPhone y zoom real no verificados. |
 | Navegador / dispositivo / instalación | Navegador headless sí; dispositivo, PWA e instalación no |
 
 Pruebas de DB con fake-indexeddb, no almacenamiento de un teléfono. Las protecciones de esquema/snapshots no equivalen a tener implementados el pago y canje de C1/C2. El servidor de producción se arrancó solo para la comprobación local y se detuvo después; no se publicó una URL.
@@ -188,6 +188,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 | Fecha | ID | Qué pasó |
 |---|---|---|
 | 2026-10-30 | Diseño | Aprobadas las referencias minimalistas del dueño y Lexend como fuente base. Copiadas a `docs/design/references/`; `plan.md` §10 y §16 actualizados; tokens de papel/tinta/bermellón, foco, selección y Lexend vía `next/font`; shell, franja, timer, descanso y editor aplanados a reglas finas, sin sombras ni radios y con acciones tipográficas. 174/174 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless a 390/1280 px sin desbordes visibles; medición formal de contraste y prueba en dispositivo siguen en C3/D3. |
+| 2026-10-30 | D3 | Una mano y tema: `resolveTheme` 20:00–07:00 con override manual, bootstrap pre-pintado y `ThemeControl` persistido en `Settings.theme`; paleta noche cálida con contraste medido; `color-scheme` y `theme-color` dinámicos. Global 44×44, labels de checkbox de 50 px, timer/descanso responsivos con `clamp`, flex wrap y `overflow-wrap`. Chrome headless: auto oscuro a 20:30, manual claro persistente, auto 22:00 oscuro, foco de teclado 2 px, cero controles <44 px y cero scroll horizontal a 390/195 CSS px; timer y descanso de 150 px a 195. 192/192 tests; typecheck/lint/build pasan. D3 🧪 por dispositivo/A0; D4 siguiente. |
 | 2026-10-30 | D2 | Fallbacks de plataforma: `lib/platform/haptics.ts` detecta `navigator.vibrate`, captura rechazos y devuelve false sin bloquear; `pulse` se llama al vencer el timer y al presentar el ancla. Copia explícita «Sin alarma ni aviso con la app cerrada» y «la pantalla puede apagarse»; el vencimiento usa `role=status`. Chrome headless: vibración simulada en timer/ancla, ancla visible sin vibración, timer corriendo sin wakeLock, audio ausente con error visual y timer intacto. 189/189 tests; typecheck/lint/build pasan. D3 siguiente; iPhone/A0 pendiente. |
 | 2026-10-30 | D1 | Ancla visible: `findDueAnchor` respeta hora/franja y presentación única; `claimAnchor` registra `anchor_presented`; un watcher de 30 s/visibility pausa una sesión corriendo y presenta una `AnchorView` sin iniciar timer. «Empezar» usa `startSession(anchor)` con la sesión anterior pausada; «Dejar pendiente» no repite; «No aplica» usa `markOccurrenceNotApplicableDirect`. Chrome headless: ancla 18:00 a las 18:01, sin timer, una vez, pausa previa de 15 min y gym iniciado con la anterior pausada; fuera de franja no aparece. 185/185 tests; typecheck/lint/build pasan. D2 siguiente. |
 | 2026-10-30 | C6 | Voz local: banco de 10 frases deterministas, sin LLM; `VoiceControl` en franja y sesión persistido en `Settings.maxTone`; modo normal, silencio y techo 2; «Empujón» solo a pedido, sin escalada automática; cierre en el aviso. Chrome headless: frase normal, silencio oculta, techo 2 no endurece solo, empujón pide frase dura, preferencia persiste. 178/178 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. D1 siguiente. |
@@ -224,7 +225,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 - **Minimalismo editorial aprobado.** Tipografía grande, mucho aire, reglas finas, sin sombras ni tarjetas anidadas, un solo acento bermellón para un marcador/foco puntual. Referencias del dueño en `docs/design/references/`.
 - **Lexend es la fuente base**, self-hosted con `next/font`; Atkinson queda solo como alternativa si C3 encuentra una razón de lectura. Tokens: papel `#F4F1EA`, tinta `#171512`, gris `#544E47`, línea `#D8D2C6`, acento `#C43D2E`.
-- **La app arranca en papel claro.** La referencia TURA alimenta el modo noche posterior; no se añade tema oscuro nuevo antes de C3/D3.
+- **La app arranca en papel claro o noche según la hora.** D3 implementa la referencia TURA como noche cálida (`#1B1815`/`#F3EEE5`/`#E0705F`), automática de 20:00 a 07:00 y con override manual persistente. El automático vuelve a claro a las 07:00; esa hora es una decisión de implementación ajustable si el dueño prefiere otra.
 
 ### Decisiones v1.2 (2026-10-30)
 
@@ -246,8 +247,8 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 ### Pendientes reales
 
 - **A0:** origen HTTPS autorizado y dispositivo/navegador objetivo. No se ha elegido proveedor ni se ha desplegado.
-- **C3:** contraste medido y fuentes de WCAG 2.2/WebAIM documentadas; siguen pendientes la prueba de lectura con usuarios, el zoom 200 % y el tema nocturno en D3, además de no afirmar validación clínica.
-- **Plataformas/UI:** Todo el bucle B, A1/A2, C1–C6, D1 y D2 se verificaron en Chrome headless, no en un teléfono. C5 necesita audio audible/campana real y D2 necesita comprobar la ausencia de vibración en iPhone. Faltan A0 (HTTPS/instalación real), D3 (una mano/tema) y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
+- **C3:** contraste medido y fuentes de WCAG 2.2/WebAIM documentadas; D3 añade tema nocturno y layout para zoom 200 %, pero la prueba real en teléfono, la lectura con usuarios y la validación clínica siguen pendientes. No afirmar validación clínica.
+- **Plataformas/UI:** Todo el bucle B, A1/A2, C1–C6 y D1–D3 se verificaron en Chrome headless, no en un teléfono. C5 necesita audio audible/campana real; D2 necesita comprobar la ausencia de vibración en iPhone; D3 necesita zoom real, safe areas y una mano en el dispositivo. Faltan A0 (HTTPS/instalación real) y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
 
 ### Contexto técnico consultado, no evidencia de implementación
 

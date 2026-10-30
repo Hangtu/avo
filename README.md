@@ -2,9 +2,9 @@
 
 App personal de hábitos y sesiones de enfoque, local-first y sin login.
 El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PWA/offline),
-C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla) y D2
-(fallbacks de plataforma) están listos técnicamente. Falta A0/instalación real,
-una mano/tema y pruebas móviles.
+C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla), D2
+(fallbacks de plataforma) y D3 (una mano y tema cálido) están listos
+técnicamente. Falta A0/instalación real, validación de salida y pruebas móviles.
 
 ## Antes de trabajar
 
@@ -69,6 +69,7 @@ no al importar módulos ni durante un render de servidor.
 
 El bucle B está completo, A1/A2 cubren PWA/offline, C1/C2 acreditan y canjean RC, C3
 documenta contraste real con WCAG/WebAIM, C4 añade el Vigía, C5 el audio opt-in, C6
-la voz local, D1 el ancla visible y D2 los fallbacks de plataforma. Todavía faltan
-una mano/tema, instalación real/HTTPS y pruebas móviles: consultar siempre `STATUS.md` en lugar de
+la voz local, D1 el ancla visible, D2 los fallbacks de plataforma y D3 la
+accesibilidad de una mano/tema. Todavía faltan validación de salida, instalación
+real/HTTPS y pruebas móviles: consultar siempre `STATUS.md` en lugar de
 asumir que los tests unitarios significan que el MVP ya está listo para uso.

@@ -247,7 +247,7 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 - **Mucho espacio en blanco** y un ancho de lectura corto; la pantalla debe respirar incluso en móvil.
 - **El timer es la pieza central** durante el asalto. La franja es una lista serena; el editor es una vista secundaria tranquila, no un dashboard.
 - **Esquinas rectas o casi rectas** y bordes de 1 px; evitar el look de tarjetas redondeadas y almohadillas.
-- **Oscuro es referencia posterior.** La imagen TURA alimenta el modo noche futuro; el MVP arranca en papel cálido claro y no añade un tema oscuro nuevo antes de C3/D3.
+- **Modo noche cálido desde D3.** La imagen TURA alimenta el tema nocturno: papel claro de día y una noche cálida de bajo brillo. Entra automáticamente de 20:00 a 07:00 y una elección manual de claro u oscuro siempre gana; no se fuerza contra la preferencia del usuario.
 
 ### Tipografía
 
@@ -259,11 +259,13 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 - Objetivo de contraste de 7:1 para texto de cuerpo, medido en la paleta de papel cálido. El acento bermellón se usa sobre todo en foco/estado no textual; si se usa como fondo de texto, debe superar contraste con el texto que contenga.
 - Controles de al menos 44 × 44 px, foco visible, etiquetas comprensibles, compatibilidad con lector de pantalla y zoom al 200 % sin pérdida funcional.
 - `prefers-reduced-motion` también aplica al **timer y al Vigía**. El avance debe poder entenderse sin animación, color ni sonido.
-- Modo noche cálido automático desde las 20:00, con cambio manual persistente; no se fuerza contra una elección del usuario. Su variante visual puede inspirarse en TURA, pero se valida después de C3/D3.
+- Modo noche cálido automático de 20:00 a 07:00, con cambio manual persistente; no se fuerza contra una elección del usuario. Su variante visual puede inspirarse en TURA; D3 lo implementa y D4 registra la validación móvil.
 - Feedback visual siempre disponible. Vibración breve solo si la API funciona; su ausencia no bloquea ni cuenta como fallo en iOS.
 - Español de México, tuteo directo y sin caricaturizar el habla. En tiempos, números exactos: «faltan 7 min», no «ahorita».
 
 **Paleta implementada:** papel `#F4F1EA`, tinta `#171512`, gris `#544E47`, línea `#D8D2C6` (solo separadores decorativos), control `#8C8275` (bordes de campos/controles) y acento bermellón `#C43D2E`. Los ratios se midieron en C3; el acento no se usa como texto de cuerpo.
+
+**Paleta de noche (D3):** fondo `#1B1815`, tinta `#F3EEE5`, superficie `#24201B`, gris `#C4BBAD`, línea `#463F35` (decorativa), control `#9A8F80` y acento `#E0705F`. La tinta, el gris y el control miden 15.30:1, 9.31:1 y 5.57:1 sobre el fondo; la línea y la superficie son decorativas. La selección usa tinta oscura sobre el acento (5.77:1).
 
 ### C3 — medición de contraste (2026-10-30)
 
@@ -288,7 +290,7 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 | blanco / acento | 5.18:1 | selección de texto | supera 4.5:1 |
 | línea / papel | 1.33:1 | separadores decorativos | no se usa para identificar controles |
 
-**Resultado y límites:** los textos principales y secundarios superan 7:1; los bordes de control superan 3:1; el acento se reserva para foco/estado y no para cuerpo. El Reloj usa números tabulares en tinta, no depende solo de color, y mantiene el audio apagado por defecto. La lectura se revisó visualmente a 390 px y 1280 px; **no** hubo estudio con usuarios, prueba de 200 % ni validación clínica. El zoom/una mano y el modo noche quedan en D3; la preferencia de movimiento, en C4. Las fuentes anteriores son estándares y referencias de accesibilidad, no diagnóstico ni tratamiento del TDAH.
+**Resultado y límites:** los textos principales y secundarios superan 7:1; los bordes de control superan 3:1; el acento se reserva para foco/estado y no para cuerpo. El Reloj usa números tabulares en tinta, no depende solo de color, y mantiene el audio apagado por defecto. La lectura se revisó visualmente a 390 px y 1280 px; **no** hubo estudio con usuarios ni validación clínica. D3 añade zoom, una mano y modo noche; la validación en el dispositivo objetivo queda en D4. Las fuentes anteriores son estándares y referencias de accesibilidad, no diagnóstico ni tratamiento del TDAH.
 
 **Trabajo de C3:** completado en cuanto a tokens, contraste medido, fuentes consultadas y revisión visual local; no presentar esta medición como auditoría formal ni como validación clínica.
 
@@ -438,7 +440,7 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Datos | Local-first, sin login ni envío de datos personales a un LLM en MVP |
 | Recordatorios externos | `.ics` después, sin promesa de alarma o takeover garantizados |
 | Rendimiento | Objetivo 2 s; liberación <5 s en las condiciones y mediciones de §12 |
-| Investigación | C3 midió contraste y consultó WCAG 2.2/WebAIM; lectura con usuarios, zoom y tema siguen en D3; no validación clínica |
+| Investigación | C3 midió contraste y consultó WCAG 2.2/WebAIM; D3 implementa zoom, una mano y tema; validación móvil en D4; no validación clínica |
 | Validación | Evidencia técnica y móvil diferenciadas; una semana de prueba sin exigir racha perfecta |
 
 ## 17. Alcance ejecutable del MVP

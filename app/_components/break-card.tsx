@@ -89,7 +89,7 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
           <p
             role="timer"
             aria-label="Tiempo de descanso restante"
-            className="mt-3 text-5xl font-semibold tabular-nums text-foreground"
+            className="mt-3 break-words text-[clamp(2.25rem,18vw,3rem)] font-semibold tabular-nums text-foreground"
           >
             {formatRemaining(remainingMs)}
           </p>

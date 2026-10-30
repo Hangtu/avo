@@ -278,7 +278,7 @@ export function SessionView({
           <p
             role="timer"
             aria-label="Tiempo restante"
-            className="mt-8 text-center text-7xl font-semibold tracking-tight tabular-nums sm:text-8xl"
+            className="mt-8 break-words text-center text-[clamp(2.25rem,20vw,4.5rem)] font-semibold tracking-tight tabular-nums"
           >
             {formatRemaining(remainingMs)}
           </p>
@@ -442,12 +442,12 @@ export function SessionView({
             {audio.enabled ? "Silenciar" : "Activar sonido"}
           </button>
           {audio.enabled ? (
-            <label className="flex items-center gap-2">
+            <label className="flex min-h-11 flex-wrap items-center gap-2">
               <span>Sonido</span>
               <select
                 value={audio.sound}
                 onChange={(event) => void audio.choose(event.target.value as "brown" | "tick")}
-                className="min-h-11 border border-control bg-background px-3 text-sm"
+                className="min-h-11 max-w-full border border-control bg-background px-3 text-sm"
               >
                 <option value="brown">Ruido marrón</option>
                 <option value="tick">Tic-tac</option>

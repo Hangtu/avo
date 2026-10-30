@@ -24,6 +24,8 @@ import { useVoicePreference } from "./use-voice-preference";
 import { VoiceControl } from "./voice-control";
 import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
 import { WalletView } from "./wallet-view";
+import { ThemeControl } from "./theme-control";
+import { useThemePreference } from "./use-theme-preference";
 
 interface FranjaTask {
   id: string;
@@ -88,6 +90,7 @@ export function RunoHome() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
   const voice = useVoicePreference();
+  const theme = useThemePreference();
   const swapBusy = useRef(false);
 
   useEffect(() => {
@@ -501,8 +504,17 @@ export function RunoHome() {
           ) : null}
         </div>
 
-        <footer className="border-t border-line pt-5 text-sm leading-6 text-muted">
-          Una cosa a la vez. Eliges el orden dentro de la franja.
+        <footer className="mt-auto border-t border-line pt-5 text-sm leading-6 text-muted">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p>Una cosa a la vez. Eliges el orden dentro de la franja.</p>
+            <ThemeControl
+              mode={theme.mode}
+              ready={theme.ready}
+              busy={theme.busy}
+              error={theme.error}
+              onChange={(next) => void theme.setTheme(next)}
+            />
+          </div>
         </footer>
       </div>
     </main>
@@ -659,7 +671,7 @@ function Franja({
                   : ""}
               </p>
             </div>
-            <div className="flex w-full gap-5 sm:w-auto">
+            <div className="flex w-full flex-wrap gap-x-5 gap-y-2 sm:w-auto">
               <button
                 type="button"
                 onClick={() => onStart(task, "full")}

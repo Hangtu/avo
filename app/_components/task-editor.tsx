@@ -359,12 +359,12 @@ export function TaskEditor() {
           </fieldset>
 
           <div className="mt-5 space-y-4">
-            <label className="flex items-center gap-3 text-sm font-medium">
+            <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
               <input
                 type="checkbox"
                 checked={form.useWindow}
                 onChange={(event) => patch({ useWindow: event.target.checked })}
-                className="h-5 w-5"
+                className="h-6 w-6"
               />
               Usar franja horaria
             </label>
@@ -391,12 +391,12 @@ export function TaskEditor() {
               </div>
             ) : null}
 
-            <label className="flex items-center gap-3 text-sm font-medium">
+            <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
               <input
                 type="checkbox"
                 checked={form.useFixedTime}
                 onChange={(event) => patch({ useFixedTime: event.target.checked })}
-                className="h-5 w-5"
+                className="h-6 w-6"
               />
               Hora fija
             </label>
@@ -412,12 +412,12 @@ export function TaskEditor() {
               </label>
             ) : null}
 
-            <label className="flex items-center gap-3 text-sm font-medium">
+            <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
               <input
                 type="checkbox"
                 checked={form.useShortStep}
                 onChange={(event) => patch({ useShortStep: event.target.checked })}
-                className="h-5 w-5"
+                className="h-6 w-6"
               />
               Primer paso corto
             </label>
