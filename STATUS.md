@@ -5,18 +5,18 @@
 
 **Última actualización:** 2026-10-30
 **Alcance vigente:** `plan.md` v1.2 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas y descanso gratuito; Runo Coins pasa a la segunda capa.
-**Fase:** MVP / Fase 1 — primer corte por franjas. Bloque B cerrado; A1/A2 técnicos; C1–C4/C6 y D1 verificados; C5, D2 y D3 pendientes de teléfono/A0. Siguiente D4 (validación de salida); A0 es dependencia externa.
-**Bloque activo:** D — Ancla y pulido. **Ítem en curso:** ninguno; siguiente D4.
+**Fase:** MVP / Fase 1 — primer corte por franjas. Bloque B cerrado; A1/A2 técnicos; C1–C4/C6 y D1 verificados; C5, D2, D3 y el cierre móvil de D4 pendientes de teléfono/A0. 12/16 criterios G con evidencia local. Siguiente A0/validación móvil; A0 es dependencia externa.
+**Bloque activo:** D — Validación de salida local hecha; cierre móvil pendiente. **Ítem en curso:** ninguno; siguiente A0.
 
 ## Siguiente acción
 
-**D4 · Validación de salida.**
+**A0 · Origen HTTPS estable y validación móvil.**
 
-Recorrer los 16 criterios G01–G16 con commit, dispositivo/navegador, pasos, resultado y limitación. Separar la evidencia técnica de la que exige teléfono; no dar por superada una prueba móvil que no se hizo. Dejar preparada la semana de uso posterior a la liberación.
+Elegir y autorizar un origen HTTPS estable; no desplegar ni contratar servicios sin autorización. Desde ese origen, instalar y probar G01, G02, G03 y G13, además de C5/D2/D3. Después se cierra D4 y se inicia la semana de prueba.
 
-**Después:** A0/validación real y cierre de C5/D2/D3 en dispositivo; después, la semana de prueba. No desplegar sin autorización.
+**Después:** completar D4 (12/16 → 16/16 si el dispositivo cumple), la semana de uso y la decisión de fase 2. No afirmar instalación, offline, audio, vibración o zoom reales antes de esa prueba.
 
-**Completados en este avance:** A1, A2, A7, A3–A6, B1–B7, B8–B12, C1–C6, D1, D2 y D3. 192 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. Todo el bucle B, A1/A2, C1–C4/C6, D1–D3 se verificaron en local/Chrome headless sobre build de producción; B3/A1/A2, el audio real de C5, la vibración en iPhone de D2 y la validación en dispositivo de D3 quedan 🧪 por teléfono/A0. La dirección visual minimalista, Lexend, el tema nocturno y los tamaños de control están aplicadas; C3 midió contraste, C4 respeta movimiento reducido, C6 usa voz local. No hay criterio G01–G16 dado por superado.
+**Completados en este avance:** A1, A2, A7, A3–A6, B1–B7, B8–B12, C1–C6, D1, D2, D3 y la validación local de D4. 195 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. Todo el bucle B, A1/A2, C1–C4/C6 y D1–D3 se verificaron en local/Chrome headless sobre build de producción; D4 local deja 12/16 criterios con evidencia y cuatro pendientes de A0/teléfono. B3/A1/A2, el audio real de C5, la vibración en iPhone de D2 y la validación en dispositivo de D3/D4 quedan 🧪. La dirección visual minimalista, Lexend, el tema nocturno y los tamaños de control están aplicadas. No se afirma utilidad ni validación móvil.
 
 **Pendiente externo A0:** elegir un origen HTTPS estable y probar en el teléfono. Vercel es una opción, no una decisión ejecutada. No se ha desplegado ni confirmado una URL. Esto es necesario para validar instalación/offline en el móvil, **pero no bloquea desarrollar y probar en local**. No contratar ni publicar servicios sin autorización.
 
@@ -27,8 +27,8 @@ Recorrer los 16 criterios G01–G16 con commit, dispositivo/navegador, pasos, re
 | **A · Cimiento** | 8 | 7 | 5 | Datos/lógica, PWA y offline técnicos verificados; A0 y dispositivo pendientes |
 | **B · El bucle** | 12 | 12 | 11 | Bloque cerrado; B3 🧪 (wake lock móvil), resto ✅ |
 | **C · Economía y piel** | 6 | 6 | 5 | C1–C4/C6 ✅; C5 🧪 audio real |
-| **D · Ancla y pulido** | 4 | 3 | 1 | D1 ✅; D2/D3 🧪; D4 siguiente |
-| **Total** | **30** | **28** | **22** | 28 ítems con evidencia; 22 verificados según criterio |
+| **D · Ancla y pulido** | 4 | 4 | 1 | D1 ✅; D2/D3 🧪; D4 local 12/16, cierre móvil pendiente |
+| **Total** | **30** | **29** | **22** | 29 ítems con evidencia; 22 verificados según criterio |
 
 **Validación de salida:** 0 de 16 criterios. **Prueba de uso:** no iniciada.
 
@@ -88,7 +88,7 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 | **B1** | Apertura y franja actual | Si hay sesión activa, se abre primero; si no, propone hasta tres elegibles de la franja actual, sin rellenar ni crear franjas vacías; muestra pendientes del día y no lee IndexedDB durante SSR | ✅ | `app/_components/runo-home.tsx` + `lib/domain/franja.ts`; 133/133 tests. Chrome headless sobre `npm run build` + `start`: a las 08:00 America/Mexico_City mostró 3 (café, cepillo, desayuno); a las 12:09, 2 elegibles y 5 pendientes sin rellenar; con las ocurrencias cerradas mostró el estado vacío sin inventar tarjetas. Sesión pausada sintética: precedencia mostrada. Sin dispositivo. |
 | **B2** | Tirada y tres cambios diarios | Tres «Otra» por fecha local, compartidos entre franjas y persistentes; elegir entre las visibles es libre; sin alternativa no se gasta; al agotarse desaparece, pero las correcciones siguen accesibles | ✅ | `swapFranjaTask` + `Day.swapsUsed` + `Hand.deferredOccurrenceIds`; 174/174 tests. Chrome headless producción: 3 botones «Otra»; café cambiado por baño; bajó a 2 cambios; sin alternativa el botón desapareció; al cerrar la franja, el café diferido volvió en la franja 2. `swapped` una vez, sin ledger. |
 | **B3** | Timer, 3-2-1 y pantalla encendida | Cuenta 3-2-1 cancelable; reloj de pared sin deriva por intervalos; wake lock intentado y recuperado al volver donde se soporte; rechazo no rompe el timer; vencimiento va a confirmación | 🧪 | `session-view.tsx`, `use-wake-lock.ts` y `expireSession`. 174/174 tests, typecheck/lint/build pasan. Chrome headless producción: «Empezar» mostró 3-2-1 cancelable; café 05:00; al avanzar el reloj de pared venció y persistió «Tiempo cumplido» tras recargar. El rechazo/ausencia de wake lock no rompió el timer. Falta probar wake lock y pantalla encendida en dispositivo real. |
-| **B4** | Resultado y correcciones | «Sí, terminé» y «No terminé» producen estados/eventos distintos; «No terminé» deja la tarjeta en foco con reintentar/no aplica; no hay «Casi»; no se completa por tiempo agotado ni se exigen formularios | ✅ | `completeSession`, `markOccurrenceNotApplicable` y `retrySession`; 174/174 tests. Chrome headless producción: café completado antes de tiempo y fuera de la franja; cepillo vence, «No terminé» → «Reintentar 5 min» → 05:00 → segundo vencimiento → «No aplica» → fuera de la franja; desayuno vence y «Sí, terminé» → fuera. C1 agrega los créditos del ledger; B4 no los duplica. «Terminar por hoy» se agregó en B5. |
+| **B4** | Resultado y correcciones | «Sí, terminé» y «No terminé» producen estados/eventos distintos; «No terminé» deja la tarjeta en foco con reintentar/no aplica; no hay «Casi»; no se completa por tiempo agotado ni se exigen formularios | ✅ | `completeSession`, `markOccurrenceNotApplicable` y `retrySession`; 195/195 tests. Chrome headless: café completado antes de tiempo, cepillo vence → «No terminé» → «Reintentar 5 min» → «No aplica»; desayuno vence y «Sí, terminé» → fuera. Se añadieron correcciones directas en la franja: «Ya la hice» (`markOccurrenceAlreadyDoneDirect`) y «No aplica» (`source: "franja"`) cierran sin sesión, tiempo ni RC, incluso sin «Otra»; no duplican eventos. C1 conserva los créditos. |
 | **B5** | Cierre de franja / terminar por hoy | No se pasa a la siguiente franja hasta resolver las cartas actuales; se pueden hacer más de tres tareas en el día; cerrar conserva lo ganado sin pagar pendientes ni perder progreso | ✅ | `ensureFranja`/`closeDay`, `Hand` persistente y `Day.closedAt`. 174/174 tests. Chrome headless producción: tras completar una carta, la franja 1 conservó las otras dos sin rellenar; al resolver las tres apareció la franja 2; «Terminar por hoy» mostró día cerrado y sobrevivió recarga. Con sesión abierta, la abandonó y conservó el tiempo como parcial; sin ledger. |
 | **B6** | Restauración y fecha local | Reabrir restaura corriendo/pausada/confirmación según corresponda; sesión que cruza medianoche conserva su ocurrencia y no duplica tareas ni créditos | ✅ | `dateFromOccurrenceId`, carga con precedencia de sesión y cierre con la fecha de la ocurrencia. 174/174 tests. Chrome headless: correr y pausar sobrevivieron recarga; una sesión de lunes 23:50 mostró «Sesión de un día anterior» el martes, cerró el lunes y dejó el martes abierto; ocurrencia lunes parcial, martes pendiente, sin ledger ni duplicados. |
 | **B7** | Flujo y navegación mínimos | Bucle sin callejones; foco de una carta durante el trabajo; configuración accesible sin un dashboard obligatorio ni capas de modales | ✅ | Chrome headless: editor desde franja y desde sesión; volver restauró la sesión; foco mostró solo la tarea activa; pausa/continuar/terminar/descanso; día cerrado mantuvo «Tareas» accesible. Se añadió reintento al error de carga y al editor; Monedero quedó accesible desde C2. 174/174 tests. |
@@ -96,7 +96,7 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 | **B9** | Escalón y progreso parcial | Paso corto opcional y concreto; completarlo no declara completa la tarea; permite continuar el resto y no permite cobrar el mismo paso repetidamente | ✅ | `startSession`/`completeSession` con variante short, `shortStepCompleted` y `remainingMin`. 174/174 tests. Chrome headless: cepillo ofreció «Paso 1 min»; el timer mostró «Preparar el cepillo» 01:00; al completarlo la tarea quedó parcial, con «2 min restantes · paso hecho»; «Continuar 2 min» abrió 02:00; completar la tarea ofreció descanso. Datos: shortStepCompleted true, dos sesiones completed (short/full); C1 acredita el paso y el resto sin repetir; el paso no se volvió a ofrecer. |
 | **B10** | Pausa / reanudación explícitas | Pausa guarda restante, incluida vida real; una pausada sigue bloqueando otra tarea; cerrar/reabrir mantiene la pausa; continuar retoma el restante exacto sin contar el tiempo pausado | ✅ | `pauseSession`/`resumeSession` y UI con «Pausar»/«El bebé». 174/174 tests. Chrome headless producción: café pausado en 05:00, 10 min después y tras recargar seguía en 05:00; «Continuar» retomó 05:00 y un minuto después mostró 04:00; «El bebé» registró `paused` + `life_real`. Una pausada rechaza `startSession` de otra tarea. |
 | **B11** | Descanso gratuito | Tras completar, ofrece 10 min gratis y saltable; no paga RC, no bloquea la siguiente tarea, no se autoinicia y termina si empieza otra tarea | ✅ | `break-card.tsx`; UI efímera, sin sesión ni ledger. Chrome headless producción: al completar apareció la oferta; el descanso no inició solo; al empezar corrió 10:00; al avanzar el reloj terminó sin iniciar otra tarea; la franja siguió visible y «Empezar» funcionó durante el descanso, terminándolo. 174/174 tests, typecheck/lint/build pasan. |
-| **B12** | Bloqueo de tarea y franja | Con sesión activa no se inicia otra tarea; pausar no libera; «no aplica» o «terminar por hoy» son las salidas explícitas; no se pasa a la siguiente franja con pendientes | ✅ | `startSession` rechaza mientras hay sesión corriendo, pausada o esperando confirmación, salvo el ancla D1 con una sesión previa pausada; `ensureFranja` mantiene la franja abierta. 189/189 tests. Chrome headless: corriendo/pausada/esperando sin «Empezar»; «No aplica» devolvió la franja; el ancla abrió el gym con la sesión anterior pausada. |
+| **B12** | Bloqueo de tarea y franja | Con sesión activa no se inicia otra tarea; pausar no libera; «no aplica» o «terminar por hoy» son las salidas explícitas; no se pasa a la siguiente franja con pendientes | ✅ | `startSession` rechaza mientras hay sesión corriendo, pausada o esperando confirmación, salvo el ancla D1 con una sesión previa pausada; `ensureFranja` mantiene la franja abierta. 195/195 tests. Chrome headless: corriendo/pausada/esperando sin «Empezar»; «No aplica» devolvió la franja; el ancla abrió el gym con la sesión anterior pausada. |
 
 **B3/B6/B10:** cerrar sin pausar no equivale a pausar. No se infiere distracción de la visibilidad. Si el tiempo ya venció, se restaura en confirmación; si se deja parcial, queda pendiente y puede continuarse. Si el restante es cero, «Reintentar 5 min» añade un tramo sin nuevo premio. Una sesión pausada sigue bloqueando el inicio de otra tarea.
 
@@ -104,7 +104,7 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 
 ## Bloque C — Economía y piel
 
-**C1–C6, D1, D2 y D3 ya están implementados.** El descanso gratuito B11 sigue separado del canje; C5 queda 🧪 por audio real, D2 por vibración/iPhone y D3 por la prueba en dispositivo; D4 es la siguiente pieza.
+**C1–C6, D1, D2 y D3 ya están implementados; D4 tiene validación local 12/16.** El descanso gratuito B11 sigue separado del canje; C5 queda 🧪 por audio real, D2 por vibración/iPhone, D3 por zoom/una mano en dispositivo y D4 por los cuatro criterios móviles. A0 es la siguiente pieza.
 
 | ID | Qué | Terminado cuando… | Estado | Evidencia |
 |---|---|---|---|---|
@@ -124,7 +124,7 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 | **D1** | Ancla ligera visible | Se presenta una vez por ocurrencia al llegar su hora o volver dentro de su franja; antes pausa y guarda otra sesión; no inicia sola, no consume cambios ni mueve citas; lo vencido no se fuerza como vigente | ✅ | `findDueAnchor` + `claimAnchor`, watcher cada 30 s/visibility y `AnchorView`. Chrome headless: a las 18:01 apareció «Hora fija · 18:00» sin timer; «Dejar pendiente» volvió a la franja y no reapareció tras recarga; con una sesión de 15 min corriendo, el ancla pausó la anterior y «Empezar» abrió el gym dejando la anterior pausada. `claimAnchor` registra `anchor_presented` una vez; `markOccurrenceNotApplicableDirect` cubre «No aplica». Fuera de 18:00–18:30 no se presenta. |
 | **D2** | Feedback y fallbacks de plataforma | Feedback visual siempre; vibración solo donde funcione, sin fallar en iPhone si no existe; no se promete sonido o wake lock con la app cerrada | 🧪 | `lib/platform/haptics.ts` con detección/captura de errores; `pulse("timer")` al vencer y `pulse("anchor")` al presentar. Chrome headless: con `navigator.vibrate` simulado, el timer registró `[120,80,120]` y el ancla `[60,40,60]` con su aviso visual; sin vibración, el ancla siguió visible; sin `wakeLock` el timer corrió; sin `AudioContext`, activar sonido mostró «El audio no está disponible…» y el timer siguió. Copia visible «Sin alarma ni aviso con la app cerrada» y «la pantalla puede apagarse»; el vencimiento tiene `role=status`. 189/189 tests. Falta iPhone/A0 real para cerrar la ausencia de vibración en Safari. |
 | **D3** | Una mano y preferencias visuales | Controles alcanzables y ≥44 px, zoom 200 % funcional, tema cálido automático/manual persistente, foco/etiquetas legibles en el dispositivo objetivo | 🧪 | `lib/domain/theme.ts` (auto 20:00–07:00, manual gana), `use-theme-preference`, `ThemeControl` al pie y bootstrap pre-pintado; paleta noche con tinta 15.30:1, gris 9.31:1, control 5.57:1 y foco 5.60:1. Global 44×44, etiquetas de checkbox de 50 px, timer/descanso con `clamp`, `overflow-wrap` y botones envueltos. Chrome headless: a las 20:30 entró oscuro y actualizó `theme-color`; «Claro» persistió tras recarga; «Automático» volvió a oscuro a las 22:00; foco de teclado 2 px bermellón; todos los controles ≥44 px a 390 y a 195 CSS px (aproximación de 200 %), sin scroll horizontal; timer 150 px y descanso 150 px a 195. 192/192 tests. Falta la prueba en teléfono/A0 con zoom real y safe areas. |
-| **D4** | Validación de salida | Se verifican y documentan los 16 criterios siguientes; se conocen las limitaciones y se deja lista la semana de prueba, sin afirmar utilidad ya validada | ⬜ | — |
+| **D4** | Validación de salida | Se verifican y documentan los 16 criterios siguientes; se conocen las limitaciones y se deja lista la semana de prueba, sin afirmar utilidad ya validada | 🧪 | Validación local en build de producción, Chrome 157.0.8103.26 headless, macOS, TZ America/Mexico_City, commit 74a1cd1: **12/16** criterios con evidencia; G01/G02/G03/G13 pendientes de A0/teléfono. G02 local: arranque en frío 299 ms, reapertura 297 ms y restauración 297 ms; offline 977 ms. G03 local: SW, recarga offline, completar y acreditar 3 RC offline, y sesión/ledger persistidos tras recarga. G05 corrigió la ausencia de «Ya la hice»/«No aplica» directos; G06/G09/G10/G16 revalidados en Chrome. 195/195 tests. No se inició la semana de prueba. |
 
 **Límite de D1:** el MVP no garantiza avisos con el teléfono bloqueado o la app cerrada. `.ics` es fase 2 y depende del calendario/permisos; no es un takeover del sistema ni una alarma garantizada.
 
@@ -139,19 +139,44 @@ Para cada prueba registrar en su evidencia: versión/commit si existe, dispositi
 - [ ] **G01 · Instalación:** origen HTTPS estable autorizado, icono Runo y apertura standalone en el teléfono objetivo. (A0, A1)
 - [ ] **G02 · Entrada:** estado utilizable en <5 s tras preparación inicial, con objetivo de 2 s; registrar arranque en frío y reapertura/restauración por separado. (B1, B6)
 - [ ] **G03 · Offline/persistencia:** modo avión con arranque en frío, lectura/escritura local y sesión/saldo conservados; verificar en build de producción. (A2, A3)
-- [ ] **G04 · Configuración:** semilla no duplicada, editor accesible cualquier día, proyectos por días y filtros de franja correctos; archivar no borra historial. (A4, A6, B8)
-- [ ] **G05 · Franjas y agencia:** franjas de hasta tres; no se pasa a la siguiente hasta resolver la actual; tres cambios totales por día; elegir dentro de la franja es libre; «Ya la hice», «No aplica», vida real y salida siguen disponibles. (B1, B2, B5, B7)
-- [ ] **G06 · Timer/resultados:** iniciar con 3-2-1, terminar antes y llegar a cero funcionan; cero pide confirmación sin pagar ni completar; «No terminé» deja la tarjeta en foco y no inicia otra tarea. (B3, B4, B12)
-- [ ] **G07 · Pausa/retorno:** vida real congela tiempo, volver no reanuda solo; una pausa sigue bloqueando otra tarea; cerrar sin pausar deja correr; medianoche no pierde la sesión ni duplica ocurrencias. (B6, B10, B12)
-- [ ] **G08 · Escalones:** primer paso deja la tarea parcial, retoma el resto y no falsea como completos cuidados/higiene por preparar materiales. (B9)
-- [ ] **G09 · Créditos:** premio fijo, ejemplo 1+14=15, doble toque/reapertura sin doble pago y cerrar el día no descuenta ni paga pendientes. (C1, B5)
-- [ ] **G10 · Canje:** minutos enteros válidos, débito único y saldo no negativo; cancelar no descuenta. (C2)
-- [ ] **G11 · Horario urgente:** presenta una vez con app visible, pausa/guarda antes de interrumpir, respeta franja y permite volver; ninguna cita se mueve sin decisión del usuario. (D1)
-- [ ] **G12 · Silencio y soporte:** audio inicialmente apagado, mute persistente también para avisos y feedback visual cuando audio/vibración/wake lock no estén disponibles. (C5, D2)
+- [x] **G04 · Configuración:** semilla no duplicada, editor accesible cualquier día, proyectos por días y filtros de franja correctos; archivar no borra historial. (A4, A6, B8)
+- [x] **G05 · Franjas y agencia:** franjas de hasta tres; no se pasa a la siguiente hasta resolver la actual; tres cambios totales por día; elegir dentro de la franja es libre; «Ya la hice», «No aplica», vida real y salida siguen disponibles. (B1, B2, B5, B7)
+- [x] **G06 · Timer/resultados:** iniciar con 3-2-1, terminar antes y llegar a cero funcionan; cero pide confirmación sin pagar ni completar; «No terminé» deja la tarjeta en foco y no inicia otra tarea. (B3, B4, B12)
+- [x] **G07 · Pausa/retorno:** vida real congela tiempo, volver no reanuda solo; una pausa sigue bloqueando otra tarea; cerrar sin pausar deja correr; medianoche no pierde la sesión ni duplica ocurrencias. (B6, B10, B12)
+- [x] **G08 · Escalones:** primer paso deja la tarea parcial, retoma el resto y no falsea como completos cuidados/higiene por preparar materiales. (B9)
+- [x] **G09 · Créditos:** premio fijo, ejemplo 1+14=15, doble toque/reapertura sin doble pago y cerrar el día no descuenta ni paga pendientes. (C1, B5)
+- [x] **G10 · Canje:** minutos enteros válidos, débito único y saldo no negativo; cancelar no descuenta. (C2)
+- [x] **G11 · Horario urgente:** presenta una vez con app visible, pausa/guarda antes de interrumpir, respeta franja y permite volver; ninguna cita se mueve sin decisión del usuario. (D1)
+- [x] **G12 · Silencio y soporte:** audio inicialmente apagado, mute persistente también para avisos y feedback visual cuando audio/vibración/wake lock no estén disponibles. (C5, D2)
 - [ ] **G13 · Accesibilidad:** contraste medido, tamaños/zoom/foco/etiquetas/una mano y movimiento reducido también en el timer; preferencias de tema respetadas y fuentes consultadas documentadas. (C3, C4, D3)
-- [ ] **G14 · Acompañamiento y registro:** frases locales controlables sin IA ni culpa; eventos separan cambios, realizados fuera, no aplica y vida real; no se envían esos datos a un LLM. (A5, C6)
-- [ ] **G15 · Bloqueo y salidas:** con sesión activa no se inicia otra tarea; pausar no libera; «no aplica» y «terminar por hoy» funcionan; no se salta de franja con pendientes; el bloqueo no impide pausar ni cerrar el día. (B4, B5, B10, B12)
-- [ ] **G16 · Descanso:** tras completar se ofrece 10 min gratis y saltable; no paga RC, no bloquea la siguiente tarea, no se autoinicia y termina si empieza otra. (B11)
+- [x] **G14 · Acompañamiento y registro:** frases locales controlables sin IA ni culpa; eventos separan cambios, realizados fuera, no aplica y vida real; no se envían esos datos a un LLM. (A5, C6)
+- [x] **G15 · Bloqueo y salidas:** con sesión activa no se inicia otra tarea; pausar no libera; «no aplica» y «terminar por hoy» funcionan; no se salta de franja con pendientes; el bloqueo no impide pausar ni cerrar el día. (B4, B5, B10, B12)
+- [x] **G16 · Descanso:** tras completar se ofrece 10 min gratis y saltable; no paga RC, no bloquea la siguiente tarea, no se autoinicia y termina si empieza otra. (B11)
+
+### Resultado de D4 — 2026-10-30
+
+**Alcance:** commit `74a1cd1` (código) + documentación D4; build de producción; Chrome **157.0.8103.26** headless en macOS; TZ `America/Mexico_City`; 195/195 tests. **No** hay teléfono, iOS, Android, HTTPS/A0 ni modo avión real. Las filas pendientes no se consideran superadas.
+
+| Criterio | Resultado | Evidencia D4 y límite |
+|---|---|---|
+| G01 Instalación | ⬜ Pendiente | Manifest/iconos e instalabilidad local ya técnicos (A1); falta origen HTTPS estable y apertura standalone en el teléfono. |
+| G02 Entrada | ⬜ Pendiente | Local: arranque en frío 299 ms, reapertura 297 ms y restauración de sesión 297 ms; offline 977 ms. Falta medir en el teléfono objetivo. |
+| G03 Offline/persistencia | ⬜ Pendiente | Local: SW controló la página; recarga offline; «Sí, terminé» offline acreditó 3 RC y sesión/ledger persistieron tras recargar. Falta modo avión/arranque en frío en teléfono. |
+| G04 Configuración | ✅ | Semilla/editor/proyectos/filtros/archivo cubiertos por A4/A6/B8 y 195 tests; no se repitió el recorrido visual completo en D4. |
+| G05 Franjas y agencia | ✅ | Chrome 10:00: 3 cartas; «Otra» hasta no tener alternativa; «Ya la hice» y «No aplica» siguieron visibles sin consumir cambio; no abrieron sesión ni ledger; 1 cambio usado. B1/B2/B5 y 195 tests. |
+| G06 Timer/resultados | ✅ | Chrome: café terminado antes de tiempo (+5 RC); cepillo a cero mostró confirmación, no pagó y no abrió otra tarea; «No terminé» dejó reintentar/no aplica. 3-2-1 y bloqueo en B3/B4/B12. |
+| G07 Pausa/retorno | ✅ | B6/B10: pausa explícita, vida real, reanudación, recarga y cruce de medianoche cubiertos por tests y Chrome previo; no se repitió en D4. |
+| G08 Escalones | ✅ | B9: paso corto, tarea parcial, continuación y no doble cobro; tests de repositorio y Chrome previo. |
+| G09 Créditos | ✅ | C1: 1+14=15, idempotencia, cierre sin pagar pendientes; D4 acreditó 5 RC una vez y ledger [5]. |
+| G10 Canje | ✅ | C2 + D4: saldo 5 → canje 2 → 3; intento de 5 rechazado; cancelación cubierta por tests/C2. |
+| G11 Horario urgente | ✅ | D1: ancla una vez, pausa la sesión previa, no inicia sola ni mueve citas; Chrome y 195 tests. |
+| G12 Silencio y soporte | ✅ | C5/D2: audio apagado inicial, mute persistente y fallback visual sin audio/vibración/wakeLock; audio audible e iPhone quedan 🧪. |
+| G13 Accesibilidad | ⬜ Pendiente | C3/C4/D3: contraste, 44 px, 195 CSS px sin scroll horizontal, foco y tema local; falta zoom real, safe areas y una mano en teléfono. |
+| G14 Acompañamiento/registro | ✅ | A5/C6: frases locales, eventos separados (incluidos `already_done`/`not_applicable` con `source`), sin LLM; 195 tests. |
+| G15 Bloqueo y salidas | ✅ | B12: corriendo/pausada/esperando no permiten otra tarea; «No aplica» y «Terminar por hoy»; el ancla D1 es la excepción acotada; Chrome previo. |
+| G16 Descanso | ✅ | D4: oferta tras completar, 10:00, sin autoinicio, saltable; B11 cubre fin y terminación al empezar otra tarea; no pagó RC. |
+
+**Conteo:** 12/16. Pendientes: G01, G02, G03 y G13, todas requieren A0/teléfono o una medición real. D4 no se cierra hasta completarlas.
 
 ### Prueba de uso posterior a la liberación
 
@@ -164,19 +189,22 @@ Para cada prueba registrar en su evidencia: versión/commit si existe, dispositi
 
 Una semana de observación, **no siete días perfectos como condición para no perder progreso**. Corregir errores durante la prueba. No mantener una racha punitiva ni pedir reportes diarios obligatorios.
 
+**Preparación:** después de A0, instalar desde el origen estable, usar la app sin obligación de reportes y responder al final: «¿abre rápido? ¿te ayudó a arrancar? ¿volverías a abrirla?». No se inicia hasta cerrar las pruebas móviles de D4.
+
 ## Última verificación técnica — 2026-10-30
 
 | Comando | Resultado observado |
 |---|---|
-| `npm test` | 192/192 tests, 14 archivos |
-| `TZ=UTC npm test` | 192/192 |
-| `TZ=America/Mexico_City npm test` | 192/192 |
+| `npm test` | 195/195 tests, 14 archivos |
+| `TZ=UTC npm test` | 195/195 |
+| `TZ=America/Mexico_City npm test` | 195/195 |
 | `npm run typecheck` | Exit 0, tipos de Next y TypeScript |
 | `npm run lint` | Exit 0, sin errores ni warnings |
 | `npm run build` | Exit 0, compilación y prerender de la página nueva |
 | Chrome headless / diseño | 390 px y 1280 px: franja y editor con Lexend, papel/tinta/bermellón, reglas finas y sin sombras; sin desbordes visibles. C3: ratios de `plan.md` §10 medidos con la fórmula WCAG; control 3.35:1. No es prueba en dispositivo ni auditoría formal. |
 | `git diff --check` | Exit 0 |
 | Chrome headless / build producción | A1/A2 + B1–B12 + C1–C6 + D1–D3: manifest Runo válido, iconos 192/512/maskable y apple 180 con 200; sin errores de instalabilidad reportados; service worker activo, recarga offline y arranque con servidor detenido sirvieron el shell; franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica»; descanso ofrecido tras completar, 10:00, fin sin autoinicio y terminación al empezar otra tarea; «Otra» cambia una carta, descuenta el contador, se oculta sin alternativa y la tarea diferida vuelve en la franja siguiente; el editor crea, edita días/franja/hora/franja fija/escalón, archiva y persiste; el paso corto corre 01:00, deja la tarea parcial y «Continuar 2 min» retoma el resto, con descanso solo tras la tarea completa; correr/pausar sobreviven recarga y una sesión de lunes a martes conserva la ocurrencia del lunes y deja el martes abierto; el bucle no tiene callejones, el foco muestra una sola tarea y Tareas es accesible desde franja, sesión y día cerrado; las recompensas visibles suman 1 RC de paso + 2 RC de tarea = 3 RC y el ledger registra [1,2] sin duplicar; el monedero ganó 5, canceló un canje sin débito, canjeó 3 y quedó en 2, rechazó 5 por saldo insuficiente; el Vigía avanzó 0→20 % y se congeló en pausa; con `prefers-reduced-motion` su transición fue `none`; audio apagado por defecto, preferencia brown/tick persistente y mute reversible; voz normal, silencio, cierre y empujón solo a pedido, con `maxTone` persistente; el ancla apareció una vez sin timer, pausó una sesión previa y no reapareció tras dejarla pendiente; el timer y el ancla vibraron con un stub de `navigator.vibrate`, y sin vibración/audio/wakeLock el flujo visual siguió y mostró errores visibles; a las 20:30 el tema automático fue oscuro, «Claro» persistió y los controles midieron ≥44 px a 390 y 195 CSS px, sin scroll horizontal. Sin dispositivo real; wake lock, audio audible, iPhone y zoom real no verificados. |
+| Chrome headless / D4 | Chrome 157.0.8103.26, TZ America/Mexico_City, commit 74a1cd1: 12/16 G. Frío 299 ms, reapertura 297 ms, restauración 297 ms; offline 977 ms; recarga offline, acreditación de 3 RC offline y sesión/ledger persistidos; «Ya la hice»/«No aplica» directos sin sesión ni ledger; canje 5→2→3 y rechazo de 5; descanso ofrecido sin autoinicio. Sin teléfono/A0. |
 | Navegador / dispositivo / instalación | Navegador headless sí; dispositivo, PWA e instalación no |
 
 Pruebas de DB con fake-indexeddb, no almacenamiento de un teléfono. Las protecciones de esquema/snapshots no equivalen a tener implementados el pago y canje de C1/C2. El servidor de producción se arrancó solo para la comprobación local y se detuvo después; no se publicó una URL.
@@ -188,6 +216,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 | Fecha | ID | Qué pasó |
 |---|---|---|
 | 2026-10-30 | Diseño | Aprobadas las referencias minimalistas del dueño y Lexend como fuente base. Copiadas a `docs/design/references/`; `plan.md` §10 y §16 actualizados; tokens de papel/tinta/bermellón, foco, selección y Lexend vía `next/font`; shell, franja, timer, descanso y editor aplanados a reglas finas, sin sombras ni radios y con acciones tipográficas. 174/174 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless a 390/1280 px sin desbordes visibles; medición formal de contraste y prueba en dispositivo siguen en C3/D3. |
+| 2026-10-30 | D4 | Validación local de salida con Chrome 157.0.8103.26 sobre build de producción y commit 74a1cd1: 12/16 criterios con evidencia; G01/G02/G03/G13 pendientes de A0/teléfono. G02 local 299/297/297 ms y offline 977 ms; G03 completó y acreditó 3 RC offline con sesión/ledger persistidos; G05 descubrió y corrigió «Ya la hice»/«No aplica» directos en la franja; G06/G09/G10/G16 revalidados. 195/195 tests; typecheck/lint/build pasan. No se inició la semana de prueba. A0 siguiente. |
 | 2026-10-30 | D3 | Una mano y tema: `resolveTheme` 20:00–07:00 con override manual, bootstrap pre-pintado y `ThemeControl` persistido en `Settings.theme`; paleta noche cálida con contraste medido; `color-scheme` y `theme-color` dinámicos. Global 44×44, labels de checkbox de 50 px, timer/descanso responsivos con `clamp`, flex wrap y `overflow-wrap`. Chrome headless: auto oscuro a 20:30, manual claro persistente, auto 22:00 oscuro, foco de teclado 2 px, cero controles <44 px y cero scroll horizontal a 390/195 CSS px; timer y descanso de 150 px a 195. 192/192 tests; typecheck/lint/build pasan. D3 🧪 por dispositivo/A0; D4 siguiente. |
 | 2026-10-30 | D2 | Fallbacks de plataforma: `lib/platform/haptics.ts` detecta `navigator.vibrate`, captura rechazos y devuelve false sin bloquear; `pulse` se llama al vencer el timer y al presentar el ancla. Copia explícita «Sin alarma ni aviso con la app cerrada» y «la pantalla puede apagarse»; el vencimiento usa `role=status`. Chrome headless: vibración simulada en timer/ancla, ancla visible sin vibración, timer corriendo sin wakeLock, audio ausente con error visual y timer intacto. 189/189 tests; typecheck/lint/build pasan. D3 siguiente; iPhone/A0 pendiente. |
 | 2026-10-30 | D1 | Ancla visible: `findDueAnchor` respeta hora/franja y presentación única; `claimAnchor` registra `anchor_presented`; un watcher de 30 s/visibility pausa una sesión corriendo y presenta una `AnchorView` sin iniciar timer. «Empezar» usa `startSession(anchor)` con la sesión anterior pausada; «Dejar pendiente» no repite; «No aplica» usa `markOccurrenceNotApplicableDirect`. Chrome headless: ancla 18:00 a las 18:01, sin timer, una vez, pausa previa de 15 min y gym iniciado con la anterior pausada; fuera de franja no aparece. 185/185 tests; typecheck/lint/build pasan. D2 siguiente. |
@@ -247,8 +276,9 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 ### Pendientes reales
 
 - **A0:** origen HTTPS autorizado y dispositivo/navegador objetivo. No se ha elegido proveedor ni se ha desplegado.
+- **Correcciones directas:** G05 reveló que la franja no ofrecía «Ya la hice» ni «No aplica» antes de iniciar. Se corrigió con acciones sin sesión, tiempo ni RC retroactivo, disponibles aunque se agoten los cambios; los eventos llevan `source: "franja"`.
 - **C3:** contraste medido y fuentes de WCAG 2.2/WebAIM documentadas; D3 añade tema nocturno y layout para zoom 200 %, pero la prueba real en teléfono, la lectura con usuarios y la validación clínica siguen pendientes. No afirmar validación clínica.
-- **Plataformas/UI:** Todo el bucle B, A1/A2, C1–C6 y D1–D3 se verificaron en Chrome headless, no en un teléfono. C5 necesita audio audible/campana real; D2 necesita comprobar la ausencia de vibración en iPhone; D3 necesita zoom real, safe areas y una mano en el dispositivo. Faltan A0 (HTTPS/instalación real) y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
+- **Plataformas/UI:** Todo el bucle B, A1/A2, C1–C6 y D1–D3 se verificaron en Chrome headless; D4 local dejó 12/16 criterios. No es un teléfono: C5 necesita audio audible/campana real; D2 la ausencia de vibración en iPhone; D3 zoom real, safe areas y una mano; G01/G02/G03 necesitan A0, instalación y modo avión. Faltan pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
 
 ### Contexto técnico consultado, no evidencia de implementación
 
