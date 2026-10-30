@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Runo
 
-## Getting Started
+App personal de hábitos y sesiones de enfoque, local-first y sin login.
+El MVP se está construyendo por partes: B1 muestra la franja actual y B3 conecta el timer
+con 3-2-1 y vencimiento. Los resultados, la pausa, el descanso y la instalación móvil siguen pendientes.
 
-First, run the development server:
+## Antes de trabajar
+
+- [AGENTS.md](./AGENTS.md): instrucciones para agentes.
+- [STATUS.md](./STATUS.md): estado real, siguiente ID y evidencia.
+- [plan.md](./plan.md): contrato de producto y alcance.
+
+## Desarrollo
+
+Desde la raíz del repositorio (el directorio interior `runo/runo`):
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir la URL indicada por Next. No hace falta HTTPS para desarrollar en localhost.
+Instalación y validación móvil requieren un origen HTTPS estable todavía pendiente.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Verificación
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test
+npm run test:watch
+npm run typecheck
+npm run lint
+npm run build
+```
 
-## Learn More
+Vitest ejecuta pruebas de dominio y persistencia en Node. `fake-indexeddb`
+solo se carga desde el setup de tests: sus resultados no certifican soporte móvil.
+Las pruebas no requieren red, cuentas ni claves de API.
 
-To learn more about Next.js, take a look at the following resources:
+Para probar el build de producción: `npm run build` y luego `npm run start`.
+El funcionamiento offline necesita además el service worker previsto en A2;
+IndexedDB por sí solo no permite cargar la app en modo avión.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Datos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+La capa de datos usa IndexedDB por origen mediante Dexie, con esquema versionado.
+Cerrar una conexión no borra sus registros; borrar el almacenamiento del navegador sí.
+No hay backup ni sincronización entre dispositivos en el MVP.
 
-## Deploy on Vercel
+## Mapa de implementación
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `lib/domain/`: contratos, validaciones, calendario local, selección pura de cartas y armado de la franja.
+- `app/_components/`: interfaz cliente; `runo-home.tsx` es la apertura por franjas y `session-view.tsx` el timer.
+- `lib/db/`: esquema Dexie, repositorio, semilla transaccional y eventos append-only.
+- `tests/`: setup y fixtures; cada test usa una DB aleatoria con prefijo seguro.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El dominio no depende de React. Reloj y semilla se pasan explícitamente al motor.
+El repositorio fija snapshots al iniciar y exige un `actionId` estable para reintentar
+una edición sin sobrescribir cambios posteriores. La semilla se ejecuta explícitamente,
+no al importar módulos ni durante un render de servidor.
+
+B1 conecta la capa de datos a la apertura por franjas y B3 al timer. Todavía faltan
+resultados, pausas, bloqueo de franja, descanso, cambios y pruebas móviles: consultar
+siempre `STATUS.md` en lugar de asumir que los tests unitarios significan que el MVP
+ya está listo para uso.
