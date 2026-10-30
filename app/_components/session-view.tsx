@@ -225,6 +225,7 @@ export function SessionView({
           </p>
           <p className="mt-6 text-center text-sm leading-6 text-muted">
             El reloj sigue aunque cambies de pantalla. Al volver, retomas donde ibas.
+            No se inicia otra tarea hasta resolver esta.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <button
@@ -257,7 +258,9 @@ export function SessionView({
 
       {current.status === "awaiting_confirmation" ? (
         <div className="mt-6 space-y-4">
-          <p className="text-base leading-7 text-muted">Se acabó el tiempo de esta tarea.</p>
+          <p className="text-base leading-7 text-muted">
+            Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar.
+          </p>
           {!showNoOptions ? (
             <>
               <p className="text-lg font-semibold">¿La terminaste?</p>
@@ -327,6 +330,7 @@ export function SessionView({
           </p>
           <p className="text-sm leading-6 text-muted">
             Al continuar, retomas exactamente ahí. La pausa no cuenta como fallo.
+            No se inicia otra tarea hasta resolver esta.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <button

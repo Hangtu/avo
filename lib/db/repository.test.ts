@@ -474,6 +474,39 @@ describe("franjas y cierre del día", () => {
   });
 });
 
+describe("bloqueo de tarea y franja", () => {
+  it("no inicia otra tarea mientras la sesión espera confirmación", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await createTask(db, "cafe", taskInput({ title: "Café" }), NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const deadline = NOW + 15 * 60 * 1000;
+    await expireSession(db, "s1", deadline);
+
+    await expect(startSession(db, {
+      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: deadline + 1000,
+    })).rejects.toThrow("continúa o cierra");
+    expect(await db.sessions.count()).toBe(1);
+
+    await completeSession(db, "s1", deadline + 2000);
+    await expect(startSession(db, {
+      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: deadline + 3000,
+    })).resolves.toMatchObject({ status: "running" });
+  });
+
+  it("permite iniciar otra tarea después de no aplica", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await createTask(db, "cafe", taskInput({ title: "Café" }), NOW);
+    await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    await markOccurrenceNotApplicable(db, "s1", NOW + 1000);
+
+    await expect(startSession(db, {
+      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: NOW + 2000,
+    })).resolves.toMatchObject({ status: "running" });
+  });
+});
+
 describe("atomicidad y concurrencia", () => {
   it("solo concede un timer corriendo entre dos conexiones a la misma DB", async () => {
     const db = await testDb();
