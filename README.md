@@ -1,10 +1,9 @@
 # Runo
 
 App personal de hábitos y sesiones de enfoque, local-first y sin login.
-El MVP se está construyendo por partes: el bloque B (bucle completo) está cerrado;
-B1–B12 cubren franja, cambios, timer, resultados, cierre, restauración, editor,
-escalón, pausa, descanso y navegación. Falta A1/A2 (PWA/offline), C1/C2 (RC),
-accesibilidad/tema y la instalación móvil.
+El MVP se está construyendo por partes: el bloque B (bucle completo) está cerrado y A1
+(PWA) está listo técnicamente. Falta A2 (offline), A0/instalación real, C1/C2 (RC),
+accesibilidad/tema y pruebas móviles.
 
 ## Antes de trabajar
 
@@ -67,7 +66,7 @@ El repositorio fija snapshots al iniciar y exige un `actionId` estable para rein
 una edición sin sobrescribir cambios posteriores. La semilla se ejecuta explícitamente,
 no al importar módulos ni durante un render de servidor.
 
-El bucle B está completo: apertura por franjas, cambios, timer, resultados, cierre,
-restauración/medianoche, editor, escalón, pausa, descanso y navegación. Todavía faltan
-PWA/offline, RC, accesibilidad/tema y pruebas móviles: consultar siempre `STATUS.md`
-en lugar de asumir que los tests unitarios significan que el MVP ya está listo para uso.
+El bucle B está completo y A1 ya expone manifest, iconos y metadatos de instalación.
+Todavía faltan offline, instalación real/HTTPS, RC, accesibilidad/tema y pruebas móviles:
+consultar siempre `STATUS.md` en lugar de asumir que los tests unitarios significan
+que el MVP ya está listo para uso.
