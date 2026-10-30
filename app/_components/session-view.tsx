@@ -14,6 +14,7 @@ import {
 import { dateFromOccurrenceId } from "@/lib/domain/occurrence";
 import { toLocalDate } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
+import { useSessionAudio } from "./use-session-audio";
 import { useWakeLock } from "./use-wake-lock";
 
 function formatRemaining(milliseconds: number): string {
@@ -75,6 +76,8 @@ export function SessionView({
     : current.taskSnapshot.title;
 
   useWakeLock(current.status === "running");
+  const audio = useSessionAudio(current.status === "running");
+  const { ringBell } = audio;
 
   useEffect(() => {
     function updateToday() {
@@ -92,6 +95,7 @@ export function SessionView({
         const expired = await expireSession(db, current.id, Date.now());
         setCurrent(expired);
         setExpiryError(null);
+        ringBell();
       } finally {
         db.close();
       }
@@ -99,7 +103,7 @@ export function SessionView({
       console.error("No se pudo cerrar el timer", cause);
       setExpiryError("No se pudo guardar el vencimiento. Vuelve a intentarlo.");
     }
-  }, [current.id]);
+  }, [current.id, ringBell]);
 
   useEffect(() => {
     if (current.status !== "running") return;
@@ -404,11 +408,41 @@ export function SessionView({
       {current.status === "running" ||
       current.status === "paused" ||
       current.status === "awaiting_confirmation" ? (
+        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+          <button
+            type="button"
+            onClick={() => void audio.toggle()}
+            disabled={!audio.ready}
+            aria-pressed={audio.enabled}
+            className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+          >
+            {audio.enabled ? "Silenciar" : "Activar sonido"}
+          </button>
+          {audio.enabled ? (
+            <label className="flex items-center gap-2">
+              <span>Sonido</span>
+              <select
+                value={audio.sound}
+                onChange={(event) => void audio.choose(event.target.value as "brown" | "tick")}
+                className="min-h-11 border border-control bg-background px-3 text-sm"
+              >
+                <option value="brown">Ruido marrón</option>
+                <option value="tick">Tic-tac</option>
+              </select>
+            </label>
+          ) : null}
+          {audio.error ? <span role="status">{audio.error}</span> : null}
+        </div>
+      ) : null}
+
+      {current.status === "running" ||
+      current.status === "paused" ||
+      current.status === "awaiting_confirmation" ? (
         <button
           type="button"
           onClick={() => void endDayNow()}
           disabled={busy}
-          className="mt-6 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
+          className="mt-4 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
         >
           {isTodaySession ? "Terminar por hoy" : "Cerrar sesión anterior"}
         </button>
