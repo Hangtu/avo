@@ -1,24 +1,9 @@
-import { readdir, writeFile } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+import { writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 
-async function walk(directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const fullPath = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...await walk(fullPath));
-    else files.push(fullPath);
-  }
-  return files;
-}
-
-const staticFiles = (await walk(".next/static"))
-  .filter((file) => !file.endsWith(".map"))
-  .sort();
-const assets = staticFiles.map(
-  (file) => `/_next/static/${relative(".next/static", file).split(sep).join("/")}`,
-);
+// Hosts such as Vercel rewrite Next's asset paths under /_next/static/immutable.
+// The install step discovers the actual URLs from the rendered shell instead of
+// assuming the local .next layout.
 const extras = [
   "/",
   "/manifest.webmanifest",
@@ -28,7 +13,7 @@ const extras = [
   "/icon.png",
   "/apple-icon.png",
 ];
-const precache = [...new Set([...extras, ...assets])];
+const precache = [...new Set(extras)];
 const version = createHash("sha256")
   .update(JSON.stringify(precache))
   .update(String(Date.now()))
@@ -43,6 +28,19 @@ self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
     await cache.addAll(PRECACHE);
+
+    // Asset paths differ between next start and Vercel (immutable/). Read the
+    // rendered shell and cache the exact scripts, styles, fonts, and icons.
+    const shell = await fetch("/", { cache: "reload" });
+    if (shell.ok) {
+      const html = await shell.clone().text();
+      const assets = [...new Set(
+        [...html.matchAll(/(?:src|href)="(\\/_next\\/static\\/[^"]+)"/g)]
+          .map((match) => match[1]),
+      )];
+      await cache.addAll(assets);
+      await cache.put("/", shell);
+    }
     await self.skipWaiting();
   })());
 });
@@ -101,4 +99,4 @@ self.addEventListener("fetch", (event) => {
 `;
 
 await writeFile("public/sw.js", source);
-console.log(`Generated public/sw.js (${precache.length} precached URLs, ${version}).`);
+console.log(`Generated public/sw.js (${precache.length} shell URLs + discovered assets, ${version}).`);
