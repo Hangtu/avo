@@ -5,18 +5,18 @@
 
 **Última actualización:** 2026-10-30
 **Alcance vigente:** `plan.md` v1.2 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas y descanso gratuito; Runo Coins pasa a la segunda capa.
-**Fase:** MVP / Fase 1 — primer corte por franjas. Bloque B cerrado (B3 🧪 por wake lock); A1 PWA verificado técnicamente, pendiente de instalación real. Siguiente A2.
-**Bloque activo:** A — Cimiento (PWA/offline). **Ítem en curso:** ninguno; siguiente A2.
+**Fase:** MVP / Fase 1 — primer corte por franjas. Bloque B cerrado; A1/A2 verificados técnicamente, pendientes de A0/teléfono. Siguiente C1 (economía RC); A0 es dependencia externa.
+**Bloque activo:** C — Economía. **Ítem en curso:** ninguno; siguiente C1.
 
 ## Siguiente acción
 
-**A2 · Shell y assets offline.**
+**C1 · Ledger y ganancia fija.**
 
-Añadir un service worker y precachear el shell/assets con la guía offline de Next instalada. Verificar en build de producción un arranque en frío sin red; mantener la DB intacta al actualizar. A0/HTTPS y el teléfono siguen pendientes para la validación real.
+Implementar la segunda capa económica: recompensa fija mostrada y congelada al iniciar, tope por ocurrencia, diferencia tras escalón, créditos idempotentes/transaccionales y saldo durable en el ledger. Empezar por el dominio y las pruebas; no conectar el monedero visual hasta C2. A0/HTTPS sigue pendiente para la validación móvil.
 
-**Después:** A0/validación móvil, C1/C2 (RC) y C3/D3 (accesibilidad, contraste y tema).
+**Después:** C2 (monedero/canje), C3/D3 (accesibilidad/tema) y A0/validación real. No desplegar ni contratar servicios sin autorización.
 
-**Completados en este avance:** A1, A7, A3–A6, B1–B7 y B8–B12. 163 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. Todo el bucle B y el manifest/iconos de A1 se verificaron en Chrome headless sobre build de producción; B3 y A1 quedan 🧪 por validación en teléfono. La dirección visual minimalista y Lexend ya están aplicadas; la medición formal de contraste sigue en C3. No hay criterio G01–G16 dado por superado.
+**Completados en este avance:** A1, A2, A7, A3–A6, B1–B7 y B8–B12. 163 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. Todo el bucle B, A1 y A2 se verificaron en Chrome headless sobre build de producción; B3/A1/A2 quedan 🧪 por validación en teléfono/A0. La dirección visual minimalista y Lexend ya están aplicadas; la medición formal de contraste sigue en C3. No hay criterio G01–G16 dado por superado.
 
 **Pendiente externo A0:** elegir un origen HTTPS estable y probar en el teléfono. Vercel es una opción, no una decisión ejecutada. No se ha desplegado ni confirmado una URL. Esto es necesario para validar instalación/offline en el móvil, **pero no bloquea desarrollar y probar en local**. No contratar ni publicar servicios sin autorización.
 
@@ -24,11 +24,11 @@ Añadir un service worker y precachear el shell/assets con la guía offline de N
 
 | Bloque | Ítems | Implementados con evidencia técnica (🧪 o ✅) | Verificados según criterio (✅) | Estado |
 |---|---|---|---|---|
-| **A · Cimiento** | 8 | 6 | 5 | Datos/lógica y PWA técnica verificados; A0/A2 y dispositivo pendientes |
+| **A · Cimiento** | 8 | 7 | 5 | Datos/lógica, PWA y offline técnicos verificados; A0 y dispositivo pendientes |
 | **B · El bucle** | 12 | 12 | 11 | Bloque cerrado; B3 🧪 (wake lock móvil), resto ✅ |
 | **C · Economía y piel** | 6 | 0 | 0 | C1/C2 en segunda capa; resto pendiente |
 | **D · Ancla y pulido** | 4 | 0 | 0 | Pendiente |
-| **Total** | **30** | **18** | **16** | 18 ítems con evidencia; 16 verificados según criterio |
+| **Total** | **30** | **19** | **16** | 19 ítems con evidencia; 16 verificados según criterio |
 
 **Validación de salida:** 0 de 16 criterios. **Prueba de uso:** no iniciada.
 
@@ -71,8 +71,8 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 | ID | Qué | Terminado cuando… | Estado | Evidencia |
 |---|---|---|---|---|
 | **A0** | Origen HTTPS estable para el teléfono | Se registra la URL autorizada y se abre desde el dispositivo objetivo; el origen permanece estable entre versiones | ⬜ | Sin URL ni despliegue confirmado |
-| **A1** | PWA instalable | Manifest/iconos correctos; instalada desde A0, abre standalone y con identidad Runo en el teléfono probado | 🧪 | `app/manifest.ts`, `app/icon.png`, `app/apple-icon.png` y `public/icon-*.png`. Build produce `/manifest.webmanifest` y las rutas de iconos; Chrome headless reportó `manifest errors: []` e `installabilityErrors: []`; título/identidad Runo, `theme-color`, manifest y apple-touch-icon presentes. Falta instalarlo desde A0 y abrirlo standalone en el teléfono; A2 sigue pendiente para offline. |
-| **A2** | Shell y assets offline | Tras primera carga/preparación, un arranque en frío en modo avión abre el bucle y sus recursos; actualización no borra la DB | ⬜ | — |
+| **A1** | PWA instalable | Manifest/iconos correctos; instalada desde A0, abre standalone y con identidad Runo en el teléfono probado | 🧪 | `app/manifest.ts`, `app/icon.png`, `app/apple-icon.png` y `public/icon-*.png`. Build produce `/manifest.webmanifest` y las rutas de iconos; Chrome headless reportó `manifest errors: []` e `installabilityErrors: []`; título/identidad Runo, `theme-color`, manifest y apple-touch-icon presentes. Falta instalarlo desde A0 y abrirlo standalone en el teléfono; A2 ya tiene offline técnico verificado. |
+| **A2** | Shell y assets offline | Tras primera carga/preparación, un arranque en frío en modo avión abre el bucle y sus recursos; actualización no borra la DB | 🧪 | `scripts/generate-service-worker.mjs` genera `public/sw.js` con 24 URLs precacheadas (shell, estáticos, fuentes, manifest e iconos); registro solo en producción. Chrome headless: service worker activado; recarga con red emulada offline renderizó el bucle; con el servidor detenido y un arranque nuevo del navegador sobre el mismo perfil, el shell salió del cache y la DB siguió ahí. El SW solo rota caches `runo-*`, nunca IndexedDB. Falta modo avión/instalación real en teléfono (A0). |
 | **A3** | Contratos + IndexedDB | Existen Task, Occurrence, Day, Hand, Session, Event, Ledger y Settings; esquema versionado; persistencia, unicidad tarea/fecha, snapshots y escrituras atómicas probados | ✅ | Dexie 4.4.7; esquema v2 y repositorio. Suite total 65/65, typecheck/lint exit 0. Tests con fake-indexeddb: reapertura, índices únicos, snapshots, concurrencia entre conexiones y rollback. Persistencia móvil pendiente en G03. |
 | **A4** | Semilla del Mazo | Se crean diez plantillas una vez; tres cuidados/suplementos quedan sin programación hasta configurar; reinicios/actualizaciones no duplican ni pisan ediciones | ✅ | `lib/db/seed.ts`; 7 tests específicos, 72/72 totales. Inicialización concurrente, reapertura y preservación de ediciones/archivos/preferencias probadas con fake-indexeddb. Lint/typecheck pasan. |
 | **A5** | Registro de eventos | Eventos canónicos de §9 con exposición, contexto y motivos diferenciados; reintentos no duplican resultados ni confunden vida real con cambio voluntario | ✅ | `lib/db/events.ts`; suite 104/104. 18 tipos canónicos, reintentos concurrentes, contextos JSON y rechazo de conflicto/ciclos probados. CRUD e inicio registran dentro de su transacción. Las acciones futuras de UI deben usar esta API. |
@@ -176,7 +176,7 @@ Una semana de observación, **no siete días perfectos como condición para no p
 | `npm run build` | Exit 0, compilación y prerender de la página nueva |
 | Chrome headless / diseño | 390 px y 1280 px: franja y editor con Lexend, papel/tinta/bermellón, reglas finas y sin sombras; sin desbordes visibles. No es prueba en dispositivo. |
 | `git diff --check` | Exit 0 |
-| Chrome headless / build producción | A1 + B1–B12: manifest Runo válido, iconos 192/512/maskable y apple 180 con 200; sin errores de instalabilidad reportados;  franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica»; descanso ofrecido tras completar, 10:00, fin sin autoinicio y terminación al empezar otra tarea; «Otra» cambia una carta, descuenta el contador, se oculta sin alternativa y la tarea diferida vuelve en la franja siguiente; el editor crea, edita días/franja/hora/franja fija/escalón, archiva y persiste; el paso corto corre 01:00, deja la tarea parcial y «Continuar 2 min» retoma el resto, con descanso solo tras la tarea completa; correr/pausar sobreviven recarga y una sesión de lunes a martes conserva la ocurrencia del lunes y deja el martes abierto; el bucle no tiene callejones, el foco muestra una sola tarea y Tareas es accesible desde franja, sesión y día cerrado. Sin dispositivo real; wake lock no verificado. |
+| Chrome headless / build producción | A1/A2 + B1–B12: manifest Runo válido, iconos 192/512/maskable y apple 180 con 200; sin errores de instalabilidad reportados; service worker activo, recarga offline y arranque con servidor detenido sirvieron el shell; franjas sin relleno, precedencia de sesión, 3-2-1 cancelable, café 05:00, vencimiento, «Sí, terminé» antes y al cero, «No terminé» → «Reintentar 5 min» → 05:00 y «No aplica», pausa 05:00 persistida 10 min y recarga, «El bebé» con `paused` + `life_real`, franja 1 sin relleno y franja 2 tras resolver las tres, «Terminar por hoy» persistente y cierre con sesión abierta; sin «Empezar» durante running/paused/awaiting y retorno a la franja tras «No aplica»; descanso ofrecido tras completar, 10:00, fin sin autoinicio y terminación al empezar otra tarea; «Otra» cambia una carta, descuenta el contador, se oculta sin alternativa y la tarea diferida vuelve en la franja siguiente; el editor crea, edita días/franja/hora/franja fija/escalón, archiva y persiste; el paso corto corre 01:00, deja la tarea parcial y «Continuar 2 min» retoma el resto, con descanso solo tras la tarea completa; correr/pausar sobreviven recarga y una sesión de lunes a martes conserva la ocurrencia del lunes y deja el martes abierto; el bucle no tiene callejones, el foco muestra una sola tarea y Tareas es accesible desde franja, sesión y día cerrado. Sin dispositivo real; wake lock no verificado. |
 | Navegador / dispositivo / instalación | Navegador headless sí; dispositivo, PWA e instalación no |
 
 Pruebas de DB con fake-indexeddb, no almacenamiento de un teléfono. Las protecciones de esquema/snapshots no equivalen a tener implementados el pago y canje de C1/C2. El servidor de producción se arrancó solo para la comprobación local y se detuvo después; no se publicó una URL.
@@ -188,6 +188,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 | Fecha | ID | Qué pasó |
 |---|---|---|
 | 2026-10-30 | Diseño | Aprobadas las referencias minimalistas del dueño y Lexend como fuente base. Copiadas a `docs/design/references/`; `plan.md` §10 y §16 actualizados; tokens de papel/tinta/bermellón, foco, selección y Lexend vía `next/font`; shell, franja, timer, descanso y editor aplanados a reglas finas, sin sombras ni radios y con acciones tipográficas. 163/163 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless a 390/1280 px sin desbordes visibles; medición formal de contraste y prueba en dispositivo siguen en C3/D3. |
+| 2026-10-30 | A2 | Service worker generado en el build: precache de 24 URLs (shell, `_next/static`, fuentes, manifest e iconos), cache-first para assets, network-first para navegación con fallback al shell y limpieza de caches viejos. Registro solo en producción. Chrome headless: SW activado; recarga offline rindió el bucle; con el servidor detenido y un navegador nuevo sobre el mismo perfil, el shell salió del cache y la DB se conservó. 163/163 tests; typecheck/lint/build pasan. A2 🧪 por teléfono/A0; siguiente C1. |
 | 2026-10-30 | A1 | Manifest PWA de Runo con nombre, descripción, start_url, standalone, theme/background paper, lang es-MX e iconos 192/512/maskable; `next/font` ya self-hosted. Iconos generados con Lexend y el acento bermellón en `app/` y `public/`; apple-touch-icon 180; favicon scaffold eliminado. Metadatos `applicationName`, `appleWebApp`, `formatDetection` y viewport/themeColor. Build exponía `/manifest.webmanifest` e iconos; Chrome headless sin errores de manifest ni instalabilidad reportados. A1 queda 🧪 hasta A0/teléfono; A2 siguiente. |
 | 2026-10-30 | B7 | Flujo mínimo verificado en Chrome headless: editor desde franja y sesión, retorno con sesión restaurada, foco de una tarea, pausa/continuar/terminar, descanso y día cerrado con Tareas accesible. Se añadieron reintentos a los errores de carga de la app y del editor. 163/163 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Monedero queda en C2. Bloque B cerrado; siguiente A1 PWA. |
 | 2026-10-30 | B6 | Restauración y medianoche: `dateFromOccurrenceId` recupera la fecha; la carga muestra una sesión activa antes de mirar si el día está cerrado; cerrar una sesión anterior usa la fecha de su ocurrencia, no la de hoy. Tests de completar/pausar cruzando medianoche, ocurrencia nueva sin duplicado y día nuevo abierto. 163/163 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless: correr/pausar sobreviven recarga; sesión de lunes cerrada el martes dejó lunes cerrado, martes abierto, ocurrencia lunes parcial y martes pendiente, sin ledger. B7 siguiente. |
@@ -238,7 +239,7 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 - **A0:** origen HTTPS autorizado y dispositivo/navegador objetivo. No se ha elegido proveedor ni se ha desplegado.
 - **C3:** investigación de accesibilidad, medición formal de contraste y prueba de lectura pendientes; Lexend y la paleta ya están implementadas, pero no se afirma que estén validadas clínicamente.
-- **Plataformas/UI:** Todo el bucle B y el manifest/iconos A1 se verificaron en Chrome headless, no en un teléfono. Faltan A0/A2 (instalación real/offline), C1/C2 (RC), C3/D3 (accesibilidad/tema) y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
+- **Plataformas/UI:** Todo el bucle B, A1 y A2 se verificaron en Chrome headless, no en un teléfono. Faltan A0 (HTTPS/instalación real), C1/C2 (RC), C3/D3 (accesibilidad/tema) y pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y en un perfil de Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
 
 ### Contexto técnico consultado, no evidencia de implementación
 

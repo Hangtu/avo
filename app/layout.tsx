@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Lexend } from "next/font/google";
 import "./globals.css";
+import { ServiceWorkerRegister } from "./_components/service-worker-register";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -35,7 +36,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es-MX"
       className={`${lexend.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,8 +1,8 @@
 # Runo
 
 App personal de hábitos y sesiones de enfoque, local-first y sin login.
-El MVP se está construyendo por partes: el bloque B (bucle completo) está cerrado y A1
-(PWA) está listo técnicamente. Falta A2 (offline), A0/instalación real, C1/C2 (RC),
+El MVP se está construyendo por partes: el bloque B (bucle completo) está cerrado y
+A1/A2 (PWA y offline) están listos técnicamente. Falta A0/instalación real, C1/C2 (RC),
 accesibilidad/tema y pruebas móviles.
 
 ## Antes de trabajar
@@ -38,8 +38,8 @@ solo se carga desde el setup de tests: sus resultados no certifican soporte móv
 Las pruebas no requieren red, cuentas ni claves de API.
 
 Para probar el build de producción: `npm run build` y luego `npm run start`.
-El funcionamiento offline necesita además el service worker previsto en A2;
-IndexedDB por sí solo no permite cargar la app en modo avión.
+`npm run build` genera también `public/sw.js` con el precache del shell, los estáticos
+y las fuentes. El service worker se registra solo en producción; `next dev` no lo activa.
 
 ## Diseño
 
@@ -66,7 +66,7 @@ El repositorio fija snapshots al iniciar y exige un `actionId` estable para rein
 una edición sin sobrescribir cambios posteriores. La semilla se ejecuta explícitamente,
 no al importar módulos ni durante un render de servidor.
 
-El bucle B está completo y A1 ya expone manifest, iconos y metadatos de instalación.
-Todavía faltan offline, instalación real/HTTPS, RC, accesibilidad/tema y pruebas móviles:
-consultar siempre `STATUS.md` en lugar de asumir que los tests unitarios significan
-que el MVP ya está listo para uso.
+El bucle B está completo, A1 expone manifest/iconos y A2 precachea el shell con un
+service worker generado en el build. Todavía faltan instalación real/HTTPS, RC,
+accesibilidad/tema y pruebas móviles: consultar siempre `STATUS.md` en lugar de asumir
+que los tests unitarios significan que el MVP ya está listo para uso.
