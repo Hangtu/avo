@@ -2,8 +2,8 @@
 
 App personal de hábitos y sesiones de enfoque, local-first y sin login.
 El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PWA/offline)
-y C1–C5 (ledger, monedero, contraste, Vigía y audio) están listos técnicamente. Falta A0/instalación
-real, voz/presión, tema y pruebas móviles.
+y C1–C6 (ledger, monedero, contraste, Vigía, audio y voz) están listos técnicamente.
+Falta A0/instalación real, ancla/tema y pruebas móviles.
 
 ## Antes de trabajar
 
@@ -67,7 +67,7 @@ una edición sin sobrescribir cambios posteriores. La semilla se ejecuta explíc
 no al importar módulos ni durante un render de servidor.
 
 El bucle B está completo, A1/A2 cubren PWA/offline, C1/C2 acreditan y canjean RC, C3
-documenta contraste real con WCAG/WebAIM, C4 añade el Vigía y C5 el audio opt-in.
-Todavía faltan voz/presión, tema, instalación real/HTTPS y pruebas móviles: consultar
-siempre `STATUS.md` en lugar de asumir que los tests unitarios significan que el MVP
-ya está listo para uso.
+documenta contraste real con WCAG/WebAIM, C4 añade el Vigía, C5 el audio opt-in y C6
+la voz local. Todavía faltan ancla, tema, instalación real/HTTPS y pruebas móviles:
+consultar siempre `STATUS.md` en lugar de asumir que los tests unitarios significan
+que el MVP ya está listo para uso.

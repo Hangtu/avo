@@ -17,6 +17,9 @@ import type { Session } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
 import { SessionView } from "./session-view";
 import { TaskEditor } from "./task-editor";
+import { useVoicePreference } from "./use-voice-preference";
+import { VoiceControl } from "./voice-control";
+import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
 import { WalletView } from "./wallet-view";
 
 interface FranjaTask {
@@ -79,6 +82,7 @@ export function RunoHome() {
   const [showEditor, setShowEditor] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const voice = useVoicePreference();
   const swapBusy = useRef(false);
 
   useEffect(() => {
@@ -387,6 +391,9 @@ export function RunoHome() {
                   key={view.session.id}
                   session={view.session}
                   onFinished={finishSession}
+                  tone={voice.tone ?? 0}
+                  toneReady={voice.ready}
+                  onTone={voice.setTone}
                 />
               ) : null}
               {view.kind === "ready" ? (
@@ -396,6 +403,9 @@ export function RunoHome() {
                   onSwap={swapTask}
                   onEndDay={endDay}
                   swapping={swapping}
+                  tone={voice.tone ?? 0}
+                  toneReady={voice.ready}
+                  onTone={voice.setTone}
                 />
               ) : null}
               {view.kind === "empty" ? (
@@ -511,14 +521,21 @@ function Franja({
   onSwap,
   onEndDay,
   swapping,
+  tone,
+  toneReady,
+  onTone,
 }: {
   view: Extract<View, { kind: "ready" }>;
   onStart: (task: FranjaTask, variant: "full" | "short") => void;
   onSwap: (task: FranjaTask) => void | Promise<void>;
   onEndDay: () => void;
   swapping: boolean;
+  tone: VoiceTone;
+  toneReady: boolean;
+  onTone: (tone: VoiceTone) => void;
 }) {
   const countLabel = view.tasks.length === 1 ? "1 tarea" : `${view.tasks.length} tareas`;
+  const phrase = chooseVoicePhrase(tone, "open", `franja:${view.handId}`);
   return (
     <section aria-labelledby="franja-title">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -529,6 +546,9 @@ function Franja({
           <h2 id="franja-title" className="mt-2 text-2xl font-semibold tracking-tight">
             Empieza por donde quieras.
           </h2>
+          {phrase ? (
+            <p className="mt-3 text-base leading-7 text-muted">{phrase}</p>
+          ) : null}
         </div>
         <p className="text-sm text-muted">{countLabel} ahora</p>
       </div>
@@ -605,13 +625,16 @@ function Franja({
       <p className="mt-2 text-sm leading-6 text-muted">
         Resuelve esta franja para abrir la siguiente.
       </p>
-      <button
-        type="button"
-        onClick={onEndDay}
-        className="mt-6 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
-      >
-        Terminar por hoy
-      </button>
+      <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <VoiceControl tone={tone} ready={toneReady} onTone={onTone} />
+        <button
+          type="button"
+          onClick={onEndDay}
+          className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
+        >
+          Terminar por hoy
+        </button>
+      </div>
     </section>
   );
 }

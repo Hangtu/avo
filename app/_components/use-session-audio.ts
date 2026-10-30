@@ -115,10 +115,16 @@ export function useSessionAudio(running: boolean) {
     }
   }, []);
 
-  const persist = useCallback(async (next: Settings) => {
+  const persistAudio = useCallback(async (
+    audioEnabled: boolean, sound: Settings["sound"],
+  ): Promise<Settings> => {
     const db = await openDatabase();
     try {
-      await saveSettings(db, { ...next, updatedAt: Date.now() });
+      const now = Date.now();
+      const current = await getSettings(db, now);
+      const next: Settings = { ...current, audioEnabled, sound, updatedAt: now };
+      await saveSettings(db, next);
+      return next;
     } finally {
       db.close();
     }
@@ -126,13 +132,9 @@ export function useSessionAudio(running: boolean) {
 
   const toggle = useCallback(async () => {
     if (!settings) return;
-    const next: Settings = {
-      ...settings,
-      audioEnabled: !settings.audioEnabled,
-      updatedAt: Date.now(),
-    };
+    const nextEnabled = !settings.audioEnabled;
     setError(null);
-    if (next.audioEnabled) {
+    if (nextEnabled) {
       const ctx = ensureContext();
       if (!ctx) setError("El audio no está disponible en este navegador.");
       try {
@@ -142,26 +144,25 @@ export function useSessionAudio(running: boolean) {
       }
     }
     try {
-      await persist(next);
+      const next = await persistAudio(nextEnabled, settings.sound);
       setSettings(next);
     } catch (cause) {
       console.error("No se pudo guardar el audio", cause);
       setError("No se pudo guardar la preferencia de sonido.");
     }
-  }, [ensureContext, persist, settings]);
+  }, [ensureContext, persistAudio, settings]);
 
   const choose = useCallback(async (sound: Settings["sound"]) => {
     if (!settings || settings.sound === sound) return;
-    const next: Settings = { ...settings, sound, updatedAt: Date.now() };
     setError(null);
     try {
-      await persist(next);
+      const next = await persistAudio(settings.audioEnabled, sound);
       setSettings(next);
     } catch (cause) {
       console.error("No se pudo guardar el sonido", cause);
       setError("No se pudo guardar la preferencia de sonido.");
     }
-  }, [persist, settings]);
+  }, [persistAudio, settings]);
 
   const ringBell = useCallback(() => {
     if (!settings?.audioEnabled) return;

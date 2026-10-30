@@ -14,7 +14,9 @@ import {
 import { dateFromOccurrenceId } from "@/lib/domain/occurrence";
 import { toLocalDate } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
+import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
 import { useSessionAudio } from "./use-session-audio";
+import { VoiceControl } from "./voice-control";
 import { useWakeLock } from "./use-wake-lock";
 
 function formatRemaining(milliseconds: number): string {
@@ -41,9 +43,15 @@ function newActionId(): string {
 export function SessionView({
   session,
   onFinished,
+  tone,
+  toneReady,
+  onTone,
 }: {
   session: Session;
   onFinished: (offerBreak?: boolean, message?: string) => void;
+  tone: VoiceTone;
+  toneReady: boolean;
+  onTone: (tone: VoiceTone) => void;
 }) {
   const [current, setCurrent] = useState(session);
   const [remainingMs, setRemainingMs] = useState(() =>
@@ -57,6 +65,8 @@ export function SessionView({
   const [retryId, setRetryId] = useState(() => newActionId());
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<string | null>(null);
+  const [pushPhrase, setPushPhrase] = useState<string | null>(null);
+  const [pushCount, setPushCount] = useState(0);
   const busyRef = useRef(false);
   const isShort = current.variant === "short";
   const sessionDate = dateFromOccurrenceId(current.occurrenceId);
@@ -74,6 +84,9 @@ export function SessionView({
   const displayTitle = isShort
     ? current.taskSnapshot.shortStep?.title ?? current.taskSnapshot.title
     : current.taskSnapshot.title;
+  const phrase = chooseVoicePhrase(
+    tone, "work", `${current.id}:${current.startedAt ?? current.updatedAt}`,
+  );
 
   useWakeLock(current.status === "running");
   const audio = useSessionAudio(current.status === "running");
@@ -155,10 +168,13 @@ export function SessionView({
       const db = await openDatabase();
       try {
         const result = await completeSessionWithCredit(db, current.id, Date.now());
-        onFinished(
-          !isShort,
-          result.creditedRc > 0 ? `Ganaste ${result.creditedRc} RC` : "Sin RC nuevo.",
+        const closing = chooseVoicePhrase(
+          tone, "close", `${current.id}:${current.startedAt ?? current.updatedAt}`,
         );
+        const credit = result.creditedRc > 0
+          ? `Ganaste ${result.creditedRc} RC`
+          : "Sin RC nuevo.";
+        onFinished(!isShort, [credit, closing].filter(Boolean).join(" "));
       } finally {
         db.close();
       }
@@ -248,6 +264,7 @@ export function SessionView({
       <p className="mt-2 text-sm leading-6 text-muted">
         Recompensa: +{current.rewardTargetRc} RC
       </p>
+      {phrase ? <p className="mt-2 text-sm leading-6 text-muted">{phrase}</p> : null}
       {!isTodaySession ? (
         <p className="mt-2 text-sm leading-6 text-muted">
           Sesión de un día anterior; conserva su tarea original.
@@ -433,6 +450,35 @@ export function SessionView({
           ) : null}
           {audio.error ? <span role="status">{audio.error}</span> : null}
         </div>
+      ) : null}
+
+      {current.status === "running" ||
+      current.status === "paused" ||
+      current.status === "awaiting_confirmation" ? (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+          <VoiceControl tone={tone} ready={toneReady} onTone={onTone} />
+          {tone === 2 ? (
+            <button
+              type="button"
+              onClick={() => {
+                const next = chooseVoicePhrase(
+                  2, "push", `${current.id}:${pushCount}`, pushPhrase ?? undefined,
+                );
+                setPushPhrase(next);
+                setPushCount((count) => count + 1);
+              }}
+              className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
+            >
+              Empujón
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {tone === 2 && pushPhrase ? (
+        <p className="mt-2 border-l-2 border-control pl-4 text-sm leading-6">
+          {pushPhrase}
+        </p>
       ) : null}
 
       {current.status === "running" ||
