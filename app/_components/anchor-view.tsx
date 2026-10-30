@@ -30,6 +30,9 @@ export function AnchorView({
       <p className="mt-3 text-sm leading-6 text-muted">
         {task.durationMin} min · +{task.durationMin} RC
       </p>
+      <p className="mt-2 text-xs leading-5 text-muted">
+        Solo aparece con la app abierta; no hay aviso con la app cerrada.
+      </p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <button
           type="button"

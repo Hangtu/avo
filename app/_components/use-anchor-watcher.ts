@@ -9,6 +9,7 @@ import {
   pauseSession,
 } from "@/lib/db/repository";
 import { findDueAnchor } from "@/lib/domain/anchors";
+import { pulse } from "@/lib/platform/haptics";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
 import type { Occurrence, Task } from "@/lib/domain/types";
 
@@ -67,7 +68,10 @@ export function useAnchorWatcher({
           fixedTime: due.task.fixedTime!,
           now,
         });
-        if (claimed && !cancelled) onAnchorRef.current(due.task, claimed);
+        if (claimed && !cancelled) {
+          pulse("anchor");
+          onAnchorRef.current(due.task, claimed);
+        }
       } catch (cause) {
         if (!cancelled) console.error("No se pudo revisar el ancla", cause);
       } finally {

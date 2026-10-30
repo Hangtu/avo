@@ -15,6 +15,7 @@ import { dateFromOccurrenceId } from "@/lib/domain/occurrence";
 import { toLocalDate } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
 import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
+import { pulse } from "@/lib/platform/haptics";
 import { useSessionAudio } from "./use-session-audio";
 import { VoiceControl } from "./voice-control";
 import { useWakeLock } from "./use-wake-lock";
@@ -108,6 +109,7 @@ export function SessionView({
         const expired = await expireSession(db, current.id, Date.now());
         setCurrent(expired);
         setExpiryError(null);
+        pulse("timer");
         ringBell();
       } finally {
         db.close();
@@ -288,6 +290,10 @@ export function SessionView({
             El reloj sigue aunque cambies de pantalla. Al volver, retomas donde ibas.
             No se inicia otra tarea hasta resolver esta.
           </p>
+          <p className="mt-2 text-center text-xs leading-5 text-muted">
+            Sin alarma ni aviso con la app cerrada. La pantalla puede apagarse si el
+            sistema no la mantiene despierta.
+          </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <button
               type="button"
@@ -319,7 +325,7 @@ export function SessionView({
 
       {current.status === "awaiting_confirmation" ? (
         <div className="mt-6 space-y-4">
-          <p className="text-base leading-7 text-muted">
+          <p role="status" className="text-base leading-7 text-muted">
             {isShort
               ? "Se acabó el tiempo del paso. La tarea sigue pendiente."
               : "Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar."}
