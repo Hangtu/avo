@@ -204,11 +204,16 @@ export async function startSession(
       ? agreement.task.shortStep!.durationMin : agreement.task.durationMin;
     const rewardTargetRc = variant === "short"
       ? agreement.shortStepRc! : agreement.rewardCapRc;
+    const durationSec = durationMin * 60;
+    const elapsedBefore = Math.min(durationSec, Math.max(0, occurrence.timerElapsedSec));
+    const remainingSec = variant === "short"
+      ? durationSec
+      : Math.max(60, durationSec - elapsedBefore);
     const session: Session = {
       id: sessionId, occurrenceId: occurrence.id, handId: handId ?? null, variant,
       taskSnapshot: structuredClone(agreement.task),
-      durationSec: durationMin * 60, rewardTargetRc, rewardCapRc: agreement.rewardCapRc,
-      remainingSecAtStart: durationMin * 60, elapsedSec: 0,
+      durationSec, rewardTargetRc, rewardCapRc: agreement.rewardCapRc,
+      remainingSecAtStart: remainingSec, elapsedSec: elapsedBefore,
       status: "running", startedAt: now, runningSlot: "running",
       createdAt: now, updatedAt: now,
     };
@@ -318,15 +323,17 @@ export async function completeSession(
     }
 
     const elapsedSec = elapsedSecondsFor(session, now);
+    const isShort = session.variant === "short";
     await appendEvent(db, {
       actionId: `complete:${sessionId}`, type: "completed", at: now,
       taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
       sessionId, ...(session.handId ? { handId: session.handId } : {}),
-      context: { early: session.status === "running", elapsedSec },
+      context: { early: session.status === "running", elapsedSec, shortStep: isShort },
     });
     await db.occurrences.put({
       ...occurrence,
-      status: "completed",
+      status: isShort ? "partial" : "completed",
+      shortStepCompleted: occurrence.shortStepCompleted || isShort,
       timerElapsedSec: elapsedSec,
       updatedAt: now,
     });
@@ -517,6 +524,8 @@ export async function resumeSession(
 export interface FranjaTaskView {
   occurrenceId: string;
   task: Task;
+  shortStepCompleted: boolean;
+  remainingMin: number;
 }
 
 export interface CurrentFranja {
@@ -543,7 +552,16 @@ function taskViewsForHand(
     const occurrence = occurrenceById.get(occurrenceId);
     if (!occurrence || TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) return [];
     const task = occurrence.agreement?.task ?? taskById.get(occurrence.taskId);
-    return task ? [{ occurrenceId, task }] : [];
+    if (!task) return [];
+    return [{
+      occurrenceId,
+      task,
+      shortStepCompleted: occurrence.shortStepCompleted,
+      remainingMin: Math.max(
+        1,
+        Math.ceil((task.durationMin * 60 - occurrence.timerElapsedSec) / 60),
+      ),
+    }];
   });
 }
 

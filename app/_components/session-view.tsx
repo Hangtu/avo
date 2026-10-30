@@ -55,6 +55,10 @@ export function SessionView({
   const [retryId, setRetryId] = useState(() => newActionId());
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  const isShort = current.variant === "short";
+  const displayTitle = isShort
+    ? current.taskSnapshot.shortStep?.title ?? current.taskSnapshot.title
+    : current.taskSnapshot.title;
 
   useWakeLock(current.status === "running");
 
@@ -123,7 +127,7 @@ export function SessionView({
       const db = await openDatabase();
       try {
         await completeSession(db, current.id, Date.now());
-        onFinished(true);
+        onFinished(!isShort);
       } finally {
         db.close();
       }
@@ -200,15 +204,15 @@ export function SessionView({
     <section className="border-y border-line py-8 sm:py-10">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {current.status === "running"
-          ? "En curso"
+          ? isShort ? "Primer paso" : "En curso"
           : current.status === "awaiting_confirmation"
-            ? "Tiempo cumplido"
+            ? isShort ? "Paso cumplido" : "Tiempo cumplido"
             : current.status === "paused"
-              ? "Pausada"
+              ? isShort ? "Paso pausado" : "Pausada"
               : "Sesión cerrada"}
       </p>
       <h2 className="mt-3 text-2xl font-semibold leading-tight sm:text-3xl">
-        {current.taskSnapshot.title}
+        {displayTitle}
       </h2>
 
       {current.status === "running" ? (
@@ -234,7 +238,7 @@ export function SessionView({
               disabled={busy}
               className="min-h-12 rounded-none bg-foreground px-7 text-base font-semibold text-background disabled:opacity-60"
             >
-              {busy ? "Guardando…" : "Terminé"}
+              {busy ? "Guardando…" : isShort ? "Terminé el paso" : "Terminé"}
             </button>
             <button
               type="button"
@@ -259,11 +263,15 @@ export function SessionView({
       {current.status === "awaiting_confirmation" ? (
         <div className="mt-6 space-y-4">
           <p className="text-base leading-7 text-muted">
-            Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar.
+            {isShort
+              ? "Se acabó el tiempo del paso. La tarea sigue pendiente."
+              : "Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar."}
           </p>
           {!showNoOptions ? (
             <>
-              <p className="text-lg font-semibold">¿La terminaste?</p>
+              <p className="text-lg font-semibold">
+                {isShort ? "¿Completaste el paso?" : "¿La terminaste?"}
+              </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
@@ -271,7 +279,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
                 >
-                  {busy ? "Guardando…" : "Sí, terminé"}
+                  {busy ? "Guardando…" : isShort ? "Sí, lo hice" : "Sí, terminé"}
                 </button>
                 <button
                   type="button"
@@ -279,13 +287,15 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none border border-line px-5 text-sm font-semibold disabled:opacity-60"
                 >
-                  No terminé
+                  {isShort ? "No lo hice" : "No terminé"}
                 </button>
               </div>
             </>
           ) : (
             <>
-              <p className="text-lg font-semibold">¿Qué pasó con la tarea?</p>
+              <p className="text-lg font-semibold">
+                {isShort ? "¿Qué pasó con el paso?" : "¿Qué pasó con la tarea?"}
+              </p>
               <p className="text-sm leading-6 text-muted">
                 Puedes reintentar cinco minutos o marcarla como no aplica.
               </p>

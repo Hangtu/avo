@@ -24,7 +24,10 @@ interface FranjaTask {
   title: string;
   durationMin: number;
   category: string;
+  shortStepTitle?: string;
   shortStepMin?: number;
+  shortStepDone: boolean;
+  remainingMin: number;
 }
 
 type View =
@@ -64,7 +67,10 @@ function newSessionId(): string {
 
 export function RunoHome() {
   const [view, setView] = useState<View>({ kind: "loading" });
-  const [pendingTask, setPendingTask] = useState<FranjaTask | null>(null);
+  const [pendingStart, setPendingStart] = useState<{
+    task: FranjaTask;
+    variant: "full" | "short";
+  } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showBreak, setShowBreak] = useState(false);
   const [swapping, setSwapping] = useState(false);
@@ -129,13 +135,16 @@ export function RunoHome() {
             dateLabel,
             handId: franja.hand.id,
             ordinal: franja.hand.ordinal,
-            tasks: franja.tasks.map(({ task, occurrenceId }) => ({
+            tasks: franja.tasks.map(({ task, occurrenceId, shortStepCompleted, remainingMin }) => ({
               id: task.id,
               occurrenceId,
               title: task.title,
               durationMin: task.durationMin,
               category: task.category,
+              shortStepTitle: task.shortStep?.title,
               shortStepMin: task.shortStep?.durationMin,
+              shortStepDone: shortStepCompleted,
+              remainingMin,
             })),
             pendingToday: franja.pendingToday,
             remainingEligible: franja.remainingEligible,
@@ -171,7 +180,7 @@ export function RunoHome() {
   const refreshView = useCallback((message: string | null) => {
     setNotice(message);
     setView({ kind: "loading" });
-    setPendingTask(null);
+    setPendingStart(null);
     setRefreshKey((key) => key + 1);
   }, []);
 
@@ -252,7 +261,10 @@ export function RunoHome() {
     }
   }, [refreshView, view]);
 
-  const beginSession = useCallback(async (task: FranjaTask) => {
+  const beginSession = useCallback(async (
+    task: FranjaTask,
+    variant: "full" | "short",
+  ) => {
     setShowBreak(false);
     setNotice(null);
     try {
@@ -263,7 +275,7 @@ export function RunoHome() {
           sessionId: newSessionId(),
           taskId: task.id,
           date: toLocalDate(now),
-          variant: "full",
+          variant,
           now,
         });
         setView({ kind: "session", dateLabel: formatDate(now), session });
@@ -276,7 +288,7 @@ export function RunoHome() {
         error instanceof Error ? error.message : "No se pudo iniciar la tarea.",
       );
     } finally {
-      setPendingTask(null);
+      setPendingStart(null);
     }
   }, []);
 
@@ -300,7 +312,7 @@ export function RunoHome() {
             <button
               type="button"
               onClick={showEditor ? closeEditor : openEditor}
-              disabled={!showEditor && pendingTask !== null}
+              disabled={!showEditor && pendingStart !== null}
               className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
             >
               {showEditor ? "Volver a hoy" : "Tareas"}
@@ -319,14 +331,15 @@ export function RunoHome() {
             </p>
           ) : null}
 
-          {!showEditor && pendingTask ? (
+          {!showEditor && pendingStart ? (
             <Countdown
-              task={pendingTask}
+              task={pendingStart.task}
+              variant={pendingStart.variant}
               onDone={beginSession}
-              onCancel={() => setPendingTask(null)}
+              onCancel={() => setPendingStart(null)}
             />
           ) : null}
-          {!showEditor && !pendingTask ? (
+          {!showEditor && !pendingStart ? (
             <>
               {view.kind === "loading" ? <LoadingState /> : null}
               {view.kind === "error" ? <ErrorState message={view.message} /> : null}
@@ -343,7 +356,7 @@ export function RunoHome() {
               {view.kind === "ready" ? (
                 <Franja
                   view={view}
-                  onStart={setPendingTask}
+                  onStart={(task, variant) => setPendingStart({ task, variant })}
                   onSwap={swapTask}
                   onEndDay={endDay}
                   swapping={swapping}
@@ -367,27 +380,31 @@ export function RunoHome() {
 
 function Countdown({
   task,
+  variant,
   onDone,
   onCancel,
 }: {
   task: FranjaTask;
-  onDone: (task: FranjaTask) => void | Promise<void>;
+  variant: "full" | "short";
+  onDone: (task: FranjaTask, variant: "full" | "short") => void | Promise<void>;
   onCancel: () => void;
 }) {
   const [count, setCount] = useState(3);
   const fired = useRef(false);
+  const title = variant === "short" ? task.shortStepTitle ?? task.title : task.title;
+  const duration = variant === "short" ? task.shortStepMin ?? task.durationMin : task.remainingMin;
 
   useEffect(() => {
     if (count === 0) {
       if (!fired.current) {
         fired.current = true;
-        void onDone(task);
+        void onDone(task, variant);
       }
       return;
     }
     const timeout = window.setTimeout(() => setCount((value) => value - 1), 1000);
     return () => window.clearTimeout(timeout);
-  }, [count, onDone, task]);
+  }, [count, onDone, task, variant]);
 
   return (
     <section
@@ -395,14 +412,14 @@ function Countdown({
       aria-live="polite"
     >
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        Empezando
+        {variant === "short" ? "Primer paso" : "Empezando"}
       </p>
-      <h2 className="mt-3 text-2xl font-semibold leading-tight">{task.title}</h2>
+      <h2 className="mt-3 text-2xl font-semibold leading-tight">{title}</h2>
       <p className="mt-6 text-8xl font-semibold tabular-nums text-foreground">
         {count === 0 ? "…" : count}
       </p>
       <p className="mt-4 text-sm leading-6 text-muted">
-        {task.durationMin} min. La cuenta se puede cancelar.
+        {duration} min. La cuenta se puede cancelar.
       </p>
       {count > 0 ? (
         <button
@@ -447,7 +464,7 @@ function Franja({
   swapping,
 }: {
   view: Extract<View, { kind: "ready" }>;
-  onStart: (task: FranjaTask) => void;
+  onStart: (task: FranjaTask, variant: "full" | "short") => void;
   onSwap: (task: FranjaTask) => void | Promise<void>;
   onEndDay: () => void;
   swapping: boolean;
@@ -479,19 +496,34 @@ function Franja({
             <div className="min-w-0 flex-1">
               <h3 className="text-lg font-semibold leading-7">{task.title}</h3>
               <p className="mt-1 text-sm text-muted">
-                {task.durationMin} min · {task.category}
-                {task.shortStepMin ? ` · paso corto ${task.shortStepMin} min` : ""}
+                {task.remainingMin} min{task.shortStepDone ? " restantes" : ""} ·{" "}
+                {task.category}
+                {task.shortStepMin
+                  ? task.shortStepDone
+                    ? " · paso hecho"
+                    : ` · paso: ${task.shortStepTitle ?? "primer paso"} (${task.shortStepMin} min)`
+                  : ""}
               </p>
             </div>
             <div className="flex w-full gap-5 sm:w-auto">
               <button
                 type="button"
-                onClick={() => onStart(task)}
+                onClick={() => onStart(task, "full")}
                 disabled={swapping}
                 className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
               >
-                Empezar
+                {task.shortStepDone ? `Continuar ${task.remainingMin} min` : "Empezar"}
               </button>
+              {task.shortStepMin && !task.shortStepDone ? (
+                <button
+                  type="button"
+                  onClick={() => onStart(task, "short")}
+                  disabled={swapping}
+                  className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
+                >
+                  Paso {task.shortStepMin} min
+                </button>
+              ) : null}
               {view.canSwap ? (
                 <button
                   type="button"

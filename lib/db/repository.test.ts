@@ -634,6 +634,66 @@ describe("cambios de franja", () => {
   });
 });
 
+describe("escalones", () => {
+  it("completa el paso corto sin terminar la tarea y bloquea repetirlo", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    const short = await startSession(db, {
+      sessionId: "short", taskId: "ropa", date: MONDAY, variant: "short", now: NOW,
+    });
+    expect(short).toMatchObject({
+      variant: "short", durationSec: 60, remainingSecAtStart: 60,
+      elapsedSec: 0, rewardTargetRc: 1, rewardCapRc: 15,
+    });
+
+    const completed = await completeSession(db, "short", NOW + 60_000);
+    const occurrence = await db.occurrences.get(occurrenceIdFor("ropa", MONDAY));
+    expect(completed).toMatchObject({ status: "completed", variant: "short", elapsedSec: 60 });
+    expect(occurrence).toMatchObject({
+      status: "partial", shortStepCompleted: true, timerElapsedSec: 60,
+    });
+    expect(await db.events.where("type").equals("completed").count()).toBe(1);
+    expect(await db.ledger.count()).toBe(0);
+
+    await expect(startSession(db, {
+      sessionId: "short-again", taskId: "ropa", date: MONDAY, variant: "short", now: NOW + 61_000,
+    })).rejects.toThrow("primer paso");
+  });
+
+  it("continúa el resto con el tiempo restante y cierra la tarea al completarla", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await startSession(db, { sessionId: "short", taskId: "ropa", date: MONDAY, variant: "short", now: NOW });
+    await completeSession(db, "short", NOW + 60_000);
+
+    const full = await startSession(db, {
+      sessionId: "full", taskId: "ropa", date: MONDAY, variant: "full", now: NOW + 61_000,
+    });
+    expect(full).toMatchObject({
+      variant: "full", durationSec: 15 * 60, remainingSecAtStart: 14 * 60,
+      elapsedSec: 60, rewardTargetRc: 15, rewardCapRc: 15,
+    });
+    const completed = await completeSession(db, "full", NOW + 61_000 + 14 * 60_000);
+    expect(completed).toMatchObject({ status: "completed", elapsedSec: 15 * 60 });
+    expect(await db.occurrences.get(occurrenceIdFor("ropa", MONDAY))).toMatchObject({
+      status: "completed", shortStepCompleted: true, timerElapsedSec: 15 * 60,
+    });
+    expect(await db.ledger.count()).toBe(0);
+  });
+
+  it("la franja muestra el paso hecho y los minutos restantes", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await ensureOccurrence(db, "ropa", MONDAY, NOW);
+    await startSession(db, { sessionId: "short", taskId: "ropa", date: MONDAY, variant: "short", now: NOW });
+    await completeSession(db, "short", NOW + 60_000);
+    const tasks = await listTasks(db);
+    const occurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
+    const franja = await ensureFranja(db, { date: MONDAY, now: NOW + 61_000, seed: "s", tasks, occurrences });
+    expect(franja.tasks[0]).toMatchObject({ shortStepCompleted: true, remainingMin: 14 });
+  });
+});
+
 describe("atomicidad y concurrencia", () => {
   it("solo concede un timer corriendo entre dos conexiones a la misma DB", async () => {
     const db = await testDb();
