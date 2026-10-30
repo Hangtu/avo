@@ -60,6 +60,16 @@ export function SessionView({
   const isShort = current.variant === "short";
   const sessionDate = dateFromOccurrenceId(current.occurrenceId);
   const isTodaySession = today === null || sessionDate === today;
+  const segmentRemainingSec = current.status === "running"
+    ? remainingMs / 1000
+    : current.remainingSecAtStart;
+  const elapsedTotal = Math.min(
+    current.durationSec,
+    Math.max(0, current.elapsedSec + current.remainingSecAtStart - segmentRemainingSec),
+  );
+  const progress = current.durationSec > 0
+    ? Math.round(Math.min(1, elapsedTotal / current.durationSec) * 100)
+    : 0;
   const displayTitle = isShort
     ? current.taskSnapshot.shortStep?.title ?? current.taskSnapshot.title
     : current.taskSnapshot.title;
@@ -252,6 +262,7 @@ export function SessionView({
           <p className="mt-4 text-center text-sm text-muted">
             Termina a las {formatEndTime(current.startedAt, current.remainingSecAtStart)}
           </p>
+          <Vigia progress={progress} isShort={isShort} />
           <p className="mt-6 text-center text-sm leading-6 text-muted">
             El reloj sigue aunque cambies de pantalla. Al volver, retomas donde ibas.
             No se inicia otra tarea hasta resolver esta.
@@ -292,6 +303,7 @@ export function SessionView({
               ? "Se acabó el tiempo del paso. La tarea sigue pendiente."
               : "Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar."}
           </p>
+          <Vigia progress={progress} isShort={isShort} />
           {!showNoOptions ? (
             <>
               <p className="text-lg font-semibold">
@@ -363,6 +375,7 @@ export function SessionView({
               {formatRemaining(current.remainingSecAtStart * 1000)}
             </span>.
           </p>
+          <Vigia progress={progress} isShort={isShort} />
           <p className="text-sm leading-6 text-muted">
             Al continuar, retomas exactamente ahí. La pausa no cuenta como fallo.
             No se inicia otra tarea hasta resolver esta.
@@ -420,5 +433,27 @@ export function SessionView({
         </div>
       ) : null}
     </section>
+  );
+}
+
+
+function Vigia({ progress, isShort }: { progress: number; isShort: boolean }) {
+  return (
+    <div className="mt-5">
+      <div
+        role="progressbar"
+        aria-label={isShort ? "Avance del paso" : "Avance de la tarea"}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+        aria-valuetext={`${progress}% completado`}
+        className="h-0.5 w-full bg-line"
+      >
+        <div
+          className="vigia-fill h-full bg-foreground transition-[width] duration-200 ease-linear motion-reduce:transition-none"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
   );
 }

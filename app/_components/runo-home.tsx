@@ -474,8 +474,8 @@ function LoadingState() {
   return (
     <div className="space-y-3" role="status">
       <p className="text-sm text-muted">Preparando tu día…</p>
-      <div className="h-24 animate-pulse rounded-none bg-surface" />
-      <div className="h-24 animate-pulse rounded-none bg-surface" />
+      <div className="h-24 animate-pulse rounded-none bg-surface motion-reduce:animate-none motion-reduce:opacity-60" />
+      <div className="h-24 animate-pulse rounded-none bg-surface motion-reduce:animate-none motion-reduce:opacity-60" />
     </div>
   );
 }
