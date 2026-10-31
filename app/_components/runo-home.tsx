@@ -580,6 +580,7 @@ export function RunoHome() {
           <p>Una cosa a la vez. Eliges el orden dentro de la franja.</p>
         </footer>
 
+        <div aria-hidden className="runo-dock-scrim" />
         <nav className="runo-dock" aria-label="Navegación principal">
           <button
             type="button"
