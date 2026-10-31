@@ -28,7 +28,7 @@ export function AnchorView({
         la dejas pendiente o marcas que hoy no aplica.
       </p>
       <p className="mt-3 text-sm leading-6 text-muted">
-        {task.durationMin} min · +{task.durationMin} RC
+        {task.durationMin} min
       </p>
       <p className="mt-2 text-xs leading-5 text-muted">
         Solo aparece con la app abierta; no hay aviso con la app cerrada.

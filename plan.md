@@ -157,7 +157,7 @@ Anclas con preparación y recordatorios externos, exportación `.ics` y ventanas
 Para eliminar ambigüedad, el MVP usa una regla sencilla, sin multiplicadores:
 
 - La versión completa tiene una recompensa fija igual a sus **minutos configurados**. Una carta de 15 min ofrece 15 RC, aunque se termine antes.
-- **Presentación de la recompensa (2026-10-30):** la tarjeta y el timer no muestran la sigla RC. Al terminar se comunica una sola vez como «Ganaste X min para ti»; el detalle de RC vive en Monedero. El ledger, el tope y la idempotencia no cambian.
+- **Presentación de la recompensa (2026-10-30):** la tarjeta, el timer y el ancla no muestran la sigla RC. Al terminar se comunica una sola vez como «Ganaste X min para ti»; el detalle de RC vive en Monedero. El ledger, el tope y la idempotencia no cambian.
 - Un escalón tiene una recompensa fija igual a sus minutos, siempre inferior al total de la tarea. Ejemplo: 1 RC por el primer paso de la ropa.
 - La recompensa se muestra y se congela al iniciar. El primer asalto de una ocurrencia fija también el tope de la tarea completa, aunque se empiece por un escalón. Editar la plantilla después no cambia ese acuerdo, una sesión en curso ni pagos anteriores.
 - **Tope por ocurrencia:** la recompensa de la versión completa fijada al empezar. Si ya se pagó un escalón, al completar el resto se acredita únicamente la diferencia.
