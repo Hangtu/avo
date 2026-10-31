@@ -2,11 +2,11 @@
 
 > **Runo te ayuda a recordar, elegir con menos esfuerzo y empezar una tarea adecuada al momento. Te acompaña con tiempo visible, presión configurable y recompensas, sin castigarte por atender tu vida.**
 
-**Versión del alcance:** 1.6 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez, interfaz bilingüe español/inglés y preparación de datos en Neon/Drizzle; Runo Coins pasa a la segunda capa.
+**Versión del alcance:** 1.7 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez, interfaz bilingüe español/inglés, Neon/Drizzle y copia manual protegida en la nube; Runo Coins pasa a la segunda capa.
 **Estado de ejecución y siguiente acción:** [`STATUS.md`](./STATUS.md). Este plan describe el producto; no certifica funcionalidades construidas.
 **Instrucciones para agentes:** [`AGENTS.md`](./AGENTS.md).
 
-**Resumen:** una carta visible · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · sesión rápida fuera de la lista · pendientes de una sola vez · interfaz ES/EN · preparación de datos en Neon/Drizzle · El Reloj · sin LLM en el MVP.
+**Resumen:** una carta visible · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · sesión rápida fuera de la lista · pendientes de una sola vez · interfaz ES/EN · copia manual en Neon/Drizzle · El Reloj · sin LLM en el MVP.
 
 ---
 
@@ -361,7 +361,7 @@ El MVP **no necesita un sistema de rachas ni un botón de Día blindado** para c
 
 ### Base local-first y preparación en la nube
 
-- IndexedDB mediante Dexie sigue siendo la fuente actual del bucle. E1/E2 dejaron Neon Postgres + Drizzle con migración aplicada y semilla; **todavía no hay API ni sincronización**.
+- IndexedDB mediante Dexie sigue siendo la fuente actual del bucle. E1/E2 dejaron Neon Postgres + Drizzle con migración aplicada y semilla. **E3 añade una API manual para reemplazar la copia remota del dueño** con una compuerta de passcode; no hay sync bidireccional ni lectura remota desde la app.
 - El esquema remoto vive en `lib/db/schema.ts`, se genera con Drizzle Kit y se usa **solo desde el servidor** (`pg` + `attachDatabasePool`). El navegador nunca recibe `DATABASE_URL`.
 - Shell prerenderizable y datos locales en cliente. No acceder a `window`, IndexedDB o fecha local del usuario desde un render de servidor que produzca diferencias de hidratación.
 - `cacheComponents` y `partialPrefetching` ya están habilitados. Leer su documentación antes de usar APIs de petición o cambiar esta configuración; no añadir dependencias o flags experimentales por inercia.
@@ -393,7 +393,7 @@ El MVP **no necesita un sistema de rachas ni un botón de Día blindado** para c
 
 Objetivo: estado utilizable en **2 s**; criterio de liberación: **menos de 5 s** en el teléfono objetivo, tras la primera carga y con assets preparados. Registrar por separado arranque en frío de la PWA, reapertura y restauración de sesión, con dispositivo/navegador y observación. No exigir red para el bucle ni prometer «cero latencia».
 
-Los datos sobreviven cierres normales, pero **no son un backup**: borrar almacenamiento, cambiar de origen o ciertas políticas del navegador pueden eliminarlos. Las actualizaciones no deben vaciar la DB. E1/E2 dejan listo y sembrado el esquema remoto; el respaldo/sync se implementa en fases posteriores. No se promete recuperación que aún no existe.
+Los datos sobreviven cierres normales, pero **no son un backup**: borrar almacenamiento, cambiar de origen o ciertas políticas del navegador pueden eliminarlos. Las actualizaciones no deben vaciar la DB. E3 permite guardar manualmente una copia remota; la restauración/sync se implementa en fases posteriores. No se promete recuperación automática que aún no existe.
 
 ## 13. Contrato de datos para el MVP
 
@@ -406,7 +406,7 @@ Los tipos viven en `lib/domain/types.ts`, las validaciones en `lib/domain/valida
 | **Day** | Fecha local, contador persistente de cambios voluntarios (0–3) y `closedAt` para «Terminar por hoy». El valor inicial de cambios es 3; el ajuste en Ajustes queda para después del primer corte |
 | **Hand** | ID, fecha, número de franja, hasta tres IDs de ocurrencia y estado abierto/cerrado. Solo una franja puede estar abierta a la vez; la siguiente se crea al cerrar la actual |
 
-**Espejo remoto (E1):** `lib/db/schema.ts` replica estas entidades en Postgres para la fase online. La app sigue usando IndexedDB; el espejo no es todavía la fuente de verdad ni se sincroniza.
+**Espejo remoto (E1–E3):** `lib/db/schema.ts` replica estas entidades en Postgres. E3 permite reemplazar manualmente el espejo del dueño desde IndexedDB con una passcode y una cookie firmada. La app sigue usando IndexedDB; el espejo no es todavía la fuente de verdad ni se sincroniza.
 | **Session** | Ocurrencia, franja si aplica, variante, snapshot de tarea/duración/recompensa, estado, restante del tramo, inicio del tramo y tiempo acumulado. Una sola sesión activa (corriendo o pausada); una pausada bloquea iniciar otra tarea; una anterior puede quedar pausada por un ancla. La sesión rápida usa un snapshot sintético sin Task, no tiene franja y fija recompensa 0; la sesión de un pendiente añade `pendingId` y usa una ocurrencia sintética por sesión |
 | **Pending** | ID, título, minutos enteros, creación, actualización, completado y borrado lógico. No tiene días, franja, ocurrencia diaria, prioridad ni recompensa; se lista aparte y se completa con o sin timer |
 | **Event** | ID y acción idempotente, tipo canónico (§9), timestamp, referencias pertinentes y contexto/motivo explícito |
@@ -490,8 +490,8 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Elian / nivel 3 | Reservados para una fase posterior, con habilitación explícita y sin descalificación personal |
 | Dirección visual | Minimalismo editorial evolucionado a **Liquid Focus**: Lexend, fondo ambiental, vidrio con fallback, índigo, una acción principal y dock de vidrio; referencias en `docs/design/references/` |
 | Variación del MVP | El Reloj y 5–10 frases locales; audio apagado inicialmente |
-| Datos | Local-first con Dexie en el MVP; Neon + Drizzle preparados en E1, sin login ni sync activos; no se envían datos a un LLM |
-| Nube | Neon Postgres server-only, migraciones Drizzle con URL directa y runtime pooled; E1 no cambia la fuente de verdad local |
+| Datos | Local-first con Dexie; Neon + Drizzle (E1–E3) con copia manual protegida por passcode, sin login completo ni sync bidireccional; no se envían datos a un LLM |
+| Nube | Neon Postgres server-only, migraciones Drizzle con URL directa y runtime pooled; E3 reemplaza el espejo del dueño solo con confirmación manual y no cambia la fuente local |
 | Recordatorios externos | `.ics` después, sin promesa de alarma o takeover garantizados |
 | Rendimiento | Objetivo 2 s; liberación <5 s en las condiciones y mediciones de §12 |
 | Investigación | C3 midió contraste y consultó WCAG 2.2/WebAIM; D3 implementa zoom, una mano y tema; validación móvil en D4; no validación clínica |
@@ -521,7 +521,7 @@ Los IDs y el estado viven en `STATUS.md`. Esta tabla asegura que cada requisito 
 | Identidad y acompañamiento | C3, C4, C5, C6 | El Reloj accesible, Vigía, audio opt-in y voz local |
 | Horario y plataforma | D1, D2, D3 | Ancla visible con pausa segura, fallback visual y uso de una mano |
 | Validación de salida | B7, D4 | Flujo mínimo completo y criterios de liberación verificados |
-| Nube (fase E) | E1, E2 | Esquema Drizzle/Neon y migración validada; sin sync todavía |
+| Nube (fase E) | E1, E2, E3 | Esquema Drizzle/Neon, migración y copia manual protegida; sin sync todavía |
 
 ### 17.2 Semilla del Mazo
 
@@ -552,7 +552,7 @@ Proyecto A los lunes y Proyecto B los martes son **casos de prueba del editor y 
 2. **B · Bucle:** apertura por franjas, tres cambios, timer/3-2-1, bloqueo de tarea/franja, pausa, cierre de franja, descanso, editor, sesión rápida, pendientes de una vez e interfaz ES/EN. No cerrar el bloque sin cubrir todos sus IDs.
 3. **C · Economía y piel:** primero C1/C2 (segunda capa) y luego accesibilidad/El Reloj, Vigía, audio y banco local de frases. Coordinar B9 con C1 para probar el tope de recompensa.
 4. **D · Horario y pulido:** ancla con interrupción segura, fallbacks, una mano y validación de salida.
-5. **E · Nube:** E1 dejó esquema, cliente server-only, migración y semilla listos; E2 vinculó el proyecto Neon, aplicó la migración y verificó la semilla. La app sigue local-first y no se declara sync hasta que exista una fase explícita de importación/API.
+5. **E · Nube:** E1 dejó esquema, cliente server-only, migración y semilla listos; E2 vinculó el proyecto Neon, aplicó la migración y verificó la semilla; E3 añadió passcode/cookie, API de copia y confirmación en Ajustes. La app sigue local-first; restauración/sync quedan para una fase posterior.
 
 Se trabaja un ID a la vez. Las pruebas técnicas pueden avanzar mientras una validación en teléfono está pendiente; no se declara hecha esa validación ni se oculta el pendiente. No desplegar ni escoger servicios de pago sin autorización.
 

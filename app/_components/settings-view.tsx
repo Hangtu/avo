@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { useChangeLocale } from "./i18n-provider";
 import { HelpTip } from "./help-tip";
+import { CloudBackup } from "./cloud-backup";
 import { openDatabase } from "@/lib/db/database";
 import { getSettings, saveSettings } from "@/lib/db/repository";
 import type { Settings } from "@/lib/domain/types";
@@ -179,6 +180,8 @@ export function SettingsView({
           </select>
         </label>
       </div>
+
+      <CloudBackup />
 
       <div className="mt-7 border-t border-line pt-5">
         <h3 className="text-lg font-semibold">{t("wallet.title")}</h3>

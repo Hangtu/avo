@@ -5,7 +5,7 @@ El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PW
 C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla), D2
 (fallbacks de plataforma), D3 (una mano y tema cálido) y la validación local
 de D4 (12/16 criterios) están listos técnicamente, con **Liquid Focus** y la
-carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1/E2** dejó aplicado el esquema Neon/Drizzle y las diez plantillas iniciales, sin conectar todavía la app. El origen HTTPS es **https://runo-mu.vercel.app**.
+carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1–E3** dejó aplicado el esquema Neon/Drizzle, las diez plantillas y una copia manual protegida desde Ajustes; la app sigue local-first y sin sync. El origen HTTPS es **https://runo-mu.vercel.app**.
 Falta la instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
 
 ## Antes de trabajar
@@ -46,6 +46,10 @@ npm run db:migrate    # usa DATABASE_URL_UNPOOLED directa
 npm run db:seed       # dueño, preferencias y plantillas idempotentes
 npm run db:health     # confirma lectura contra Neon
 npm run db:verify     # tablas, migraciones, dueño, settings y conteos
+
+# Para la copia manual, agrega a .env.local:
+# RUNO_PASSCODE="una-frase-larga"
+# RUNO_SESSION_SECRET="32-bytes-aleatorios"
 npm run db:studio     # inspección local
 ```
 
@@ -67,7 +71,7 @@ Origen estable: **https://runo-mu.vercel.app**
 3. Cierra la app, activa modo avión y vuelve a abrirla.
 4. Comprueba que aparecen tus tareas y que una sesión o saldo ya guardados siguen ahí.
 
-Por ahora no hay datos de uso en el servidor: IndexedDB vive en el teléfono. La fase E1 prepara la conexión, pero no la activa.
+IndexedDB sigue siendo la fuente principal. La copia en Neon solo se envía cuando la pides en **Ajustes → Copia en la nube**; no hay envío automático ni sync.
 
 ## Diseño
 
@@ -80,19 +84,20 @@ tinta oscura, un acento bermellón y reglas finas sin sombras. Referencias y reg
 
 La app sigue usando IndexedDB por origen mediante Dexie, con esquema versionado.
 Cerrar una conexión no borra sus registros; borrar el almacenamiento del navegador sí.
-No hay backup ni sincronización entre dispositivos activos en el MVP.
+Hay una copia manual en Neon protegida por passcode; no hay restauración ni sincronización entre dispositivos todavía.
 
 La preparación online está en [`docs/cloud/2026-10-31-neon-drizzle.md`](./docs/cloud/2026-10-31-neon-drizzle.md):
 Neon Postgres + Drizzle, cliente server-only y migración versionada. Las tablas
-ya están aplicadas y la semilla inicial está cargada; **la app todavía no escribe
-en Neon**, no hay API ni sync. Ver también `STATUS.md` (E1/E2).
+ya están aplicadas y la semilla inicial está cargada. La copia manual se envía a
+`/api/cloud/backup` con una cookie firmada; la app no lee Neon y no hay sync.
+Ver también `STATUS.md` (E1–E3).
 
 ## Mapa de implementación
 
 - `lib/domain/`: contratos, validaciones, calendario local, selección pura de cartas y armado de la franja.
 - `messages/` y `lib/i18n/`: catálogos ES/EN, configuración de idioma y proveedor de `next-intl`.
 - `app/_components/`: interfaz cliente; `runo-home.tsx` es la apertura por franjas y `session-view.tsx` el timer.
-- `lib/db/`: esquema Dexie, repositorio, semilla transaccional y eventos append-only; `schema.ts` y `client.ts` preparan Neon/Drizzle del lado servidor.
+- `lib/db/`: esquema Dexie, repositorio, semilla transaccional y eventos append-only; `schema.ts` y `client.ts` preparan Neon/Drizzle del lado servidor. `lib/cloud/` contiene la compuerta, el snapshot y la escritura remota.
 - `scripts/`: semilla, salud y verificación de la base; `drizzle/` guarda la migración aplicada.
 - `drizzle/`: migraciones SQL generadas para la fase online.
 - `tests/`: setup y fixtures; cada test usa una DB aleatoria con prefijo seguro.

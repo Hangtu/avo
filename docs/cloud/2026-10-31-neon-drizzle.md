@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-31  
 **Fase:** E1 · preparación de la capa de datos  
-**Estado:** esquema, cliente server-only, configuración y migración inicial generados. **E2 aplicado:** proyecto Neon vinculado, migración aplicada, semilla cargada y lectura verificada. **No** hay API ni sincronización; la app sigue leyendo y escribiendo IndexedDB.
+**Estado:** esquema, cliente server-only y migración aplicados. **E2:** proyecto Neon, migración y semilla cargados. **E3:** copia manual desde Ajustes, protegida por passcode y cookie HttpOnly; la app sigue leyendo y escribiendo IndexedDB y no hay sync ni restauración.
 
 ## 1. Decisión
 
@@ -72,16 +72,18 @@ Todas las tablas usan el prefijo `runo_` para poder convivir con otros proyectos
 
 **Resultado:** migración aplicada, 12 tablas, 1 usuario `owner`, 1 fila de preferencias, 10 plantillas y 1 migración registrada. La segunda ejecución del seed mantuvo los conteos. No se pudo verificar el nombre de rama desde el connection string; no asumir que es producción o desarrollo sin mirar Neon.
 
-### E3 · Acceso y respaldo
+### E3 · Acceso y respaldo (aplicado 2026-10-31)
 
-- Añadir una compuerta de un solo usuario (passcode + cookie HttpOnly firmada) antes de exponer cualquier ruta que escriba.
-- Implementar **importación/backup unidireccional** desde IndexedDB hacia Neon. La app local sigue siendo la fuente y no hay dos escritores.
-- Exportar un snapshot restaurable; no llamar “sincronización” a un backup.
+- Añadir una compuerta de un solo usuario (`RUNO_PASSCODE` + cookie HttpOnly firmada con `RUNO_SESSION_SECRET`).
+- Implementar **copia manual unidireccional** desde IndexedDB hacia Neon en Ajustes. La app local sigue siendo la fuente y no hay dos escritores.
+- Reemplazar el espejo del dueño en una sola transacción, con confirmación explícita.
+- No implementar restauración remota ni sync todavía.
 
-**Criterio de cierre:** un respaldo creado desde el dispositivo se puede leer y restaurar sin duplicar ledger, eventos ni ocurrencias.
+**Resultado:** `POST /api/cloud/auth`, `GET /api/cloud/backup` y `POST /api/cloud/backup`; la UI exige passcode, confirma el reemplazo y muestra la última copia. La restauración y el sync quedan para E4.
 
-### E4 · Sincronización real (solo si se necesita multi-dispositivo)
+### E4 · Restauración/sync real (solo si se necesita multi-dispositivo)
 
+- Restauración explícita desde el espejo remoto hacia IndexedDB, con confirmación y validación.
 - API server-side para las mutaciones, con la misma idempotencia (`actionId`, `sourceKey`) y transacciones.
 - IndexedDB como caché/outbox offline; política explícita de conflicto y reconciliación.
 - No dos fuentes de verdad. No resolver conflictos de ledger a mano.
@@ -91,6 +93,7 @@ Todas las tablas usan el prefijo `runo_` para poder convivir con otros proyectos
 - `DATABASE_URL` solo en el servidor y en Vercel; nunca en `NEXT_PUBLIC_*`.
 - `lib/db/client.ts` importa `server-only`.
 - Migraciones con URL directa; no usar `drizzle-kit push` en producción.
+- La copia usa passcode y cookie firmada; no reutilizar esa compuerta como autenticación multiusuario.
 - No habilitar Data API ni acceso Postgres desde el navegador.
 - Antes de un endpoint público: passcode/cookie o Neon Auth; no depender de RLS en un cliente no autenticado.
 - No enviar eventos, títulos, categorías ni metas a LLM/analítica.
