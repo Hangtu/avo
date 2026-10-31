@@ -268,6 +268,8 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 
 **Base elegida después de la exploración (Liquid Focus, 2026-10-30):** fondo ambiental `#EFF6F5`, tinta `#17252A`, superficies de vidrio con fallback sólido, muted `#3B5457`, acento `#4F6BFF`, primario `#3948C8` y timer circular. En móvil la navegación principal baja a un dock de vidrio; en escritorio queda arriba. Modo noche `#0C161B`/`#EAF7F6`/`#8EA2FF`. Lexend se mantiene; el vidrio nunca es la única capa de legibilidad.
 
+**Editor por día (2026-10-30):** la configuración de tareas usa una tira Lun–Dom con contadores, una lista filtrada por el día elegido y un grupo separado «Sin programar». Crear desde un día prellena ese día; editar conserva el contexto.
+
 **Carta Ahora (2026-10-30):** la franja se presenta de una tarjeta a la vez: título, duración, `Empezar`, `Ver otra` y `⋯`. Las otras cartas de la misma franja se recorren con `Ver otra`; el paso corto, el cambio por otra tarea y las correcciones viven en `⋯`. No se muestran RC, categorías, pendientes ni contadores de cambios en la primera vista. Sonido, voz y tema viven en **Ajustes**; el Monedero está oculto de la navegación por defecto y se puede habilitar allí. Tras «No lo hice», una frase de empuje con emoji aparece sin un botón adicional.
 
 **Paleta de noche (D3):** fondo `#1B1815`, tinta `#F3EEE5`, superficie `#24201B`, gris `#C4BBAD`, línea `#463F35` (decorativa), control `#9A8F80` y acento `#E0705F`. La tinta, el gris y el control miden 15.30:1, 9.31:1 y 5.57:1 sobre el fondo; la línea y la superficie son decorativas. La selección usa tinta oscura sobre el acento (5.77:1).
