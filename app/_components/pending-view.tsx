@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useTranslations } from "next-intl";
 import { openDatabase } from "@/lib/db/database";
 import {
   completePendingDirect,
@@ -27,6 +28,8 @@ export function PendingView({
   message?: string | null;
   onStart: (pending: Pending) => Promise<void>;
 }) {
+  const t = useTranslations("pending");
+  const errors = useTranslations("errors");
   const [items, setItems] = useState<Pending[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -59,7 +62,7 @@ export function PendingView({
       } catch (error) {
         if (cancelled) return;
         console.error("No se pudieron cargar los pendientes", error);
-        setLoadError("No pude abrir tus pendientes.");
+        setLoadError(errors("loadPending"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -68,7 +71,7 @@ export function PendingView({
     return () => {
       cancelled = true;
     };
-  }, [loadKey]);
+  }, [loadKey, errors]);
 
   useEffect(() => {
     if (focusComposer > 0) {
@@ -84,12 +87,12 @@ export function PendingView({
     const value = Number(minutes);
     if (!cleanTitle) {
       addingRef.current = false;
-      setFormError("Escribe qué quieres hacer.");
+      setFormError(t("nameError"));
       return;
     }
     if (!Number.isSafeInteger(value) || value < 1) {
       addingRef.current = false;
-      setFormError("Escribe cuántos minutos.");
+      setFormError(t("minutesError"));
       return;
     }
     setFormError(null);
@@ -108,14 +111,14 @@ export function PendingView({
         setItems((previous) => [pending, ...previous]);
         setTitle("");
         setMinutes("25");
-        setStatus("Listo, lo agregué.");
+        setStatus(t("added"));
         titleRef.current?.focus();
       } finally {
         db.close();
       }
     } catch (error) {
       console.error("No se pudo agregar el pendiente", error);
-      setFormError(error instanceof Error ? error.message : "No pude guardarlo.");
+      setFormError(errors("savePending"));
     } finally {
       addingRef.current = false;
       setAdding(false);
@@ -132,7 +135,7 @@ export function PendingView({
       await onStart(pending);
     } catch (error) {
       console.error("No se pudo empezar el pendiente", error);
-      setActionError(error instanceof Error ? error.message : "No pude empezar el pendiente.");
+      setActionError(errors("startPending"));
     } finally {
       actionBusyRef.current = false;
       setBusyId(null);
@@ -153,10 +156,10 @@ export function PendingView({
         db.close();
       }
       setItems((previous) => previous.filter((item) => item.id !== pending.id));
-      setStatus("Listo, ya no está en la lista.");
+      setStatus(t("completed"));
     } catch (error) {
       console.error("No se pudo completar el pendiente", error);
-      setActionError(error instanceof Error ? error.message : "No pude marcarlo como hecho.");
+      setActionError(errors("completePending"));
     } finally {
       actionBusyRef.current = false;
       setBusyId(null);
@@ -178,10 +181,10 @@ export function PendingView({
       }
       setItems((previous) => previous.filter((item) => item.id !== pending.id));
       setDeleteId(null);
-      setStatus("Listo, lo quité.");
+      setStatus(t("removed"));
     } catch (error) {
       console.error("No se pudo quitar el pendiente", error);
-      setActionError(error instanceof Error ? error.message : "No pude quitarlo.");
+      setActionError(errors("removePending"));
     } finally {
       actionBusyRef.current = false;
       setBusyId(null);
@@ -191,15 +194,13 @@ export function PendingView({
   return (
     <section aria-labelledby="pending-title" className="border-y border-line py-8 sm:py-10">
       <p className="pending-eyebrow text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-        Pendientes
+        {t("eyebrow")}
       </p>
       <div className="mt-3 flex items-start gap-2">
         <h2 id="pending-title" className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Lo que quieres hacer después.
+          {t("title")}
         </h2>
-        <HelpTip label="Para qué sirven los pendientes">
-          Aquí guardas cosas para hacer después. Se quedan hasta que las termines.
-        </HelpTip>
+        <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
       </div>
 
       {message && !status ? (
@@ -211,18 +212,18 @@ export function PendingView({
       <form onSubmit={submit} className="mt-7 border-y border-line py-5">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
           <label className="block min-w-0">
-            <span className="text-sm font-medium">¿Qué quieres hacer?</span>
+            <span className="text-sm font-medium">{t("what")}</span>
             <input
               ref={titleRef}
               required
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-              placeholder="Ej. Pagar las cuentas"
+              placeholder={t("placeholder")}
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium">Minutos</span>
+            <span className="text-sm font-medium">{t("minutes")}</span>
             <input
               required
               type="number"
@@ -235,7 +236,7 @@ export function PendingView({
             />
           </label>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2" aria-label="Minutos rápidos">
+        <div className="mt-3 flex flex-wrap gap-2" aria-label={t("minutesAria")}>
           {[5, 15, 25, 30].map((value) => (
             <button
               key={value}
@@ -259,7 +260,7 @@ export function PendingView({
           disabled={adding}
           className="mt-4 min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
         >
-          {adding ? "Guardando…" : "Agregar"}
+          {adding ? t("saving") : t("add")}
         </button>
       </form>
 
@@ -276,7 +277,7 @@ export function PendingView({
 
       {loading ? (
         <p role="status" className="mt-7 text-sm text-muted">
-          Cargando tus pendientes…
+          {t("loading")}
         </p>
       ) : null}
 
@@ -295,16 +296,16 @@ export function PendingView({
 
       {!loading && !loadError && items.length === 0 ? (
         <p className="mt-7 border-t border-line pt-5 text-base leading-7 text-muted">
-          No tienes pendientes. Agrega algo que no quieras olvidar.
+          {t("empty")}
         </p>
       ) : null}
 
       {!loading && !loadError && items.length > 0 ? (
         <div className="mt-7">
           <div className="flex items-baseline justify-between gap-3 border-b border-line pb-3">
-            <h3 className="text-sm font-semibold">Tus pendientes</h3>
+            <h3 className="text-sm font-semibold">{t("listTitle")}</h3>
             <p className="text-xs text-muted">
-              {items.length} {items.length === 1 ? "pendiente" : "pendientes"}
+              {t("count", { count: items.length })}
             </p>
           </div>
           <ul className="divide-y divide-line">
@@ -317,7 +318,7 @@ export function PendingView({
                     </h4>
                     <p className="mt-1 text-sm text-muted">{pending.durationMin} min</p>
                   </div>
-                  <p className="text-xs uppercase tracking-[0.12em] text-muted">Pendiente</p>
+                  <p className="text-xs uppercase tracking-[0.12em] text-muted">{t("badge")}</p>
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -327,7 +328,7 @@ export function PendingView({
                     disabled={busyId !== null}
                     className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
                   >
-                    {busyId === pending.id ? "Abriendo…" : "Empezar ▶️"}
+                    {busyId === pending.id ? t("starting") : t("start")}
                   </button>
                   <button
                     type="button"
@@ -335,7 +336,7 @@ export function PendingView({
                     disabled={busyId !== null}
                     className="min-h-11 rounded-none border border-control px-4 text-sm font-semibold disabled:opacity-60"
                   >
-                    Ya lo hice ✅
+                    {t("done")}
                   </button>
                   {deleteId !== pending.id ? (
                     <button
@@ -344,14 +345,14 @@ export function PendingView({
                       disabled={busyId !== null}
                       className="min-h-11 px-2 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
                     >
-                      Quitar
+                      {t("remove")}
                     </button>
                   ) : null}
                 </div>
 
                 {deleteId === pending.id ? (
                   <div className="mt-3 border-l-2 border-accent pl-4" role="alert">
-                    <p className="text-sm leading-6">¿Lo quito de la lista?</p>
+                    <p className="text-sm leading-6">{t("removeConfirm")}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -359,7 +360,7 @@ export function PendingView({
                         disabled={busyId !== null}
                         className="min-h-11 rounded-none bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
                       >
-                        Sí, quitar
+                        {t("yesRemove")}
                       </button>
                       <button
                         type="button"
@@ -367,7 +368,7 @@ export function PendingView({
                         disabled={busyId !== null}
                         className="min-h-11 rounded-none border border-control px-4 text-sm font-semibold disabled:opacity-60"
                       >
-                        No
+                        {t("no")}
                       </button>
                     </div>
                   </div>

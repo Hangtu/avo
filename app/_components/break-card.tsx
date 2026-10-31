@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { HelpTip } from "./help-tip";
 
 const BREAK_MS = 10 * 60 * 1000;
@@ -15,6 +16,7 @@ function formatRemaining(milliseconds: number): string {
 }
 
 export function BreakCard({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("break");
   const [phase, setPhase] = useState<Phase>("offer");
   const [endsAt, setEndsAt] = useState<number | null>(null);
   const [remainingMs, setRemainingMs] = useState(BREAK_MS);
@@ -53,35 +55,33 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
 
   return (
     <section
-      aria-label="Descanso"
+      aria-label={t("aria")}
       className="mb-5 border-y border-line py-5"
     >
       <div className="flex items-center gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-          Descanso
+          {t("eyebrow")}
         </p>
-        <HelpTip label="Cómo funciona el descanso">
-          Es gratis. Puedes empezar otra cosa cuando quieras; el descanso termina solo.
-        </HelpTip>
+        <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
       </div>
 
       {phase === "offer" ? (
         <>
-          <h2 className="mt-2 text-xl font-semibold">¿Quieres 10 min de descanso?</h2>
+          <h2 className="mt-2 text-xl font-semibold">{t("offer")}</h2>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={start}
               className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background"
             >
-              Empezar descanso
+              {t("start")}
             </button>
             <button
               type="button"
               onClick={onClose}
               className="min-h-11 rounded-none border border-control px-5 text-sm font-semibold"
             >
-              Ahora no
+              {t("now")}
             </button>
           </div>
         </>
@@ -91,7 +91,7 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
         <>
           <p
             role="timer"
-            aria-label="Tiempo de descanso restante"
+            aria-label={t("timerAria")}
             className="mt-3 break-words text-[clamp(2.25rem,18vw,3rem)] font-semibold tabular-nums text-foreground"
           >
             {formatRemaining(remainingMs)}
@@ -101,21 +101,21 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
             onClick={onClose}
             className="mt-4 min-h-11 rounded-none border border-control px-5 text-sm font-semibold"
           >
-            Terminar descanso
+            {t("finish")}
           </button>
         </>
       ) : null}
 
       {phase === "done" ? (
         <>
-          <h2 className="mt-2 text-xl font-semibold">Descanso terminado.</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">Cuando quieras, sigue con lo tuyo.</p>
+          <h2 className="mt-2 text-xl font-semibold">{t("doneTitle")}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">{t("doneCopy")}</p>
           <button
             type="button"
             onClick={onClose}
             className="mt-4 min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background"
           >
-            Seguir
+            {t("doneContinue")}
           </button>
         </>
       ) : null}

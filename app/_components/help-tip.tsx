@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 export function HelpTip({
   children,
-  label = "Más información",
+  label,
 }: {
   children: ReactNode;
   label?: string;
 }) {
+  const t = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
   const [coords, setCoords] = useState<{ left: number; top: number } | null>(null);
@@ -86,7 +88,7 @@ export function HelpTip({
         type="button"
         ref={buttonRef}
         className="help-tip-button"
-        aria-label={label}
+        aria-label={label ?? t("moreInfo")}
         aria-expanded={open}
         aria-controls={id}
         aria-describedby={open ? id : undefined}

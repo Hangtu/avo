@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { openDatabase } from "@/lib/db/database";
 import { getSettings, saveSettings } from "@/lib/db/repository";
 import type { Settings } from "@/lib/domain/types";
@@ -66,6 +67,7 @@ function startTick(ctx: AudioContext): () => void {
 }
 
 export function useSessionAudio(running: boolean) {
+  const t = useTranslations("errors");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
@@ -82,7 +84,7 @@ export function useSessionAudio(running: boolean) {
       } catch (cause) {
         if (!cancelled) {
           console.error("No se pudo leer la preferencia de audio", cause);
-          setError("No pude abrir tu sonido.");
+          setError(t("soundRead"));
         }
       } finally {
         db?.close();
@@ -94,7 +96,7 @@ export function useSessionAudio(running: boolean) {
       cancelled = true;
       db?.close();
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => () => {
     void contextRef.current?.close().catch(() => {});
@@ -136,7 +138,7 @@ export function useSessionAudio(running: boolean) {
     setError(null);
     if (nextEnabled) {
       const ctx = ensureContext();
-      if (!ctx) setError("El sonido no funciona aquí.");
+      if (!ctx) setError(t("soundUnavailable"));
       try {
         await ctx?.resume();
       } catch {
@@ -148,9 +150,9 @@ export function useSessionAudio(running: boolean) {
       setSettings(next);
     } catch (cause) {
       console.error("No se pudo guardar el audio", cause);
-      setError("No pude guardar tu sonido.");
+      setError(t("soundSave"));
     }
-  }, [ensureContext, persistAudio, settings]);
+  }, [ensureContext, persistAudio, settings, t]);
 
   const choose = useCallback(async (sound: Settings["sound"]) => {
     if (!settings || settings.sound === sound) return;
@@ -160,15 +162,15 @@ export function useSessionAudio(running: boolean) {
       setSettings(next);
     } catch (cause) {
       console.error("No se pudo guardar el sonido", cause);
-      setError("No pude guardar tu sonido.");
+      setError(t("soundSave"));
     }
-  }, [persistAudio, settings]);
+  }, [persistAudio, settings, t]);
 
   const ringBell = useCallback(() => {
     if (!settings?.audioEnabled) return;
     const ctx = ensureContext();
     if (!ctx) {
-      setError("El sonido no funciona; verás el aviso en pantalla.");
+      setError(t("soundFallback"));
       return;
     }
     void ctx.resume().catch(() => {});
@@ -192,9 +194,9 @@ export function useSessionAudio(running: boolean) {
       });
     } catch (cause) {
       console.error("No se pudo tocar la campana", cause);
-      setError("No pude tocar la campana. Verás el aviso en pantalla.");
+      setError(t("soundBell"));
     }
-  }, [ensureContext, settings?.audioEnabled]);
+  }, [ensureContext, settings?.audioEnabled, t]);
 
   useEffect(() => {
     if (!settings?.audioEnabled || !running) return;
@@ -202,7 +204,7 @@ export function useSessionAudio(running: boolean) {
     if (!ctx) return;
     void ctx.resume().catch(() => {
       queueMicrotask(() => {
-        setError("No pude encender el sonido. Mira el aviso en pantalla.");
+        setError(t("soundStart"));
       });
     });
 
@@ -211,11 +213,11 @@ export function useSessionAudio(running: boolean) {
     } catch (cause) {
       console.error("No se pudo iniciar el sonido de trabajo", cause);
       queueMicrotask(() => {
-        setError("El sonido no funciona; el reloj sigue.");
+        setError(t("soundFallback"));
       });
       return;
     }
-  }, [ensureContext, running, settings?.audioEnabled, settings?.sound]);
+  }, [ensureContext, running, settings?.audioEnabled, settings?.sound, t]);
 
   return {
     ready: settings !== null,

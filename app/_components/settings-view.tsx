@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 
+import { useChangeLocale } from "./i18n-provider";
 import { HelpTip } from "./help-tip";
 import { openDatabase } from "@/lib/db/database";
 import { getSettings, saveSettings } from "@/lib/db/repository";
 import type { Settings } from "@/lib/domain/types";
 import type { ThemeMode } from "@/lib/domain/theme";
+import type { Locale } from "@/lib/i18n/config";
 import type { VoiceTone } from "@/lib/domain/voice";
 import { ThemeControl } from "./theme-control";
 import { VoiceControl } from "./voice-control";
@@ -34,6 +37,10 @@ export function SettingsView({
   themeError: string | null;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
+  const t = useTranslations("settings");
+  const errors = useTranslations("errors");
+  const locale = useLocale();
+  const setLocale = useChangeLocale();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -48,7 +55,7 @@ export function SettingsView({
         if (!cancelled) setSettings(next);
       } catch (cause) {
         console.error("No se pudieron abrir los ajustes", cause);
-        if (!cancelled) setError("No pude abrir los ajustes.");
+        if (!cancelled) setError(errors("loadSettings"));
       } finally {
         db?.close();
       }
@@ -58,7 +65,7 @@ export function SettingsView({
       cancelled = true;
       db?.close();
     };
-  }, []);
+  }, [errors]);
 
   async function update(patch: Partial<Settings>) {
     if (!settings || busy) return;
@@ -78,31 +85,29 @@ export function SettingsView({
       }
     } catch (cause) {
       console.error("No se pudieron guardar los ajustes", cause);
-      setError("No pude guardar los ajustes.");
+      setError(errors("saveSettings"));
     } finally {
       setBusy(false);
     }
   }
 
   if (!settings) {
-    return <p className="text-sm text-muted" role="status">Abriendo ajustes…</p>;
+    return <p className="text-sm text-muted" role="status">{t("loading")}</p>;
   }
 
   return (
     <section aria-labelledby="settings-title">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        Opciones
+        {t("eyebrow")}
       </p>
       <h2 id="settings-title" className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-        Ajustes
+        {t("title")}
       </h2>
 
       <div className="mt-7 border-t border-line pt-5">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold">Sonido</h3>
-          <HelpTip label="Cómo funciona el sonido">
-            Empieza apagado. Tú decides si lo prendes.
-          </HelpTip>
+          <h3 className="text-lg font-semibold">{t("sound.title")}</h3>
+          <HelpTip label={t("sound.helpLabel")}>{t("sound.help")}</HelpTip>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
@@ -112,19 +117,19 @@ export function SettingsView({
             aria-pressed={settings.audioEnabled}
             className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
           >
-            {settings.audioEnabled ? "Silenciar" : "Activar sonido"}
+            {settings.audioEnabled ? t("sound.mute") : t("sound.activate")}
           </button>
           {settings.audioEnabled ? (
             <label className="flex min-h-11 flex-wrap items-center gap-2 text-sm text-muted">
-              <span>Sonido</span>
+              <span>{t("sound.label")}</span>
               <select
                 value={settings.sound}
                 onChange={(event) => void update({ sound: event.target.value as Settings["sound"] })}
                 disabled={busy}
                 className="min-h-11 border border-control bg-background px-3 text-sm disabled:opacity-60"
               >
-                <option value="brown">Ruido suave</option>
-                <option value="tick">Tic-tac</option>
+                <option value="brown">{t("sound.soft")}</option>
+                <option value="tick">{t("sound.tick")}</option>
               </select>
             </label>
           ) : null}
@@ -133,10 +138,8 @@ export function SettingsView({
 
       <div className="mt-7 border-t border-line pt-5">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold">Voz</h3>
-          <HelpTip label="Cómo funciona la voz">
-            La voz normal es tranquila. La voz fuerte solo si tú la eliges.
-          </HelpTip>
+          <h3 className="text-lg font-semibold">{t("voice.title")}</h3>
+          <HelpTip label={t("voice.helpLabel")}>{t("voice.help")}</HelpTip>
         </div>
         <div className="mt-3">
           <VoiceControl tone={tone} ready={voiceReady} onTone={onTone} />
@@ -145,10 +148,8 @@ export function SettingsView({
 
       <div className="mt-7 border-t border-line pt-5">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold">Color</h3>
-          <HelpTip label="Cómo cambia el color">
-            De noche se pone oscuro solo, de 8 de la noche a 7 de la mañana.
-          </HelpTip>
+          <h3 className="text-lg font-semibold">{t("color.title")}</h3>
+          <HelpTip label={t("color.helpLabel")}>{t("color.help")}</HelpTip>
         </div>
         <div className="mt-3">
           <ThemeControl
@@ -162,7 +163,25 @@ export function SettingsView({
       </div>
 
       <div className="mt-7 border-t border-line pt-5">
-        <h3 className="text-lg font-semibold">Monedero</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold">{t("language.title")}</h3>
+          <HelpTip label={t("language.helpLabel")}>{t("language.help")}</HelpTip>
+        </div>
+        <label className="mt-3 flex min-h-11 flex-wrap items-center gap-2 text-sm text-muted">
+          <span>{t("language.label")}</span>
+          <select
+            value={locale}
+            onChange={(event) => setLocale(event.target.value as Locale)}
+            className="min-h-11 max-w-full border border-control bg-background px-3 text-sm"
+          >
+            <option value="es">{t("language.spanish")}</option>
+            <option value="en">{t("language.english")}</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="mt-7 border-t border-line pt-5">
+        <h3 className="text-lg font-semibold">{t("wallet.title")}</h3>
         <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
           <input
             type="checkbox"
@@ -171,7 +190,7 @@ export function SettingsView({
             disabled={busy}
             className="h-5 w-5"
           />
-          Mostrar el Monedero abajo
+          {t("wallet.show")}
         </label>
         {settings.showWallet ? (
           <button
@@ -179,7 +198,7 @@ export function SettingsView({
             onClick={onOpenWallet}
             className="mt-3 min-h-11 text-sm font-semibold underline underline-offset-4"
           >
-            Abrir Monedero
+            {t("wallet.open")}
           </button>
         ) : null}
       </div>

@@ -2,11 +2,11 @@
 
 > **Runo te ayuda a recordar, elegir con menos esfuerzo y empezar una tarea adecuada al momento. Te acompaña con tiempo visible, presión configurable y recompensas, sin castigarte por atender tu vida.**
 
-**Versión del alcance:** 1.4 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC y pendientes de una sola vez; Runo Coins pasa a la segunda capa.
+**Versión del alcance:** 1.5 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez e interfaz bilingüe español/inglés; Runo Coins pasa a la segunda capa.
 **Estado de ejecución y siguiente acción:** [`STATUS.md`](./STATUS.md). Este plan describe el producto; no certifica funcionalidades construidas.
 **Instrucciones para agentes:** [`AGENTS.md`](./AGENTS.md).
 
-**Resumen:** una carta visible · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · sesión rápida fuera de la lista · pendientes de una sola vez · El Reloj · sin LLM en el MVP.
+**Resumen:** una carta visible · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · sesión rápida fuera de la lista · pendientes de una sola vez · interfaz ES/EN · El Reloj · sin LLM en el MVP.
 
 ---
 
@@ -309,6 +309,8 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 
 **Lenguaje llano (2026-10-30):** los textos de interfaz usan palabras cotidianas y se entienden sin conocer el modelo interno. No se usan «tres cartas», «franja», «mazo», «elegible», «sesión», «ancla», «ledger» ni «bloque» como vocabulario principal; los términos de la economía se explican en la ayuda contextual. Los estados, errores y acciones también evitan jerga técnica.
 
+**Idioma (2026-10-30):** la interfaz está en **español e inglés**. El español es el idioma inicial y se cambia desde **Ajustes**; la preferencia se guarda localmente. Se usa `next-intl` con catálogos estáticos `messages/es.json` y `messages/en.json`; ambos se incluyen en el build para que el cambio funcione offline. No se usan rutas `/es` ni `/en` por ahora: la PWA conserva `/`, su `start_url` y su shell. Se localizan textos, voz, errores visibles, `aria-label`, ayudas y metadatos del cliente. Los títulos de tareas, categorías y demás datos del usuario no se traducen. Las claves deben existir y coincidir en ambos catálogos.
+
 **Paleta de noche (D3):** fondo `#1B1815`, tinta `#F3EEE5`, superficie `#24201B`, gris `#C4BBAD`, línea `#463F35` (decorativa), control `#9A8F80` y acento `#E0705F`. La tinta, el gris y el control miden 15.30:1, 9.31:1 y 5.57:1 sobre el fondo; la línea y la superficie son decorativas. La selección usa tinta oscura sobre el acento (5.77:1).
 
 ### C3 — medición de contraste (2026-10-30)
@@ -479,6 +481,7 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Economía | RC en segunda capa; descanso gratuito en el primer corte; sin multiplicadores, deuda o préstamos |
 | Descanso | 10 min gratis tras completar, saltable, sin RC y sin bloquear la siguiente tarea |
 | Sesión rápida | Nombre + minutos desde Hoy o el día cerrado, incluso con una tarea asignada; no es tarea, no entra a franja, no paga RC, no altera el día; una a la vez y persiste para recargar |
+| Idioma | Español inicial e inglés, selector en Ajustes y preferencia local; sin rutas de locale; catálogos estáticos y vocabulario ES/EN en todo el UI |
 | Pendientes | To-dos de una sola vez con pestaña propia, captura desde Hoy, 25 min iniciales, timer y sin RC; no son tareas recurrentes ni entran a franjas; completados desaparecen |
 | Tono inicial | Techo 2, tono efectivo normal 1; modo duro solicitado o con motivo explícito; no por usar cambios |
 | Elian / nivel 3 | Reservados para una fase posterior, con habilitación explícita y sin descalificación personal |
@@ -509,6 +512,7 @@ Los IDs y el estado viven en `STATUS.md`. Esta tabla asegura que cada requisito 
 | Escalones | B9 | Paso corto opcional, progreso parcial y sin falsear la tarea completa |
 | Sesión rápida | B13 | Timer one-off desde Hoy o el día cerrado, fuera del Mazo/franja y sin RC |
 | Pendientes de una vez | B14 | Lista persistente separada de las tareas recurrentes, con captura rápida, timer y sin RC |
+| Interfaz ES/EN | B15 | Catálogos `es.json`/`en.json`, selector en Ajustes, voz/errores/aria localizados y preferencia offline |
 | Economía | C1, C2 | Segunda capa: recompensas fijas e idempotentes, saldo durable y canje manual |
 | Identidad y acompañamiento | C3, C4, C5, C6 | El Reloj accesible, Vigía, audio opt-in y voz local |
 | Horario y plataforma | D1, D2, D3 | Ancla visible con pausa segura, fallback visual y uso de una mano |
@@ -540,7 +544,7 @@ Proyecto A los lunes y Proyecto B los martes son **casos de prueba del editor y 
 ### 17.3 Orden de construcción y validación
 
 1. **A · Cimiento:** A7 (pruebas y baseline), A3 (contratos/DB), A4–A6 (semilla/eventos/selección). A1–A2 (instalación y shell offline) se hacen antes de la validación móvil y no bloquean el bucle local. A0 se resuelve antes de la primera validación móvil.
-2. **B · Bucle:** apertura por franjas, tres cambios, timer/3-2-1, bloqueo de tarea/franja, pausa, cierre de franja, descanso, editor, sesión rápida y pendientes de una vez. No cerrar el bloque sin cubrir todos sus IDs.
+2. **B · Bucle:** apertura por franjas, tres cambios, timer/3-2-1, bloqueo de tarea/franja, pausa, cierre de franja, descanso, editor, sesión rápida, pendientes de una vez e interfaz ES/EN. No cerrar el bloque sin cubrir todos sus IDs.
 3. **C · Economía y piel:** primero C1/C2 (segunda capa) y luego accesibilidad/El Reloj, Vigía, audio y banco local de frases. Coordinar B9 con C1 para probar el tope de recompensa.
 4. **D · Horario y pulido:** ancla con interrupción segura, fallbacks, una mano y validación de salida.
 

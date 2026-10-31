@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useTranslations } from "next-intl";
 
 export function QuickTaskForm({
   busy = false,
@@ -13,6 +14,8 @@ export function QuickTaskForm({
   onStart: (title: string, durationMin: number) => void | Promise<void>;
   onCancel: () => void;
 }) {
+  const t = useTranslations("quick");
+  const common = useTranslations("common");
   const [title, setTitle] = useState("");
   const [minutes, setMinutes] = useState("25");
   const [formError, setFormError] = useState<string | null>(null);
@@ -22,11 +25,11 @@ export function QuickTaskForm({
     const cleanTitle = title.trim();
     const value = Number(minutes);
     if (!cleanTitle) {
-      setFormError("Escribe qué vas a hacer.");
+      setFormError(t("nameError"));
       return;
     }
     if (!Number.isSafeInteger(value) || value < 1) {
-      setFormError("Escribe cuántos minutos.");
+      setFormError(t("minutesError"));
       return;
     }
     setFormError(null);
@@ -36,18 +39,18 @@ export function QuickTaskForm({
   return (
     <form onSubmit={submit} className="mt-3 space-y-3">
       <label className="block">
-        <span className="text-sm font-medium">¿Qué vas a hacer?</span>
+        <span className="text-sm font-medium">{t("what")}</span>
         <input
           required
           autoFocus={autoFocus}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-          placeholder="Ej. Pagar las cuentas"
+          placeholder={t("placeholder")}
         />
       </label>
       <label className="block">
-        <span className="text-sm font-medium">Minutos</span>
+        <span className="text-sm font-medium">{t("minutes")}</span>
         <input
           required
           type="number"
@@ -59,7 +62,7 @@ export function QuickTaskForm({
           className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
         />
       </label>
-      <div className="flex flex-wrap gap-2" aria-label="Minutos rápidos">
+      <div className="flex flex-wrap gap-2" aria-label={t("minutesAria")}>
         {[5, 15, 25, 30].map((value) => (
           <button
             key={value}
@@ -69,7 +72,7 @@ export function QuickTaskForm({
             onClick={() => setMinutes(String(value))}
             className="day-toggle justify-center"
           >
-            {value} min
+            {common("minutes", { count: value })}
           </button>
         ))}
       </div>
@@ -84,7 +87,7 @@ export function QuickTaskForm({
           disabled={busy}
           className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
         >
-          {busy ? "Empezando…" : "Empezar"}
+          {busy ? t("starting") : t("start")}
         </button>
         <button
           type="button"
@@ -92,7 +95,7 @@ export function QuickTaskForm({
           disabled={busy}
           className="min-h-11 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
         >
-          Cancelar
+          {t("cancel")}
         </button>
       </div>
     </form>

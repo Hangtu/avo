@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useMessages, useTranslations } from "next-intl";
 import { openDatabase } from "@/lib/db/database";
 import {
   completeSessionWithCredit,
@@ -14,6 +15,8 @@ import { dateFromOccurrenceId } from "@/lib/domain/occurrence";
 import { toLocalDate } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
 import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
+import { intlLocales } from "@/lib/i18n/config";
+import { voicePhrasesFromMessages } from "@/lib/i18n/voice";
 import { HelpTip } from "./help-tip";
 import { pulse } from "@/lib/platform/haptics";
 import { useSessionAudio } from "./use-session-audio";
@@ -26,8 +29,8 @@ function formatRemaining(milliseconds: number): string {
   return `${minutes}:${seconds}`;
 }
 
-function formatEndTime(startedAt: number, remainingSec: number): string {
-  return new Intl.DateTimeFormat("es-MX", {
+function formatEndTime(startedAt: number, remainingSec: number, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(startedAt + remainingSec * 1000));
@@ -49,6 +52,11 @@ export function SessionView({
   onFinished: (offerBreak?: boolean, message?: string) => void;
   tone: VoiceTone;
 }) {
+  const t = useTranslations("session");
+  const common = useTranslations("common");
+  const locale = useLocale();
+  const messages = useMessages();
+  const voicePhrases = useMemo(() => voicePhrasesFromMessages(messages), [messages]);
   const [current, setCurrent] = useState(session);
   const [remainingMs, setRemainingMs] = useState(() =>
     current.status === "running"
@@ -83,7 +91,7 @@ export function SessionView({
     ? current.taskSnapshot.shortStep?.title ?? current.taskSnapshot.title
     : current.taskSnapshot.title;
   const phrase = chooseVoicePhrase(
-    tone, "work", `${current.id}:${current.startedAt ?? current.updatedAt}`,
+    tone, "work", `${current.id}:${current.startedAt ?? current.updatedAt}`, voicePhrases,
   );
 
   useWakeLock(current.status === "running");
@@ -112,9 +120,9 @@ export function SessionView({
       }
     } catch (cause) {
       console.error("No se pudo cerrar el timer", cause);
-      setExpiryError("No pude guardar que se acabó el tiempo. Inténtalo de nuevo.");
+      setExpiryError(t("expiryError"));
     }
-  }, [current.id, ringBell]);
+  }, [current.id, ringBell, t]);
 
   useEffect(() => {
     if (current.status !== "running") return;
@@ -154,17 +162,19 @@ export function SessionView({
       await action();
     } catch (cause) {
       console.error("No se pudo guardar el resultado", cause);
-      setActionError("No pude guardar el resultado. Inténtalo de nuevo.");
+      setActionError(t("actionError"));
     } finally {
       busyRef.current = false;
       setBusy(false);
     }
-  }, []);
+  }, [t]);
 
   function askNo() {
     setRetryId(newActionId());
     setNoPhrase(
-      tone > 0 ? chooseVoicePhrase(2, "push", `${current.id}:no:${pushCount}`) : null,
+      tone > 0
+        ? chooseVoicePhrase(2, "push", `${current.id}:no:${pushCount}`, voicePhrases)
+        : null,
     );
     setPushCount((count) => count + 1);
     setShowNoOptions(true);
@@ -176,15 +186,15 @@ export function SessionView({
       try {
         const result = await completeSessionWithCredit(db, current.id, Date.now());
         const closing = chooseVoicePhrase(
-          tone, "close", `${current.id}:${current.startedAt ?? current.updatedAt}`,
+          tone, "close", `${current.id}:${current.startedAt ?? current.updatedAt}`, voicePhrases,
         );
         const credit = isPending
-          ? "Terminaste el pendiente."
+          ? t("pendingDone")
           : isQuick
-            ? "Terminaste la tarea rápida."
+            ? t("quickDone")
             : result.creditedRc > 0
-              ? `Ganaste ${result.creditedRc} min para ti`
-              : "No ganaste minutos esta vez.";
+              ? t("credit", { minutes: result.creditedRc })
+              : t("noCredit");
         onFinished(!isQuick && !isShort, [credit, closing].filter(Boolean).join(" "));
       } finally {
         db.close();
@@ -197,7 +207,7 @@ export function SessionView({
       const db = await openDatabase();
       try {
         await markOccurrenceNotApplicable(db, current.id, Date.now());
-        onFinished(false, isPending ? "El pendiente sigue en tu lista." : undefined);
+        onFinished(false, isPending ? t("pendingStays") : undefined);
       } finally {
         db.close();
       }
@@ -245,38 +255,38 @@ export function SessionView({
     <section className="border-y border-line py-8 sm:py-10">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {current.status === "running"
-          ? isShort ? "Primer paso" : "Ahora"
+          ? isShort ? t("status.firstStep") : t("status.now")
           : current.status === "awaiting_confirmation"
-            ? "Se acabó el tiempo"
+            ? t("status.timeUp")
             : current.status === "paused"
-              ? isShort ? "Paso en pausa" : "En pausa"
-              : "Terminado"}
+              ? isShort ? t("status.stepPaused") : t("status.paused")
+              : t("status.finished")}
       </p>
       <div className="mt-3 flex items-start gap-2">
         <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">
           {displayTitle}
         </h2>
         {current.status === "running" || current.status === "paused" ? (
-          <HelpTip label="Cómo funciona el reloj">
+          <HelpTip label={t("helpLabel")}>
             {current.status === "paused"
-              ? "Descansar no es fallar. Al seguir, empiezas justo donde te quedaste. No puedes empezar otra tarea hasta terminar esta."
-              : "El reloj sigue aunque cierres esta pantalla. Si vuelves, sigues donde ibas. No puedes empezar otra tarea hasta terminar esta."}
+              ? t("pausedHelp")
+              : t("runningHelp")}
           </HelpTip>
         ) : null}
       </div>
       {phrase ? <p className="mt-2 text-sm leading-6 text-muted">{phrase}</p> : null}
       {isPending ? (
         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-          Pendiente
+          {t("label.pending")}
         </p>
       ) : isQuick ? (
         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-          Tarea rápida
+          {t("label.quick")}
         </p>
       ) : null}
       {!isQuick && !isPending && !isTodaySession ? (
         <p className="mt-2 text-sm leading-6 text-muted">
-          Esto empezó ayer. Sigue con la misma tarea.
+          {t("previousDay")}
         </p>
       ) : null}
 
@@ -284,13 +294,13 @@ export function SessionView({
         <>
           <p
             role="timer"
-            aria-label="Tiempo restante"
+            aria-label={t("timerAria")}
             className="mt-8 break-words text-center text-[clamp(2.25rem,20vw,4.5rem)] font-semibold tracking-tight tabular-nums"
           >
             {formatRemaining(remainingMs)}
           </p>
           <p className="mt-4 text-center text-sm text-muted">
-            Termina a las {formatEndTime(current.startedAt, current.remainingSecAtStart)}
+            {t("endsAt", { time: formatEndTime(current.startedAt, current.remainingSecAtStart, intlLocales[locale]) })}
           </p>
           <Vigia progress={progress} isShort={isShort} />
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -300,7 +310,7 @@ export function SessionView({
               disabled={busy}
               className="min-h-12 rounded-none bg-foreground px-7 text-base font-semibold text-background disabled:opacity-60"
             >
-              {busy ? "Guardando…" : isShort ? "Terminé el paso" : "Terminé"}
+              {busy ? common("saving") : isShort ? t("finishStep") : t("finish")}
             </button>
             <button
               type="button"
@@ -308,7 +318,7 @@ export function SessionView({
               disabled={busy}
               className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
             >
-              Pausar
+              {t("pause")}
             </button>
             <button
               type="button"
@@ -316,7 +326,7 @@ export function SessionView({
               disabled={busy}
               className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
             >
-              El bebé
+              {t("baby")}
             </button>
           </div>
         </>
@@ -326,18 +336,18 @@ export function SessionView({
         <div className="mt-6 space-y-4">
           <p role="status" className="text-base leading-7 text-muted">
             {isPending
-              ? "Se acabó el tiempo del pendiente. Dinos si terminaste."
+              ? t("timeUpPending")
               : isQuick
-                ? "Se acabó el tiempo de la tarea rápida. Dinos si terminaste."
+                ? t("timeUpQuick")
                 : isShort
-                  ? "Se acabó el tiempo del primer paso. La tarea no está terminada."
-                  : "Se acabó el tiempo. Dinos si terminaste."}
+                  ? t("timeUpStep")
+                  : t("timeUpTask")}
           </p>
           <Vigia progress={progress} isShort={isShort} />
           {!showNoOptions ? (
             <>
               <p className="text-lg font-semibold">
-                {isShort ? "¿Hiciste el primer paso?" : "¿La terminaste?"}
+                {isShort ? t("didStep") : t("didTask")}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
@@ -346,7 +356,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
                 >
-                  {busy ? "Guardando…" : isShort ? "Sí, lo hice" : "Sí, terminé"}
+                  {busy ? common("saving") : isShort ? t("yesStep") : t("yesTask")}
                 </button>
                 <button
                   type="button"
@@ -354,7 +364,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
                 >
-                  {busy ? "Guardando…" : "5 min más"}
+                  {busy ? common("saving") : t("more")}
                 </button>
                 <button
                   type="button"
@@ -362,7 +372,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
                 >
-                  {isShort ? "No lo hice" : "No terminé"}
+                  {isShort ? t("noStep") : t("noTask")}
                 </button>
               </div>
             </>
@@ -370,8 +380,8 @@ export function SessionView({
             <>
               <p className="text-lg font-semibold">
                 {isShort
-                  ? "¿Qué pasó con el primer paso?"
-                  : isPending ? "¿Qué pasó con el pendiente?" : "¿Qué pasó?"}
+                  ? t("whatStep")
+                  : isPending ? t("whatPending") : t("whatTask")}
               </p>
               {noPhrase ? (
                 <p className="border-l-2 border-accent pl-4 text-base leading-7">
@@ -380,8 +390,8 @@ export function SessionView({
               ) : null}
               <p className="text-sm leading-6 text-muted">
                 {isPending
-                  ? "Puedes darle 5 minutos más o dejarlo para después."
-                  : "Puedes darle 5 minutos más o decir que hoy no."}
+                  ? t("retryHelpPending")
+                  : t("retryHelp")}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
@@ -390,7 +400,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
                 >
-                  {busy ? "Guardando…" : "5 min más"}
+                  {busy ? common("saving") : t("more")}
                 </button>
                 <button
                   type="button"
@@ -398,7 +408,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
                 >
-                  {isPending ? "Dejarlo para después" : "Hoy no"}
+                  {isPending ? t("later") : t("notToday")}
                 </button>
               </div>
               <button
@@ -407,7 +417,7 @@ export function SessionView({
                 disabled={busy}
                 className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
               >
-                Volver
+                {t("back")}
               </button>
             </>
           )}
@@ -417,10 +427,7 @@ export function SessionView({
       {current.status === "paused" ? (
         <div className="mt-6 space-y-4">
           <p className="text-base leading-7 text-muted">
-            El tiempo está en pausa:{" "}
-            <span className="text-lg font-semibold tabular-nums text-foreground">
-              {formatRemaining(current.remainingSecAtStart * 1000)}
-            </span>.
+            {t("pausedTime", { time: formatRemaining(current.remainingSecAtStart * 1000) })}
           </p>
           <Vigia progress={progress} isShort={isShort} />
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -430,7 +437,7 @@ export function SessionView({
               disabled={busy}
               className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
             >
-              {busy ? "Guardando…" : "Seguir"}
+              {busy ? common("saving") : t("continue")}
             </button>
             <button
               type="button"
@@ -438,7 +445,7 @@ export function SessionView({
               disabled={busy}
               className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
             >
-              {isPending ? "Dejarlo para después" : "Hoy no"}
+              {isPending ? t("later") : t("notToday")}
             </button>
           </div>
         </div>
@@ -458,7 +465,7 @@ export function SessionView({
             onClick={() => void expire()}
             className="mt-3 min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background"
           >
-            Intentar de nuevo
+            {common("retry")}
           </button>
         </div>
       ) : null}
@@ -468,15 +475,16 @@ export function SessionView({
 
 
 function Vigia({ progress, isShort }: { progress: number; isShort: boolean }) {
+  const t = useTranslations("session");
   return (
     <div className="mt-5">
       <div
         role="progressbar"
-        aria-label={isShort ? "Avance del paso" : "Avance de la tarea"}
+        aria-label={isShort ? t("progressStepAria") : t("progressTaskAria")}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={progress}
-        aria-valuetext={`${progress}% completado`}
+        aria-valuetext={t("progressText", { progress })}
         className="h-0.5 w-full bg-line"
       >
         <div

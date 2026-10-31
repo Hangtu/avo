@@ -1,26 +1,6 @@
 export type VoiceTone = 0 | 1 | 2;
 export type VoiceContext = "open" | "work" | "close" | "push";
-
-export const VOICE_PHRASES: Readonly<Record<VoiceContext, readonly string[]>> = {
-  open: [
-    "Una cosa a la vez. Empieza por esta.",
-    "Elige una y arranca.",
-    "Hoy no necesitas hacerlo todo.",
-  ],
-  work: [
-    "Dijiste que esto te importa. Haz el primer paso.",
-    "Sigue con lo que ya empezaste.",
-    "Un poco es mejor que nada.",
-  ],
-  close: [
-    "Hecho. Tú decides si sigues con otra cosa.",
-    "Lo hecho queda. Ahora puedes parar.",
-  ],
-  push: [
-    "Deja el teléfono y haz lo que dijiste. 👀",
-    "No necesitas ganas para empezar; necesitas empezar. ⚡",
-  ],
-};
+export type VoicePhrases = Readonly<Record<VoiceContext, readonly string[]>>;
 
 function score(seed: string, context: VoiceContext): number {
   let hash = 2166136261;
@@ -40,11 +20,12 @@ export function chooseVoicePhrase(
   tone: VoiceTone,
   context: VoiceContext,
   seed: string,
+  phrases: VoicePhrases,
   previous?: string,
 ): string | null {
   if (tone === 0) return null;
   if (context === "push" && tone < 2) return null;
-  const pool = VOICE_PHRASES[context];
+  const pool = phrases[context];
   const candidates = previous ? pool.filter((phrase) => phrase !== previous) : pool;
   const options = candidates.length > 0 ? candidates : pool;
   return options[score(seed, context) % options.length] ?? null;

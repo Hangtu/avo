@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useTranslations } from "next-intl";
 
 import { HelpTip } from "./help-tip";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
@@ -15,27 +16,27 @@ import { BLOCK_RANGES, blockForTime, windowPreset, type BlockKey } from "@/lib/d
 import type { ClockTime, Weekday } from "@/lib/domain/time";
 import type { Task, TaskInput } from "@/lib/domain/types";
 
-const WEEKDAYS: Array<{ value: Weekday; label: string; full: string }> = [
-  { value: 1, label: "Lun", full: "Lunes" },
-  { value: 2, label: "Mar", full: "Martes" },
-  { value: 3, label: "Mié", full: "Miércoles" },
-  { value: 4, label: "Jue", full: "Jueves" },
-  { value: 5, label: "Vie", full: "Viernes" },
-  { value: 6, label: "Sáb", full: "Sábado" },
-  { value: 0, label: "Dom", full: "Domingo" },
-];
+const WEEKDAYS = [
+  { value: 1, short: "daysShort.mon", full: "daysFull.mon" },
+  { value: 2, short: "daysShort.tue", full: "daysFull.tue" },
+  { value: 3, short: "daysShort.wed", full: "daysFull.wed" },
+  { value: 4, short: "daysShort.thu", full: "daysFull.thu" },
+  { value: 5, short: "daysShort.fri", full: "daysFull.fri" },
+  { value: 6, short: "daysShort.sat", full: "daysFull.sat" },
+  { value: 0, short: "daysShort.sun", full: "daysFull.sun" },
+] as const;
 
-const PRIORITY_LABEL: Record<1 | 2 | 3, string> = {
-  1: "Baja",
-  2: "Media",
-  3: "Alta",
-};
+const PRIORITY_LABEL = {
+  1: "priorityLow",
+  2: "priorityMedium",
+  3: "priorityHigh",
+} as const;
 
-const BLOCKS: Array<{ value: BlockKey; label: string }> = [
-  { value: "morning", label: "Mañana" },
-  { value: "afternoon", label: "Tarde" },
-  { value: "night", label: "Noche" },
-];
+const BLOCKS = [
+  { value: "morning", labelKey: "blocks.morning" },
+  { value: "afternoon", labelKey: "blocks.afternoon" },
+  { value: "night", labelKey: "blocks.night" },
+] as const;
 
 const DRAFT_KEY = "runo:task-editor-draft:v1";
 
@@ -186,6 +187,8 @@ function clearDraft(): void {
 }
 
 export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null }) {
+  const t = useTranslations("editor");
+  const common = useTranslations("common");
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -240,7 +243,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 setNewCustom(draft.newCustom);
                 setCopiedBlocks(draft.copiedBlocks);
                 setSelectedDay(draft.selectedDay);
-                setNotice("Recuperé tu borrador.");
+                setNotice(t("notices.draft"));
               }
             }
             setDraftReady(true);
@@ -264,7 +267,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       } catch (error) {
         if (!cancelled) {
           console.error("No se pudieron cargar las tareas", error);
-          setLoadError("No pude abrir tus tareas.");
+          setLoadError(t("notices.loadError"));
         }
       } finally {
         db?.close();
@@ -276,7 +279,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       cancelled = true;
       db?.close();
     };
-  }, [initialTaskId, reloadKey]);
+  }, [initialTaskId, reloadKey, t]);
 
   function closeForm() {
     setForm(null);
@@ -372,11 +375,11 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         db.close();
       }
       setCopiedBlocks((current) => [...current, block]);
-      setNotice(`Listo, la copia quedó en ${BLOCKS.find((item) => item.value === block)?.label.toLowerCase()}.`);
+      setNotice(t("notices.copy", { moment: t(BLOCKS.find((item) => item.value === block)?.labelKey ?? "blocks.morning").toLowerCase() }));
       setReloadKey((key) => key + 1);
     } catch (error) {
       console.error("No se pudo duplicar la tarea", error);
-      setNotice("No pude hacer la copia.");
+      setNotice(t("notices.copyError"));
     } finally {
       setDuplicateBlock(null);
     }
@@ -396,7 +399,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           await updateTask(db, form.id, toInput(form), now, `edit:${form.id}:${newId()}`);
         } else {
           if (newBlocks.length > 1 && form.useFixedTime) {
-            throw new Error("La misma hora solo puede estar en una tarea. Quítala o elige otra hora.");
+            throw new Error(t("notices.sameTime"));
           }
           let inputs;
           if (newCustom) {
@@ -420,7 +423,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             : inputs.map(() => `task:${newId()}`);
           retryBatch.current = { signature, ids };
           await createTasks(db, inputs.map((input, index) => ({ id: ids[index], input })), now);
-          setNotice(inputs.length > 1 ? `${inputs.length} tareas creadas.` : "Guardada.");
+          setNotice(inputs.length > 1 ? t("notices.tasksCreated", { count: inputs.length }) : t("notices.saved"));
         }
       } finally {
         db.close();
@@ -428,11 +431,11 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       setForm(null);
       clearDraft();
       retryBatch.current = null;
-      if (form.id) setNotice("Guardada.");
+      if (form.id) setNotice(t("notices.saved"));
       setReloadKey((key) => key + 1);
-    } catch (error) {
+    } catch {
       setFormError(
-        error instanceof Error ? error.message : "No pude guardar la tarea.",
+        t("notices.saveError"),
       );
     } finally {
       setSaving(false);
@@ -450,11 +453,11 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       } finally {
         db.close();
       }
-      setNotice("Guardada aparte.");
+      setNotice(t("notices.savedApart"));
       setReloadKey((key) => key + 1);
     } catch (error) {
       console.error("No se pudo archivar", error);
-      setNotice("No pude guardarla aparte.");
+      setNotice(t("notices.archiveError"));
     } finally {
       setArchivingId(null);
     }
@@ -499,12 +502,12 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   }));
   const selectedDayInfo = WEEKDAYS.find((day) => day.value === selectedDay) ?? WEEKDAYS[0];
 
-  const blocks = [
-    { key: "morning", label: "Mañana" },
-    { key: "afternoon", label: "Tarde" },
-    { key: "night", label: "Noche" },
-    { key: "any", label: "Sin hora" },
-  ].map((block) => ({
+  const blocks = ([
+    { key: "morning", labelKey: "blocks.morning" },
+    { key: "afternoon", labelKey: "blocks.afternoon" },
+    { key: "night", labelKey: "blocks.night" },
+    { key: "any", labelKey: "blocks.none" },
+  ] as const).map((block) => ({
     ...block,
     tasks: dayTasks
       .filter((task) => blockForTime(taskTime(task)) === block.key)
@@ -528,7 +531,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               {task.title}
             </span>
             <span className="mt-1 block text-xs text-muted">
-              {time ?? "Sin hora"} · {task.durationMin} min
+              {time ?? t("list.noTime")} · {common("minutes", { count: task.durationMin })}
             </span>
           </span>
           <span aria-hidden className="shrink-0 pt-0.5 text-lg text-muted">›</span>
@@ -542,15 +545,13 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-            Tareas
+            {t("eyebrow")}
           </p>
           <div className="mt-1 flex items-start gap-2">
             <h2 id="tasks-title" className="text-3xl font-semibold tracking-tight">
-              Tus tareas
+              {t("title")}
             </h2>
-            <HelpTip label="Para qué sirve esta pantalla">
-              Elige un día y toca una tarea para editarla.
-            </HelpTip>
+            <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
           </div>
         </div>
         {!form ? (
@@ -559,7 +560,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             onClick={startNew}
             className="max-w-full min-h-11 rounded-none bg-foreground px-4 text-sm font-semibold text-background"
           >
-            Nueva tarea
+            {t("new")}
           </button>
         ) : null}
       </div>
@@ -577,7 +578,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         >
           <div className="flex items-start justify-between gap-3">
             <h3 className="text-xl font-semibold">
-              {form.id ? "Editar tarea" : "Nueva tarea"}
+              {form.id ? t("edit") : t("new")}
             </h3>
             <button
               type="button"
@@ -585,24 +586,24 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               disabled={saving}
               className="min-h-11 text-sm font-semibold text-muted underline underline-offset-4 disabled:opacity-60"
             >
-              ← Volver
+              {t("back")}
             </button>
           </div>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="block sm:col-span-2">
-              <span className="text-sm font-medium">Nombre</span>
+              <span className="text-sm font-medium">{t("name")}</span>
               <input
                 required
                 value={form.title}
                 onChange={(event) => patch({ title: event.target.value })}
                 className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                placeholder="Ej. Tomar creatina"
+                placeholder={t("namePlaceholder")}
               />
             </label>
             <div className="block">
               <label className="block">
-                <span className="text-sm font-medium">Tipo</span>
+                <span className="text-sm font-medium">{t("type")}</span>
                 {categoryMode === "existing" ? (
                   <select
                     value={form.category}
@@ -619,7 +620,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                     {categories.map((category) => (
                       <option key={category} value={category}>{category}</option>
                     ))}
-                    <option value="__new__">+ Nuevo tipo…</option>
+                    <option value="__new__">{t("newType")}</option>
                   </select>
                 ) : (
                   <input
@@ -628,7 +629,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                     value={form.category}
                     onChange={(event) => patch({ category: event.target.value })}
                     className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                    placeholder="Ej. casa, salud, trabajo"
+                    placeholder={t("typePlaceholder")}
                   />
                 )}
               </label>
@@ -641,12 +642,12 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                   }}
                   className="mt-2 min-h-11 text-sm font-semibold text-muted underline underline-offset-4"
                 >
-                  Elegir un tipo que ya tienes
+                  {t("chooseType")}
                 </button>
               ) : null}
             </div>
             <label className="block">
-              <span className="text-sm font-medium">Minutos</span>
+              <span className="text-sm font-medium">{t("minutes")}</span>
               <input
                 required
                 type="number"
@@ -658,7 +659,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium">Importancia</span>
+              <span className="text-sm font-medium">{t("importance")}</span>
               <select
                 value={form.priority}
                 onChange={(event) =>
@@ -668,7 +669,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               >
                 {[3, 2, 1].map((priority) => (
                   <option key={priority} value={priority}>
-                    {PRIORITY_LABEL[priority as 1 | 2 | 3]}
+                    {t(PRIORITY_LABEL[priority as 1 | 2 | 3])}
                   </option>
                 ))}
               </select>
@@ -677,10 +678,8 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
           <fieldset className="mt-5">
             <legend className="flex items-center gap-2 text-sm font-medium">
-              Días
-              <HelpTip label="Cómo funcionan los días">
-                Si no eliges un día, esta tarea no aparece sola.
-              </HelpTip>
+              {t("days")}
+              <HelpTip label={t("daysHelp")}>{t("daysHelp")}</HelpTip>
             </legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {WEEKDAYS.map((day) => {
@@ -697,7 +696,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       onChange={() => toggleDay(day.value)}
                       className="sr-only"
                     />
-                    <span>{selected ? "✓ " : ""}{day.label}</span>
+                    <span>{selected ? "✓ " : ""}{t(day.short)}</span>
                   </label>
                 );
               })}
@@ -707,23 +706,21 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           <div className="mt-5 space-y-4">
             <fieldset>
               <legend className="flex items-center gap-2 text-sm font-medium">
-                ¿Cuándo?
-                <HelpTip label="Cómo elegir el momento">
-                  {form.id
-                    ? "Puedes elegir una parte del día o unas horas."
-                    : "Puedes elegir más de un momento. Se crea una tarea para cada uno."}
+                {t("when")}
+                <HelpTip label={form.id ? t("whenHelpEdit") : t("whenHelpNew")}>
+                  {form.id ? t("whenHelpEdit") : t("whenHelpNew")}
                 </HelpTip>
               </legend>
               {form.id ? (
                 <>
                   <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
                     {([
-                      ["any", "Cualquier hora"],
-                      ["morning", "Mañana"],
-                      ["afternoon", "Tarde"],
-                      ["night", "Noche"],
-                      ["custom", "Elegir horas"],
-                    ] as const).map(([value, label]) => (
+                      ["any", "anyTime"],
+                      ["morning", "morning"],
+                      ["afternoon", "afternoon"],
+                      ["night", "night"],
+                      ["custom", "chooseHours"],
+                    ] as const).map(([value, key]) => (
                       <button
                         key={value}
                         type="button"
@@ -732,14 +729,14 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                         onClick={() => chooseBlock(value)}
                         className="day-toggle justify-center"
                       >
-                        {label}
+                        {t(key)}
                       </button>
                     ))}
                   </div>
                   {formBlock() === "custom" ? (
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       <label className="block">
-                        <span className="text-sm text-muted">De</span>
+                        <span className="text-sm text-muted">{t("from")}</span>
                         <input
                           type="time"
                           value={form.windowStart}
@@ -748,7 +745,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                         />
                       </label>
                       <label className="block">
-                        <span className="text-sm text-muted">A</span>
+                        <span className="text-sm text-muted">{t("to")}</span>
                         <input
                           type="time"
                           value={form.windowEnd}
@@ -760,15 +757,13 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                   ) : null}
                   {form.useWindow ? (
                     <p className="mt-2 text-xs tabular-nums text-muted">
-                      De {form.windowStart} a {form.windowEnd}
+                      {t("range", { from: form.windowStart, to: form.windowEnd })}
                     </p>
                   ) : null}
                   <div className="mt-4 border-t border-line pt-4">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">Copiar a otro momento</p>
-                      <HelpTip label="Qué hace la copia">
-                        Crea otra tarea igual, pero sin la hora exacta.
-                      </HelpTip>
+                      <p className="text-sm font-medium">{t("copyTitle")}</p>
+                      <HelpTip label={t("copyHelp")}>{t("copyHelp")}</HelpTip>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {BLOCKS.map((block) => (
@@ -783,7 +778,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                           onClick={() => void duplicateInto(block.value)}
                           className="day-toggle disabled:opacity-40"
                         >
-                          + {block.label}
+                          + {t(block.labelKey)}
                         </button>
                       ))}
                     </div>
@@ -799,7 +794,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       onClick={chooseNewAny}
                       className="day-toggle justify-center"
                     >
-                      Cualquier hora
+                      {t("anyTime")}
                     </button>
                     {BLOCKS.map((block) => (
                       <button
@@ -810,7 +805,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                         onClick={() => toggleNewBlock(block.value)}
                         className="day-toggle justify-center"
                       >
-                        {block.label}
+                        {t(block.labelKey)}
                       </button>
                     ))}
                     <button
@@ -820,13 +815,13 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       onClick={chooseNewCustom}
                       className="day-toggle justify-center"
                     >
-                      Elegir horas
+                      {t("chooseHours")}
                     </button>
                   </div>
                   {newCustom ? (
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       <label className="block">
-                        <span className="text-sm text-muted">De</span>
+                        <span className="text-sm text-muted">{t("from")}</span>
                         <input
                           type="time"
                           value={form.windowStart}
@@ -835,7 +830,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                         />
                       </label>
                       <label className="block">
-                        <span className="text-sm text-muted">A</span>
+                        <span className="text-sm text-muted">{t("to")}</span>
                         <input
                           type="time"
                           value={form.windowEnd}
@@ -847,7 +842,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                   ) : null}
                   {newCustom && form.useWindow ? (
                     <p className="mt-2 text-xs tabular-nums text-muted">
-                      De {form.windowStart} a {form.windowEnd}
+                      {t("range", { from: form.windowStart, to: form.windowEnd })}
                     </p>
                   ) : null}
                 </>
@@ -861,11 +856,11 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 onChange={(event) => patch({ useFixedTime: event.target.checked })}
                 className="h-6 w-6"
               />
-              Hora exacta
+              {t("exactTime")}
             </label>
             {form.useFixedTime ? (
               <label className="block max-w-40">
-                <span className="text-sm text-muted">Hora</span>
+                <span className="text-sm text-muted">{t("hours")}</span>
                 <input
                   type="time"
                   value={form.fixedTime}
@@ -882,21 +877,21 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 onChange={(event) => patch({ useShortStep: event.target.checked })}
                 className="h-6 w-6"
               />
-              Primer paso
+              {t("firstStep")}
             </label>
             {form.useShortStep ? (
               <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
                 <label className="block">
-                  <span className="text-sm text-muted">¿Qué harás primero?</span>
+                  <span className="text-sm text-muted">{t("firstStepWhat")}</span>
                   <input
                     value={form.shortStepTitle}
                     onChange={(event) => patch({ shortStepTitle: event.target.value })}
                     className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                    placeholder="Ej. Preparar el cepillo"
+                    placeholder={t("firstStepPlaceholder")}
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm text-muted">Minutos</span>
+                  <span className="text-sm text-muted">{t("minutes")}</span>
                   <input
                     type="number"
                     min={1}
@@ -922,7 +917,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               disabled={saving}
               className="min-h-11 rounded-none bg-foreground px-6 text-sm font-semibold text-background disabled:opacity-60"
             >
-              {saving ? "Guardando…" : "Guardar"}
+              {saving ? t("saving") : t("save")}
             </button>
             <button
               type="button"
@@ -930,7 +925,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               disabled={saving}
               className="min-h-11 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
             >
-              Cancelar
+              {t("cancel")}
             </button>
             {editingTask ? (
               <button
@@ -942,7 +937,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 disabled={saving}
                 className="min-h-11 text-sm font-semibold text-muted underline underline-offset-4 disabled:opacity-60"
               >
-                Guardar aparte
+                {t("saveApart")}
               </button>
             ) : null}
           </div>
@@ -957,14 +952,14 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             onClick={() => setReloadKey((key) => key + 1)}
             className="mt-3 min-h-11 text-sm font-semibold underline underline-offset-4"
           >
-            Intentar de nuevo
+            {common("retry")}
           </button>
         </div>
       ) : tasks === null ? (
-        <p className="mt-6 text-sm text-muted">Cargando tareas…</p>
+        <p className="mt-6 text-sm text-muted">{t("list.loading")}</p>
       ) : (
         <>
-          <div className="mt-5" role="group" aria-label="Filtrar tareas por día">
+          <div className="mt-5" role="group" aria-label={t("list.filterAria")}>
             <div className="days-strip">
               <div className="days-strip-track">
                 {dayCounts.map((day) => (
@@ -977,7 +972,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                     onClick={() => setSelectedDay(day.value)}
                     className="day-toggle min-h-14 px-1 py-2 text-xs"
                   >
-                    <span className="block">{day.label}</span>
+                    <span className="block">{t(day.short)}</span>
                     <span className="mt-1 block tabular-nums opacity-70">{day.count}</span>
                   </button>
                 ))}
@@ -987,33 +982,33 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
           <div className="mt-6 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
             <h3 id="day-tasks-title" className="text-2xl font-semibold tracking-tight">
-              {selectedDayInfo.full}
+              {t(selectedDayInfo.full)}
             </h3>
             <p className="text-sm text-muted">
-              {dayTasks.length} {dayTasks.length === 1 ? "tarea" : "tareas"}
+              {t("list.count", { count: dayTasks.length })}
             </p>
           </div>
 
           <div id="day-tasks" role="region" aria-labelledby="day-tasks-title">
           {dayTasks.length === 0 ? (
             <div className="mt-4 border-l-2 border-line pl-4">
-              <p className="text-sm leading-6 text-muted">No tienes tareas este día.</p>
+              <p className="text-sm leading-6 text-muted">{t("list.noTasks")}</p>
               <button
                 type="button"
                 onClick={startNew}
                 className="mt-2 min-h-11 text-sm font-semibold underline underline-offset-4"
               >
-                Agregar tarea para {selectedDayInfo.full.toLowerCase()}
+                {t("list.addFor", { day: t(selectedDayInfo.full) })}
               </button>
             </div>
           ) : (
             <div className="mt-2">
               {blocks.map((block) =>
                 block.tasks.length > 0 ? (
-                  <section key={block.key} className="task-plain mt-5" aria-label={block.label}>
+                  <section key={block.key} className="task-plain mt-5" aria-label={t(block.labelKey)}>
                     <div className="flex flex-wrap items-baseline justify-between gap-x-2 border-b-2 border-control pb-2">
                       <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
-                        {block.label}
+                        {t(block.labelKey)}
                       </h4>
                       <span className="text-xs tabular-nums text-muted">{block.tasks.length}</span>
                     </div>
@@ -1029,7 +1024,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             <section className="task-plain mt-8" aria-labelledby="unscheduled-title">
               <div className="flex flex-wrap items-baseline justify-between gap-x-2 border-b border-line pb-2">
                 <h3 id="unscheduled-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
-                  Sin día
+                  {t("list.unscheduled")}
                 </h3>
                 <span className="text-xs tabular-nums text-muted">{unscheduled.length}</span>
               </div>
@@ -1040,12 +1035,12 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           {archived.length > 0 ? (
             <section className="task-plain mt-8" aria-labelledby="archived-title">
               <h3 id="archived-title" className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">
-                Guardadas aparte
+                {t("list.archived")}
               </h3>
               <ul className="task-list mt-3 space-y-2">
                 {archived.map((task) => (
                   <li key={task.id} className="border-b border-line py-3 text-sm text-muted">
-                    {task.title} · guardada aparte
+                    {task.title} · {t("list.archivedSuffix")}
                   </li>
                 ))}
               </ul>

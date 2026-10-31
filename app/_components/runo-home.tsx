@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
   closeDay,
@@ -18,6 +19,7 @@ import {
   swapFranjaTask,
 } from "@/lib/db/repository";
 import { seedDatabase } from "@/lib/db/seed";
+import { intlLocales } from "@/lib/i18n/config";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
 import type { Occurrence, Pending, Session, Task } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
@@ -66,8 +68,8 @@ type View =
   | { kind: "empty"; dateLabel: string; pendingToday: number; unscheduled: number }
   | { kind: "closed"; dateLabel: string };
 
-function formatDate(now: number): string {
-  const formatted = new Intl.DateTimeFormat("es-MX", {
+function formatDate(now: number, locale: string): string {
+  const formatted = new Intl.DateTimeFormat(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -83,6 +85,8 @@ function newSessionId(): string {
 }
 
 export function RunoHome() {
+  const t = useTranslations();
+  const locale = useLocale();
   const [view, setView] = useState<View>({ kind: "loading" });
   const [pendingStart, setPendingStart] = useState<{
     task: FranjaTask;
@@ -121,7 +125,7 @@ export function RunoHome() {
         db = await openDatabase();
         const now = Date.now();
         const date = toLocalDate(now);
-        const dateLabel = formatDate(now);
+        const dateLabel = formatDate(now, intlLocales[locale]);
 
         await seedDatabase(db, now);
         const preferences = await getSettings(db, now);
@@ -203,7 +207,7 @@ export function RunoHome() {
         console.error("No se pudo preparar Runo", error);
         setView({
           kind: "error",
-          message: "No pude leer lo que tienes guardado.",
+          message: t("home.errorMessage"),
         });
       }
     }
@@ -213,7 +217,7 @@ export function RunoHome() {
       cancelled = true;
       db?.close();
     };
-  }, [refreshKey]);
+  }, [refreshKey, locale, t]);
 
   const refreshView = useCallback((message: string | null) => {
     setNotice(message);
@@ -228,12 +232,12 @@ export function RunoHome() {
     setShowBreak(offerBreak);
     if (fromPending) {
       setShowPending(true);
-      setPendingMessage(message ?? (offerBreak ? "Hecho." : "Listo."));
+      setPendingMessage(message ?? (offerBreak ? t("common.done") : t("common.ready")));
     } else {
       setShowPending(false);
     }
-    refreshView(message ?? (offerBreak ? "Hecho." : "Listo."));
-  }, [refreshView, view]);
+    refreshView(message ?? (offerBreak ? t("common.done") : t("common.ready")));
+  }, [refreshView, view, t]);
 
   const openAnchor = useCallback((task: Task, occurrence: Occurrence) => {
     setShowBreak(false);
@@ -242,11 +246,11 @@ export function RunoHome() {
     setNotice(null);
     setView({
       kind: "anchor",
-      dateLabel: formatDate(Date.now()),
+      dateLabel: formatDate(Date.now(), intlLocales[locale]),
       task,
       occurrence,
     });
-  }, []);
+  }, [locale]);
 
   const beginAnchor = useCallback(async (task: Task, occurrence: Occurrence) => {
     if (anchorBusy) return;
@@ -264,17 +268,17 @@ export function RunoHome() {
           now,
           anchor: true,
         });
-        setView({ kind: "session", dateLabel: formatDate(now), session });
+        setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
       } finally {
         db.close();
       }
     } catch (error) {
       console.error("No se pudo iniciar el ancla", error);
-      setNotice(error instanceof Error ? error.message : "No pude empezar la hora fija.");
+      setNotice(t("errors.startAnchor"));
     } finally {
       setAnchorBusy(false);
     }
-  }, [anchorBusy]);
+  }, [anchorBusy, locale, t]);
 
   const leaveAnchor = useCallback(() => {
     refreshView(null);
@@ -294,11 +298,11 @@ export function RunoHome() {
       refreshView(null);
     } catch (error) {
       console.error("No se pudo marcar el ancla", error);
-      setNotice(error instanceof Error ? error.message : "No pude marcarla.");
+      setNotice(t("errors.markAnchor"));
     } finally {
       setAnchorBusy(false);
     }
-  }, [anchorBusy, refreshView]);
+  }, [anchorBusy, refreshView, t]);
 
   const anchorWatcherEnabled =
     !showEditor &&
@@ -390,9 +394,9 @@ export function RunoHome() {
       refreshView(null);
     } catch (error) {
       console.error("No se pudo cerrar el día", error);
-      setNotice("No pude cerrar el día. Inténtalo de nuevo.");
+      setNotice(t("errors.closeDay"));
     }
-  }, [refreshView]);
+  }, [refreshView, t]);
 
   const correctTask = useCallback(async (
     task: FranjaTask,
@@ -414,15 +418,15 @@ export function RunoHome() {
       } finally {
         db.close();
       }
-      refreshView(kind === "already_done" ? "Ya estaba hecho." : "Hoy no.");
+      refreshView(kind === "already_done" ? t("home.notices.alreadyDone") : t("home.notices.notToday"));
     } catch (error) {
       console.error("No se pudo corregir la tarea", error);
-      setNotice(error instanceof Error ? error.message : "No pude corregirla.");
+      setNotice(t("errors.correctTask"));
     } finally {
       correctBusy.current = false;
       setCorrectingId(null);
     }
-  }, [refreshView]);
+  }, [refreshView, t]);
 
   const swapTask = useCallback(async (task: FranjaTask) => {
     if (swapBusy.current || view.kind !== "ready") return;
@@ -445,27 +449,27 @@ export function RunoHome() {
           occurrences,
         });
         if (result.swapped) {
-          refreshView("Listo, la cambié.");
+          refreshView(t("home.notices.swapped"));
         } else if (result.reason === "no_alternative") {
-          setNotice("No hay otra tarea para ahora.");
+          setNotice(t("home.notices.noAlternative"));
         } else if (result.reason === "no_swaps") {
-          setNotice("Ya cambiaste 3 veces hoy.");
+          setNotice(t("home.notices.noSwaps"));
         } else if (result.reason === "active_session") {
-          setNotice("Primero termina lo que ya empezaste.");
+          setNotice(t("home.notices.active"));
         } else {
-          setNotice("No pude cambiarla.");
+          setNotice(t("errors.swapTask"));
         }
       } finally {
         db.close();
       }
     } catch (error) {
       console.error("No se pudo cambiar la tarea", error);
-      setNotice("No pude cambiarla. Inténtalo de nuevo.");
+      setNotice(t("errors.swapTask"));
     } finally {
       swapBusy.current = false;
       setSwapping(false);
     }
-  }, [refreshView, view]);
+  }, [refreshView, view, t]);
 
   const offerTask = useCallback(async (handId: string, task: FranjaTask) => {
     try {
@@ -505,20 +509,20 @@ export function RunoHome() {
         setShowBreak(false);
         setShowPending(false);
         setQuickFormOpen(false);
-        setView({ kind: "session", dateLabel: formatDate(now), session });
+        setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
       } finally {
         db.close();
       }
     } catch (error) {
       console.error("No se pudo iniciar la sesión rápida", error);
       setNotice(
-        error instanceof Error ? error.message : "No pude empezar la tarea rápida.",
+        t("errors.startQuick"),
       );
     } finally {
       quickBusyRef.current = false;
       setQuickBusy(false);
     }
-  }, []);
+  }, [locale, t]);
 
   const beginPendingSession = useCallback(async (pending: Pending) => {
     if (pendingBusyRef.current) return;
@@ -536,17 +540,17 @@ export function RunoHome() {
         setShowBreak(false);
         setShowPending(false);
         setQuickFormOpen(false);
-        setView({ kind: "session", dateLabel: formatDate(now), session });
+        setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
       } finally {
         db.close();
       }
     } catch (error) {
       console.error("No se pudo empezar el pendiente", error);
-      throw error instanceof Error ? error : new Error("No pude empezar el pendiente.");
+      throw new Error(t("errors.startPending"));
     } finally {
       pendingBusyRef.current = false;
     }
-  }, []);
+  }, [locale, t]);
 
   const beginSession = useCallback(async (
     task: FranjaTask,
@@ -568,19 +572,19 @@ export function RunoHome() {
           handId,
         });
         setQuickFormOpen(false);
-        setView({ kind: "session", dateLabel: formatDate(now), session });
+        setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
       } finally {
         db.close();
       }
     } catch (error) {
       console.error("No se pudo iniciar la tarea", error);
       setNotice(
-        error instanceof Error ? error.message : "No pude empezar la tarea.",
+        t("errors.startTask"),
       );
     } finally {
       setPendingStart(null);
     }
-  }, []);
+  }, [locale, t]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -592,7 +596,7 @@ export function RunoHome() {
               <span aria-hidden className="ml-2 inline-block h-2 w-2 bg-accent align-middle" />
             </p>
             <h1 className={`mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet || showPending ? "hidden" : ""}`}>
-              Recuerda lo que importa.
+              {t("header.tagline")}
             </h1>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3 pb-1">
@@ -603,9 +607,9 @@ export function RunoHome() {
                   onClick={() => openPendings(true)}
                   disabled={pendingStart !== null}
                   className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
-                  aria-label="Agregar un pendiente"
+                  aria-label={t("nav.addPendingAria")}
                 >
-                  ＋ Pendiente
+                  {t("nav.addPending")}
                 </button>
                 <button
                   type="button"
@@ -615,7 +619,7 @@ export function RunoHome() {
                   aria-controls="quick-task-panel"
                   className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
                 >
-                  Tarea rápida ⏱️
+                  {t("nav.quickTask")}
                 </button>
               </div>
             ) : null}
@@ -629,7 +633,7 @@ export function RunoHome() {
                   onClick={closeSecondary}
                   className="min-h-11 text-sm font-semibold underline underline-offset-4"
                 >
-                  Volver a hoy
+                  {t("nav.backToToday")}
                 </button>
               ) : (
                 <>
@@ -640,7 +644,7 @@ export function RunoHome() {
                       disabled={pendingStart !== null}
                       className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
                     >
-                      Monedero
+                      {t("nav.wallet")}
                     </button>
                   ) : null}
                   <button
@@ -649,7 +653,7 @@ export function RunoHome() {
                     disabled={pendingStart !== null}
                     className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
                   >
-                    Tareas
+                    {t("nav.tasks")}
                   </button>
                   <button
                     type="button"
@@ -657,7 +661,7 @@ export function RunoHome() {
                     disabled={pendingStart !== null}
                     className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
                   >
-                    Pendientes
+                    {t("nav.pending")}
                   </button>
                   <button
                     type="button"
@@ -665,7 +669,7 @@ export function RunoHome() {
                     disabled={pendingStart !== null}
                     className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
                   >
-                    Ajustes
+                    {t("nav.settings")}
                   </button>
                 </>
               )}
@@ -705,14 +709,12 @@ export function RunoHome() {
             >
               <div className="flex items-center gap-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-                  Tarea rápida
+                  {t("quick.eyebrow")}
                 </p>
-                <HelpTip label="Para qué sirve la tarea rápida">
-                  Esto es solo para ahora. No se guarda en tus tareas. Cuando termines, vuelves aquí.
-                </HelpTip>
+                <HelpTip label={t("quick.helpLabel")}>{t("quick.help")}</HelpTip>
               </div>
               <h2 id="quick-task-title" className="mt-2 text-xl font-semibold tracking-tight">
-                Algo para ahora
+                {t("quick.title")}
               </h2>
               <QuickTaskForm
                 busy={quickBusy}
@@ -791,7 +793,7 @@ export function RunoHome() {
         </div>
 
         <div aria-hidden className="runo-dock-scrim" />
-        <nav className="runo-dock" aria-label="Navegación principal">
+        <nav className="runo-dock" aria-label={t("common.mainNav")}>
           <button
             type="button"
             onClick={() => {
@@ -800,7 +802,7 @@ export function RunoHome() {
             disabled={pendingStart !== null}
             aria-current={!showEditor && !showWallet && !showSettings && !showPending ? "page" : undefined}
           >
-            Hoy
+            {t("nav.today")}
           </button>
           <button
             type="button"
@@ -808,17 +810,17 @@ export function RunoHome() {
             disabled={pendingStart !== null}
             aria-current={showEditor ? "page" : undefined}
           >
-            Tareas
+            {t("nav.tasks")}
           </button>
           <button
             type="button"
             onClick={() => openPendings(false)}
             disabled={pendingStart !== null}
             aria-current={showPending ? "page" : undefined}
-            aria-label="Pendientes"
+            aria-label={t("nav.pending")}
           >
-            <span className="dock-label-full">Pendientes</span>
-            <span className="dock-label-short" aria-hidden>Pend.</span>
+            <span className="dock-label-full">{t("nav.pending")}</span>
+            <span className="dock-label-short" aria-hidden>{t("nav.pendingShort")}</span>
           </button>
           <button
             type="button"
@@ -826,7 +828,7 @@ export function RunoHome() {
             disabled={pendingStart !== null}
             aria-current={showSettings ? "page" : undefined}
           >
-            Ajustes
+            {t("nav.settings")}
           </button>
           {showWalletLink ? (
             <button
@@ -835,7 +837,7 @@ export function RunoHome() {
               disabled={pendingStart !== null}
               aria-current={showWallet ? "page" : undefined}
             >
-              Monedero
+              {t("nav.wallet")}
             </button>
           ) : null}
         </nav>
@@ -857,6 +859,8 @@ function Countdown({
   onDone: (task: FranjaTask, variant: "full" | "short", handId: string) => void | Promise<void>;
   onCancel: () => void;
 }) {
+  const t = useTranslations("countdown");
+  const common = useTranslations("common");
   const [count, setCount] = useState(3);
   const fired = useRef(false);
   const title = variant === "short" ? task.shortStepTitle ?? task.title : task.title;
@@ -880,14 +884,14 @@ function Countdown({
       aria-live="polite"
     >
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        {variant === "short" ? "Primer paso" : "Empezando"}
+        {variant === "short" ? t("firstStep") : t("starting")}
       </p>
       <h2 className="mt-3 text-2xl font-semibold leading-tight">{title}</h2>
       <p className="mt-6 text-8xl font-semibold tabular-nums text-foreground">
         {count === 0 ? "…" : count}
       </p>
       <p className="mt-4 text-sm leading-6 text-muted">
-        {duration} min. Puedes cancelar.
+        {t("cancelHelp", { duration })}
       </p>
       {count > 0 ? (
         <button
@@ -895,7 +899,7 @@ function Countdown({
           onClick={onCancel}
           className="mt-6 min-h-11 rounded-none border border-control px-6 text-sm font-semibold"
         >
-          Cancelar
+          {common("cancel")}
         </button>
       ) : null}
     </section>
@@ -903,9 +907,10 @@ function Countdown({
 }
 
 function LoadingState() {
+  const t = useTranslations("home");
   return (
     <div className="space-y-3" role="status">
-      <p className="text-sm text-muted">Preparando tu día…</p>
+      <p className="text-sm text-muted">{t("loading")}</p>
       <div className="h-24 animate-pulse rounded-none bg-surface motion-reduce:animate-none motion-reduce:opacity-60" />
       <div className="h-24 animate-pulse rounded-none bg-surface motion-reduce:animate-none motion-reduce:opacity-60" />
     </div>
@@ -919,19 +924,19 @@ function ErrorState({
   message: string;
   onRetry: () => void;
 }) {
+  const t = useTranslations("home");
+  const common = useTranslations("common");
   return (
     <section className="border-y border-line py-6" role="alert">
-      <h2 className="text-xl font-semibold">No pude abrir tus datos</h2>
+      <h2 className="text-xl font-semibold">{t("errorTitle")}</h2>
       <p className="mt-2 text-base leading-7 text-muted">{message}</p>
-      <p className="mt-3 text-sm leading-6 text-muted">
-        Revisa que esta app pueda guardar datos. Si sigue, ábrela de nuevo.
-      </p>
+      <p className="mt-3 text-sm leading-6 text-muted">{t("errorHelp")}</p>
       <button
         type="button"
         onClick={onRetry}
         className="mt-4 min-h-11 text-sm font-semibold underline underline-offset-4"
       >
-        Intentar de nuevo
+        {common("retry")}
       </button>
     </section>
   );
@@ -958,6 +963,8 @@ function Franja({
   swapping: boolean;
   correctingId: string | null;
 }) {
+  const t = useTranslations("franja");
+  const common = useTranslations("common");
   const [index, setIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const tasks = view.tasks;
@@ -973,14 +980,14 @@ function Franja({
 
   const remaining = task.remainingMin;
   const primaryLabel = task.shortStepDone
-    ? `Continuar ${remaining} min`
-    : "Empezar";
+    ? t("continue", { remaining })
+    : t("start");
 
   return (
     <section className="first-experience" aria-labelledby="first-title">
-      <p className="first-eyebrow">Ahora</p>
+      <p className="first-eyebrow">{t("eyebrow")}</p>
       <h2 id="first-title" className="first-title">{task.title}</h2>
-      <p className="first-duration">{remaining} min</p>
+      <p className="first-duration">{common("minutes", { count: remaining })}</p>
 
       <div className="first-actions">
         <button
@@ -1001,14 +1008,14 @@ function Franja({
               setMenuOpen(false);
             }}
           >
-            Ver otra
+            {t("showAnother")}
           </button>
         ) : null}
         <button
           type="button"
           className="first-more"
           disabled={busy}
-          aria-label="Más opciones"
+          aria-label={common("moreOptions")}
           aria-expanded={menuOpen}
           aria-controls="first-more-menu"
           onClick={() => setMenuOpen((value) => !value)}
@@ -1025,7 +1032,7 @@ function Franja({
               disabled={busy}
               onClick={() => onStart(task, "short")}
             >
-              Solo tengo {task.shortStepMin} min ⏱️
+              {t("shortStep", { minutes: task.shortStepMin })}
             </button>
           ) : null}
           {view.canSwap ? (
@@ -1034,17 +1041,17 @@ function Franja({
               disabled={busy}
               onClick={() => void onSwap(task)}
             >
-              Cambiar por otra tarea 🔄
+              {t("swap")}
             </button>
           ) : null}
           <button type="button" disabled={busy} onClick={() => onAlreadyDone(task)}>
-            Ya está hecho ✅
+            {t("alreadyDone")}
           </button>
           <button type="button" disabled={busy} onClick={() => onNotApplicable(task)}>
-            Hoy no ❌
+            {t("notToday")}
           </button>
           <button type="button" disabled={busy} onClick={() => onEdit(task)}>
-            Editar tarea ✏️
+            {t("edit")}
           </button>
         </div>
       ) : null}
@@ -1053,46 +1060,46 @@ function Franja({
 }
 
 function EmptyState({ onEndDay }: { onEndDay: () => void }) {
+  const t = useTranslations("home");
   return (
     <section className="border-t border-line pt-6">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        Ahora
+        {t("emptyEyebrow")}
       </p>
       <div className="mt-3 flex items-start gap-2">
         <h2 className="text-2xl font-semibold tracking-tight">
-          No tienes nada que hacer ahora.
+          {t("emptyTitle")}
         </h2>
-        <HelpTip label="Qué hacer ahora">
-          Vuelve más tarde o mira tus tareas.
-        </HelpTip>
+        <HelpTip label={t("emptyHelpLabel")}>{t("emptyHelp")}</HelpTip>
       </div>
       <button
         type="button"
         onClick={onEndDay}
         className="mt-6 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
       >
-        Terminar por hoy
+        {t("endDay")}
       </button>
     </section>
   );
 }
 
 function DayClosed({ view }: { view: Extract<View, { kind: "closed" }> }) {
+  const t = useTranslations("home");
   return (
     <section
-      aria-label={`Hoy terminado, ${view.dateLabel}`}
+      aria-label={t("closedAria", { date: view.dateLabel })}
       className="border-y border-line py-8 sm:py-10"
     >
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        Hoy
+        {t("closedEyebrow")}
       </p>
       <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-        Ya terminaste por hoy.
+        {t("closedTitle")}
       </h2>
       <p className="mt-3 text-base leading-7 text-muted">
-        Lo que hiciste queda guardado. Lo que no hiciste no te quita nada.
+        {t("closedCopy")}
       </p>
-      <p className="mt-2 text-sm leading-6 text-muted">Mañana seguimos.</p>
+      <p className="mt-2 text-sm leading-6 text-muted">{t("closedTomorrow")}</p>
     </section>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { openDatabase } from "@/lib/db/database";
 import { getSettings, saveSettings } from "@/lib/db/repository";
 import {
@@ -21,6 +22,7 @@ function applyTheme(resolved: ResolvedTheme): void {
 }
 
 export function useThemePreference() {
+  const t = useTranslations("errors");
   const [mode, setMode] = useState<ThemeMode | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export function useThemePreference() {
       } catch (cause) {
         console.error("No se pudo leer el tema", cause);
         if (!cancelled) {
-          setError("No pude leer tu color. Uso el automático.");
+          setError(t("themeRead"));
           setMode("auto");
         }
       } finally {
@@ -50,7 +52,7 @@ export function useThemePreference() {
       cancelled = true;
       db?.close();
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!mode) return;
@@ -94,11 +96,11 @@ export function useThemePreference() {
       }
     } catch (cause) {
       console.error("No se pudo guardar el tema", cause);
-      setError("No pude guardar tu color.");
+      setError(t("themeSave"));
     } finally {
       setBusy(false);
     }
-  }, [busy, mode]);
+  }, [busy, mode, t]);
 
   return {
     mode: mode ?? "auto",

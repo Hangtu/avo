@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Lexend } from "next/font/google";
 import "./globals.css";
+import { I18nProvider } from "./_components/i18n-provider";
 import { ServiceWorkerRegister } from "./_components/service-worker-register";
+import { defaultLocale, messages } from "@/lib/i18n/config";
 import {
   DARK_THEME_COLOR,
   LIGHT_THEME_COLOR,
@@ -19,7 +21,7 @@ const lexend = Lexend({
 export const metadata: Metadata = {
   applicationName: "Runo",
   title: "Runo",
-  description: "Recordar, empezar y volver a tu vida, un paso a la vez.",
+  description: messages[defaultLocale].meta.description,
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -49,8 +51,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <ServiceWorkerRegister />
-        {children}
+        <I18nProvider>
+          <ServiceWorkerRegister />
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

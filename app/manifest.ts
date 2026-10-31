@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
+import { defaultLocale, messages } from "@/lib/i18n/config";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Runo",
     short_name: "Runo",
-    description: "Recordar, empezar y volver a tu vida, un paso a la vez.",
+    description: messages[defaultLocale].meta.description,
     start_url: "/",
     scope: "/",
     display: "standalone",

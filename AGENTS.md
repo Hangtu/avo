@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 App personal de hábitos, organización y timer, con presión configurable y recompensas en minutos de ocio. Un solo usuario, español de México. El objetivo es ayudar a actuar y volver a la vida, no maximizar adicción o tiempo dentro de la app.
 
-**Alcance vigente:** `plan.md` v1.4, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
+**Alcance vigente:** `plan.md` v1.5, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
 
 ## 1. Lectura y fuentes de verdad
 
@@ -63,6 +63,7 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 14. **Pendientes de una vez:** lista persistente separada de las tareas recurrentes, con pestaña propia y captura desde Hoy. No tiene días, franja, prioridad ni escalón; no paga RC ni entra a franjas; completados desaparecen. Timer directo, 25 min iniciales, una sola sesión activa y el siguiente pendiente no arranca solo.
 15. **Ayuda contextual, no párrafos de ayuda:** las instrucciones secundarias viven en un icono `i` con tooltip accesible (hover, foco o toque; Escape y toque fuera lo cierran). No esconder estados, validaciones, acciones ni límites esenciales; tampoco depender solo de hover. `Tarea rápida` y `＋ Pendiente` comparten la cabecera de Hoy.
 16. **Lenguaje llano:** los textos de interfaz deben entenderlos personas sin conocer el modelo interno. Evitar «tres cartas», «franja», «mazo», «elegible», «sesión», «ancla», «bloque», «ledger» o «RC» como vocabulario principal; explicar o quitar la jerga. Preferir «Ahora», «tus tareas», «lo que quieres hacer después», «hoy no», «5 min más». Los estados y errores también se escriben en lenguaje cotidiano.
+17. **Idioma ES/EN:** español inicial, inglés disponible y selector en Ajustes con preferencia local. Mantener `/` sin rutas de locale para no romper la PWA/offline. Todos los textos visibles, voz, errores visibles, `aria-label`, ayudas y metadatos del cliente viven en `messages/es.json` y `messages/en.json`; no traducir títulos de tareas ni datos del usuario. Las claves deben existir en ambos catálogos y el build debe incluir los dos para el cambio offline.
 
 ## 4. Economía: una sola interpretación
 

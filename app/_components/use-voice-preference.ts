@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { openDatabase } from "@/lib/db/database";
 import { getSettings, saveSettings } from "@/lib/db/repository";
 import type { VoiceTone } from "@/lib/domain/voice";
 
 export function useVoicePreference() {
+  const t = useTranslations("errors");
   const [tone, setToneState] = useState<VoiceTone | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,7 +23,7 @@ export function useVoicePreference() {
       } catch (cause) {
         if (!cancelled) {
           console.error("No se pudo leer la voz", cause);
-          setError("No pude abrir tu voz.");
+          setError(t("voiceRead"));
         }
       } finally {
         db?.close();
@@ -33,7 +35,7 @@ export function useVoicePreference() {
       cancelled = true;
       db?.close();
     };
-  }, []);
+  }, [t]);
 
   const setTone = useCallback(async (next: VoiceTone) => {
     setError(null);
@@ -49,9 +51,9 @@ export function useVoicePreference() {
       setToneState(next);
     } catch (cause) {
       console.error("No se pudo guardar la voz", cause);
-      setError("No pude guardar tu voz.");
+      setError(t("voiceSave"));
     }
-  }, []);
+  }, [t]);
 
   return {
     tone,
