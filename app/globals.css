@@ -371,7 +371,7 @@ select {
 }
 
 .help-tip-button:hover,
-.help-tip-button[aria-expanded="true"] {
+.help-tip-button[data-open="true"] {
   border-color: var(--foreground);
   color: var(--foreground);
 }
@@ -379,6 +379,7 @@ select {
 .help-tip-panel {
   position: fixed;
   z-index: 60;
+  pointer-events: none;
   width: min(18rem, calc(100vw - 2rem));
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--surface-border);
@@ -641,33 +642,40 @@ body > * {
   box-shadow: none;
 }
 
-/* Task editor: day strip scrolls instead of compressing tap targets. */
+/* Task editor: the week fits as a grid; narrow screens use rows instead of sideways scrolling. */
 .days-strip {
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
+  overflow: visible;
 }
 
 .days-strip-track {
-  display: flex;
-  min-width: 100%;
-  gap: 0.25rem;
-  padding: 0.35rem 0.3rem 0.5rem;
-  scroll-snap-type: x proximity;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+  padding: 0.35rem 0 0.5rem;
 }
 
 .days-strip .day-toggle {
-  flex: 1 1 0;
-  min-width: 3.1rem;
-  scroll-snap-align: start;
+  min-width: 0;
+  padding-inline: 0.15rem;
 }
 
 :root[data-ui="liquid"] .days-strip .day-toggle {
   flex-direction: column;
   gap: 0.1rem;
   min-height: 3.5rem;
-  padding: 0.35rem 0.25rem;
+  padding: 0.35rem 0.15rem;
+}
+
+@media (max-width: 419px) {
+  .days-strip-track {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 279px) {
+  .days-strip-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Task editor: day and block toggles */
