@@ -27,6 +27,20 @@ const PRIORITY_LABEL: Record<1 | 2 | 3, string> = {
   3: "Alta",
 };
 
+type BlockKey = "morning" | "afternoon" | "night";
+
+const BLOCKS: Array<{ value: BlockKey; label: string }> = [
+  { value: "morning", label: "Mañana" },
+  { value: "afternoon", label: "Tarde" },
+  { value: "night", label: "Noche" },
+];
+
+const BLOCK_RANGES: Record<BlockKey, { start: string; end: string }> = {
+  morning: { start: "05:00", end: "12:00" },
+  afternoon: { start: "12:00", end: "19:00" },
+  night: { start: "19:00", end: "23:59" },
+};
+
 interface FormState {
   id: string | null;
   title: string;
@@ -140,6 +154,10 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [form, setForm] = useState<FormState | null>(null);
   const [categoryMode, setCategoryMode] = useState<"existing" | "new">("existing");
   const [customWindow, setCustomWindow] = useState(false);
+  const [newBlocks, setNewBlocks] = useState<BlockKey[]>([]);
+  const [newCustom, setNewCustom] = useState(false);
+  const [copiedBlocks, setCopiedBlocks] = useState<BlockKey[]>([]);
+  const [duplicateBlock, setDuplicateBlock] = useState<BlockKey | null>(null);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -165,6 +183,9 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               openedInitialTask.current = true;
               setCategoryMode("existing");
               setCustomWindow(false);
+              setNewBlocks([]);
+              setNewCustom(false);
+              setCopiedBlocks([]);
               setForm(formFromTask(target));
             }
           }
@@ -193,6 +214,9 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     next.days = [selectedDay];
     setCategoryMode("existing");
     setCustomWindow(false);
+    setNewBlocks([]);
+    setNewCustom(false);
+    setCopiedBlocks([]);
     setForm(next);
   }
 
@@ -201,6 +225,9 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     setNotice(null);
     setCategoryMode("existing");
     setCustomWindow(false);
+    setNewBlocks([]);
+    setNewCustom(false);
+    setCopiedBlocks([]);
     setForm(formFromTask(task));
   }
 
@@ -218,6 +245,62 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     });
   }
 
+  function chooseNewAny() {
+    setNewBlocks([]);
+    setNewCustom(false);
+    patch({ useWindow: false });
+  }
+
+  function toggleNewBlock(block: BlockKey) {
+    const next = newBlocks.includes(block)
+      ? newBlocks.filter((value) => value !== block)
+      : [...newBlocks, block];
+    setNewBlocks(next);
+    setNewCustom(false);
+    if (next.length === 0) {
+      patch({ useWindow: false });
+      return;
+    }
+    const first = BLOCK_RANGES[next[0]];
+    patch({ useWindow: true, windowStart: first.start, windowEnd: first.end });
+  }
+
+  function chooseNewCustom() {
+    setNewBlocks([]);
+    setNewCustom(true);
+    patch({ useWindow: true });
+  }
+
+  async function duplicateInto(block: BlockKey) {
+    if (!form?.id || duplicateBlock || copiedBlocks.includes(block) || saving) return;
+    setDuplicateBlock(block);
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      try {
+        const range = BLOCK_RANGES[block];
+        const input = toInput({
+          ...form,
+          useWindow: true,
+          windowStart: range.start,
+          windowEnd: range.end,
+          useFixedTime: false,
+        });
+        await createTask(db, `task:${newId()}`, input, Date.now());
+      } finally {
+        db.close();
+      }
+      setCopiedBlocks((current) => [...current, block]);
+      setNotice(`Copia creada en ${BLOCKS.find((item) => item.value === block)?.label.toLowerCase()}.`);
+      setReloadKey((key) => key + 1);
+    } catch (error) {
+      console.error("No se pudo duplicar la tarea", error);
+      setNotice("No se pudo duplicar la tarea.");
+    } finally {
+      setDuplicateBlock(null);
+    }
+  }
+
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!form || saving) return;
@@ -228,17 +311,38 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       const db = await openDatabase();
       try {
         const now = Date.now();
-        const input = toInput(form);
         if (form.id) {
-          await updateTask(db, form.id, input, now, `edit:${form.id}:${newId()}`);
+          await updateTask(db, form.id, toInput(form), now, `edit:${form.id}:${newId()}`);
         } else {
-          await createTask(db, `task:${newId()}`, input, now);
+          if (newBlocks.length > 1 && form.useFixedTime) {
+            throw new Error("La hora exacta no se puede repetir en varios bloques. Desactívala o usa Personalizado.");
+          }
+          let inputs;
+          if (newCustom) {
+            inputs = [toInput(form)];
+          } else if (newBlocks.length > 0) {
+            inputs = newBlocks.map((block) => {
+              const range = BLOCK_RANGES[block];
+              return toInput({
+                ...form,
+                useWindow: true,
+                windowStart: range.start,
+                windowEnd: range.end,
+              });
+            });
+          } else {
+            inputs = [toInput({ ...form, useWindow: false })];
+          }
+          for (const input of inputs) {
+            await createTask(db, `task:${newId()}`, input, now);
+          }
+          setNotice(inputs.length > 1 ? `${inputs.length} tareas creadas.` : "Guardada.");
         }
       } finally {
         db.close();
       }
       setForm(null);
-      setNotice("Guardada.");
+      if (form.id) setNotice("Guardada.");
       setReloadKey((key) => key + 1);
     } catch (error) {
       setFormError(
@@ -522,51 +626,138 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           <div className="mt-5 space-y-4">
             <fieldset>
               <legend className="text-sm font-medium">¿Cuándo?</legend>
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                {([
-                  ["any", "Sin bloque"],
-                  ["morning", "Mañana"],
-                  ["afternoon", "Tarde"],
-                  ["night", "Noche"],
-                  ["custom", "Personalizado"],
-                ] as const).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    data-on={formBlock() === value}
-                    aria-pressed={formBlock() === value}
-                    onClick={() => chooseBlock(value)}
-                    className="day-toggle justify-center"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {formBlock() === "custom" ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="text-sm text-muted">Desde</span>
-                    <input
-                      type="time"
-                      value={form.windowStart}
-                      onChange={(event) => patch({ windowStart: event.target.value })}
-                      className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-sm text-muted">Hasta</span>
-                    <input
-                      type="time"
-                      value={form.windowEnd}
-                      onChange={(event) => patch({ windowEnd: event.target.value })}
-                      className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                    />
-                  </label>
-                </div>
-              ) : null}
-              <p className="mt-2 text-sm leading-6 text-muted">
-                El bloque es opcional; si necesitas una hora exacta, actívala abajo.
-              </p>
+              {form.id ? (
+                <>
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    {([
+                      ["any", "Sin bloque"],
+                      ["morning", "Mañana"],
+                      ["afternoon", "Tarde"],
+                      ["night", "Noche"],
+                      ["custom", "Personalizado"],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        data-on={formBlock() === value}
+                        aria-pressed={formBlock() === value}
+                        onClick={() => chooseBlock(value)}
+                        className="day-toggle justify-center"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {formBlock() === "custom" ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="text-sm text-muted">Desde</span>
+                        <input
+                          type="time"
+                          value={form.windowStart}
+                          onChange={(event) => patch({ windowStart: event.target.value })}
+                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-sm text-muted">Hasta</span>
+                        <input
+                          type="time"
+                          value={form.windowEnd}
+                          onChange={(event) => patch({ windowEnd: event.target.value })}
+                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                  <p className="mt-2 text-sm leading-6 text-muted">
+                    El bloque es opcional; si necesitas una hora exacta, actívala abajo.
+                  </p>
+                  <div className="mt-4 border-t border-line pt-4">
+                    <p className="text-sm font-medium">Duplicar en otro bloque</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {BLOCKS.map((block) => (
+                        <button
+                          key={block.value}
+                          type="button"
+                          disabled={
+                            duplicateBlock !== null ||
+                            copiedBlocks.includes(block.value) ||
+                            formBlock() === block.value
+                          }
+                          onClick={() => void duplicateInto(block.value)}
+                          className="day-toggle disabled:opacity-40"
+                        >
+                          + {block.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-muted">
+                      Crea una copia separada; no copia la hora exacta.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    <button
+                      type="button"
+                      data-on={newBlocks.length === 0 && !newCustom}
+                      aria-pressed={newBlocks.length === 0 && !newCustom}
+                      onClick={chooseNewAny}
+                      className="day-toggle justify-center"
+                    >
+                      Sin bloque
+                    </button>
+                    {BLOCKS.map((block) => (
+                      <button
+                        key={block.value}
+                        type="button"
+                        data-on={newBlocks.includes(block.value)}
+                        aria-pressed={newBlocks.includes(block.value)}
+                        onClick={() => toggleNewBlock(block.value)}
+                        className="day-toggle justify-center"
+                      >
+                        {block.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      data-on={newCustom}
+                      aria-pressed={newCustom}
+                      onClick={chooseNewCustom}
+                      className="day-toggle justify-center"
+                    >
+                      Personalizado
+                    </button>
+                  </div>
+                  {newCustom ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="text-sm text-muted">Desde</span>
+                        <input
+                          type="time"
+                          value={form.windowStart}
+                          onChange={(event) => patch({ windowStart: event.target.value })}
+                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-sm text-muted">Hasta</span>
+                        <input
+                          type="time"
+                          value={form.windowEnd}
+                          onChange={(event) => patch({ windowEnd: event.target.value })}
+                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                  <p className="mt-2 text-sm leading-6 text-muted">
+                    Puedes elegir varios bloques. Se crearán tareas separadas, una por bloque.
+                  </p>
+                </>
+              )}
             </fieldset>
 
             <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
