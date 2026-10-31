@@ -375,7 +375,10 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         db.close();
       }
       setCopiedBlocks((current) => [...current, block]);
-      setNotice(t("notices.copy", { moment: t(BLOCKS.find((item) => item.value === block)?.labelKey ?? "blocks.morning").toLowerCase() }));
+      const copyKey = block === "morning"
+        ? "notices.copyMorning"
+        : block === "afternoon" ? "notices.copyAfternoon" : "notices.copyNight";
+      setNotice(t(copyKey));
       setReloadKey((key) => key + 1);
     } catch (error) {
       console.error("No se pudo duplicar la tarea", error);

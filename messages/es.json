@@ -268,7 +268,10 @@
       "saveError": "No pude guardar la tarea.",
       "copyError": "No pude hacer la copia.",
       "archiveError": "No pude guardarla aparte.",
-      "sameTime": "La misma hora solo puede estar en una tarea. Quítala o elige otra hora."
+      "sameTime": "La misma hora solo puede estar en una tarea. Quítala o elige otra hora.",
+      "copyMorning": "Listo, la copia quedó en la mañana.",
+      "copyAfternoon": "Listo, la copia quedó en la tarde.",
+      "copyNight": "Listo, la copia quedó en la noche."
     },
     "list": {
       "loading": "Cargando tareas…",

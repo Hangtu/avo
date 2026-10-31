@@ -268,7 +268,10 @@
       "saveError": "I couldn't save the task.",
       "copyError": "I couldn't make the copy.",
       "archiveError": "I couldn't save it separately.",
-      "sameTime": "The same time can only be on one task. Remove it or choose another time."
+      "sameTime": "The same time can only be on one task. Remove it or choose another time.",
+      "copyMorning": "Done, the copy is in the morning.",
+      "copyAfternoon": "Done, the copy is in the afternoon.",
+      "copyNight": "Done, the copy is at night."
     },
     "list": {
       "loading": "Loading tasks…",
