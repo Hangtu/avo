@@ -239,22 +239,19 @@ select {
 }
 
 :root[data-ui="liquid"] button.border-control {
-  background: #e9eeff;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(79, 107, 255, 0.16));
-  border: 1px solid rgba(255, 255, 255, 0.74);
-  color: #1f2b78;
-  box-shadow: 0 12px 28px -20px rgba(35, 55, 140, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(79, 107, 255, 0.14);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background: var(--surface-2);
+  border: 1px solid rgba(59, 84, 87, 0.45);
+  color: var(--foreground);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 :root[data-ui="liquid"][data-theme="dark"] button.border-control {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(120, 145, 255, 0.22));
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #f3f7ff;
-  box-shadow: 0 12px 28px -20px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 rgba(120, 145, 255, 0.15);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background: var(--surface-2);
+  border-color: rgba(214, 238, 236, 0.3);
+  color: var(--foreground);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 
