@@ -113,11 +113,23 @@ function newId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function daysLabel(days: Weekday[]): string {
-  if (days.length === 0) return "Sin programar";
-  return WEEKDAYS.filter((day) => days.includes(day.value))
-    .map((day) => day.label)
-    .join(" · ");
+function taskTime(task: Task): string | null {
+  return task.fixedTime ?? task.window?.start ?? null;
+}
+
+function timeMinutes(time: string | null): number {
+  if (!time) return 24 * 60;
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function taskBlock(task: Task): "morning" | "afternoon" | "night" | "any" {
+  const time = taskTime(task);
+  if (!time) return "any";
+  const hour = Number(time.slice(0, 2));
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 19) return "afternoon";
+  return "night";
 }
 
 export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null }) {
@@ -128,7 +140,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
-  const [archiveId, setArchiveId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedDay, setSelectedDay] = useState<Weekday>(
     () => new Date().getDay() as Weekday,
@@ -241,7 +252,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       } finally {
         db.close();
       }
-      setArchiveId(null);
       setNotice("Archivada.");
       setReloadKey((key) => key + 1);
     } catch (error) {
@@ -262,64 +272,39 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   }));
   const selectedDayInfo = WEEKDAYS.find((day) => day.value === selectedDay) ?? WEEKDAYS[0];
 
-  function taskRow(task: Task) {
+  const blocks = [
+    { key: "morning", label: "Mañana" },
+    { key: "afternoon", label: "Tarde" },
+    { key: "night", label: "Noche" },
+    { key: "any", label: "Sin hora" },
+  ].map((block) => ({
+    ...block,
+    tasks: dayTasks
+      .filter((task) => taskBlock(task) === block.key)
+      .sort((a, b) =>
+        timeMinutes(taskTime(a)) - timeMinutes(taskTime(b)) || a.title.localeCompare(b.title),
+      ),
+  }));
+  const editingTask = form?.id ? active.find((task) => task.id === form.id) ?? null : null;
+
+  function compactRow(task: Task) {
+    const time = taskTime(task);
     return (
-      <li key={task.id} className="border-b border-line py-5">
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
-          <div className="min-w-0">
-            <h3 className="text-lg font-semibold">{task.title}</h3>
-            <p className="mt-1 text-sm leading-6 text-muted">
-              {daysLabel(task.days)} · {task.durationMin} min ·{" "}
-              {PRIORITY_LABEL[task.priority]} · {task.category}
-            </p>
-            <p className="mt-1 text-sm leading-6 text-muted">
-              {task.window
-                ? `Franja ${task.window.start}–${task.window.end}`
-                : "Sin franja horaria"}
-              {task.fixedTime ? ` · Hora fija ${task.fixedTime}` : ""}
-              {task.shortStep
-                ? ` · Paso: ${task.shortStep.title} (${task.shortStep.durationMin} min)`
-                : ""}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-4 sm:justify-self-end">
-            <button
-              type="button"
-              onClick={() => startEdit(task)}
-              className="min-h-11 text-sm font-semibold underline underline-offset-4"
-            >
-              Editar
-            </button>
-            {archiveId === task.id ? (
-              <span className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-muted">¿Archivar?</span>
-                <button
-                  type="button"
-                  onClick={() => void archive(task)}
-                  disabled={archivingId === task.id}
-                  className="min-h-11 rounded-none bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
-                >
-                  {archivingId === task.id ? "Archivando…" : "Sí"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setArchiveId(null)}
-                  className="min-h-11 text-sm font-semibold underline underline-offset-4"
-                >
-                  Cancelar
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setArchiveId(task.id)}
-                className="min-h-11 text-sm font-semibold underline underline-offset-4"
-              >
-                Archivar
-              </button>
-            )}
-          </div>
-        </div>
+      <li key={task.id} className="border-b border-line">
+        <button
+          type="button"
+          onClick={() => startEdit(task)}
+          className="flex min-h-14 w-full items-center gap-3 py-3 text-left"
+        >
+          <span className="w-14 shrink-0 text-xs tabular-nums text-muted">
+            {time ?? "—"}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-base font-semibold">
+            {task.title}
+          </span>
+          <span className="shrink-0 text-xs text-muted">{task.durationMin} min</span>
+          <span aria-hidden className="text-lg text-muted">›</span>
+        </button>
       </li>
     );
   }
@@ -331,11 +316,11 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
             Configuración
           </p>
-          <h2 id="tasks-title" className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
+          <h2 id="tasks-title" className="mt-1 text-3xl font-semibold tracking-tight">
             Tus tareas
           </h2>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-            Elige un día para ver qué tienes. Agrega, edita o archiva sin perder el contexto.
+          <p className="mt-1 max-w-xl text-sm leading-6 text-muted">
+            Elige un día y toca una tarea para editarla.
           </p>
         </div>
         <button
@@ -550,6 +535,19 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             >
               Cancelar
             </button>
+            {editingTask ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setForm(null);
+                  void archive(editingTask);
+                }}
+                disabled={saving}
+                className="min-h-11 text-sm font-semibold text-muted underline underline-offset-4 disabled:opacity-60"
+              >
+                Archivar tarea
+              </button>
+            ) : null}
           </div>
         </form>
       ) : null}
@@ -592,22 +590,15 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           </div>
 
           <div className="mt-6 flex items-end justify-between gap-3">
-            <h3 className="text-2xl font-semibold tracking-tight">
-              {selectedDayInfo.full}
-            </h3>
+            <h3 className="text-2xl font-semibold tracking-tight">{selectedDayInfo.full}</h3>
             <p className="text-sm text-muted">
               {dayTasks.length} {dayTasks.length === 1 ? "tarea" : "tareas"}
             </p>
           </div>
 
-          <ul className="mt-3 border-t border-line">
-            {dayTasks.map((task) => taskRow(task))}
-          </ul>
           {dayTasks.length === 0 ? (
             <div className="mt-4 border-l-2 border-line pl-4">
-              <p className="text-sm leading-6 text-muted">
-                No tienes tareas este día.
-              </p>
+              <p className="text-sm leading-6 text-muted">No tienes tareas este día.</p>
               <button
                 type="button"
                 onClick={startNew}
@@ -616,25 +607,42 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 Agregar tarea para {selectedDayInfo.full.toLowerCase()}
               </button>
             </div>
-          ) : null}
+          ) : (
+            <div className="mt-2">
+              {blocks.map((block) =>
+                block.tasks.length > 0 ? (
+                  <section key={block.key} className="task-plain mt-5" aria-label={block.label}>
+                    <div className="flex items-baseline justify-between border-b-2 border-control pb-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                        {block.label}
+                      </h4>
+                      <span className="text-xs tabular-nums text-muted">{block.tasks.length}</span>
+                    </div>
+                    <ul className="task-list">{block.tasks.map((task) => compactRow(task))}</ul>
+                  </section>
+                ) : null,
+              )}
+            </div>
+          )}
 
           {unscheduled.length > 0 ? (
-            <section className="mt-8" aria-labelledby="unscheduled-title">
-              <h3 id="unscheduled-title" className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">
-                Sin programar · {unscheduled.length}
-              </h3>
-              <ul className="mt-3 border-t border-line">
-                {unscheduled.map((task) => taskRow(task))}
-              </ul>
+            <section className="task-plain mt-8" aria-labelledby="unscheduled-title">
+              <div className="flex items-baseline justify-between border-b border-line pb-2">
+                <h3 id="unscheduled-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                  Sin programar
+                </h3>
+                <span className="text-xs tabular-nums text-muted">{unscheduled.length}</span>
+              </div>
+              <ul className="task-list">{unscheduled.map((task) => compactRow(task))}</ul>
             </section>
           ) : null}
 
           {archived.length > 0 ? (
-            <section className="mt-8" aria-labelledby="archived-title">
+            <section className="task-plain mt-8" aria-labelledby="archived-title">
               <h3 id="archived-title" className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">
                 Archivadas
               </h3>
-              <ul className="mt-3 space-y-2">
+              <ul className="task-list mt-3 space-y-2">
                 {archived.map((task) => (
                   <li key={task.id} className="border-b border-line py-3 text-sm text-muted">
                     {task.title} · archivada

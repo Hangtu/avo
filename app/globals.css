@@ -528,3 +528,23 @@ body > * {
     font-size: 2rem;
   }
 }
+
+
+/* Task editor: compact rows, not nested cards. */
+:root[data-ui="liquid"] .task-list > li {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+:root[data-ui="liquid"] section.task-plain {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}

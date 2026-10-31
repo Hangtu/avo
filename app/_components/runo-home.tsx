@@ -457,7 +457,7 @@ export function RunoHome() {
               Runo
               <span aria-hidden className="ml-2 inline-block h-2 w-2 bg-accent align-middle" />
             </p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
+            <h1 className={`mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet ? "hidden" : ""}`}>
               Recuerda lo que importa.
             </h1>
           </div>
