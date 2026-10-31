@@ -4,9 +4,9 @@ App personal de hábitos y sesiones de enfoque, local-first y sin login.
 El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PWA/offline),
 C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla), D2
 (fallbacks de plataforma), D3 (una mano y tema cálido) y la validación local
-de D4 (12/16 criterios) están listos técnicamente, con **Liquid Focus** como
-base visual. El origen HTTPS es **https://runo-mu.vercel.app**. Falta la
-instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
+de D4 (12/16 criterios) están listos técnicamente, con **Liquid Focus** y la
+carta **Ahora** como base. El origen HTTPS es **https://runo-mu.vercel.app**.
+Falta la instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
 
 ## Antes de trabajar
 

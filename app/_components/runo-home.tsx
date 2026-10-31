@@ -22,8 +22,6 @@ import { AnchorView } from "./anchor-view";
 import { useAnchorWatcher } from "./use-anchor-watcher";
 import { TaskEditor } from "./task-editor";
 import { useVoicePreference } from "./use-voice-preference";
-import { VoiceControl } from "./voice-control";
-import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
 import { WalletView } from "./wallet-view";
 import { ThemeControl } from "./theme-control";
 import { useThemePreference } from "./use-theme-preference";
@@ -530,9 +528,6 @@ export function RunoHome() {
                   onEndDay={endDay}
                   swapping={swapping}
                   correctingId={correctingId}
-                  tone={voice.tone ?? 0}
-                  toneReady={voice.ready}
-                  onTone={voice.setTone}
                 />
               ) : null}
               {view.kind === "empty" ? (
@@ -689,9 +684,6 @@ function Franja({
   onEndDay,
   swapping,
   correctingId,
-  tone,
-  toneReady,
-  onTone,
 }: {
   view: Extract<View, { kind: "ready" }>;
   onStart: (task: FranjaTask, variant: "full" | "short") => void;
@@ -701,131 +693,92 @@ function Franja({
   onEndDay: () => void;
   swapping: boolean;
   correctingId: string | null;
-  tone: VoiceTone;
-  toneReady: boolean;
-  onTone: (tone: VoiceTone) => void;
 }) {
-  const countLabel = view.tasks.length === 1 ? "1 tarea" : `${view.tasks.length} tareas`;
-  const phrase = chooseVoicePhrase(tone, "open", `franja:${view.handId}`);
+  const [index, setIndex] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const tasks = view.tasks;
+  const task = tasks[index % Math.max(tasks.length, 1)];
+  const busy = swapping || correctingId !== null;
+
+  if (!task) return null;
+
+  const remaining = task.remainingMin;
+  const primaryLabel = task.shortStepDone
+    ? `Continuar ${remaining} min`
+    : "Empezar";
+
   return (
-    <section aria-labelledby="franja-title">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-            Franja {view.ordinal}
-          </p>
-          <h2 id="franja-title" className="mt-2 text-2xl font-semibold tracking-tight">
-            Empieza por donde quieras.
-          </h2>
-          {phrase ? (
-            <p className="mt-3 text-base leading-7 text-muted">{phrase}</p>
-          ) : null}
-        </div>
-        <p className="text-sm text-muted">{countLabel} ahora</p>
-      </div>
+    <section className="first-experience" aria-labelledby="first-title">
+      <p className="first-eyebrow">Ahora</p>
+      <h2 id="first-title" className="first-title">{task.title}</h2>
+      <p className="first-duration">{remaining} min</p>
 
-      <ol className="mt-4 border-t border-line">
-        {view.tasks.map((task, index) => (
-          <li
-            key={task.id}
-            className="flex flex-wrap items-start gap-4 border-b border-line py-5"
-          >
-            <span className="mt-1 w-6 shrink-0 text-xs font-semibold tabular-nums text-muted">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-lg font-semibold leading-7">{task.title}</h3>
-              <p className="mt-1 text-sm text-muted">
-                {task.remainingMin} min{task.shortStepDone ? " restantes" : ""} ·{" "}
-                {task.category} · +{task.remainingRc} RC
-                {task.shortStepMin
-                  ? task.shortStepDone
-                    ? " · paso hecho"
-                    : ` · paso: ${task.shortStepTitle ?? "primer paso"} (${task.shortStepMin} min, +${task.shortStepMin} RC)`
-                  : ""}
-              </p>
-            </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
-              <div className="flex w-full flex-wrap gap-x-5 gap-y-2 sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => onStart(task, "full")}
-                  disabled={swapping || correctingId !== null}
-                  className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
-                >
-                  {task.shortStepDone ? `Continuar ${task.remainingMin} min` : "Empezar"}
-                </button>
-                {task.shortStepMin && !task.shortStepDone ? (
-                  <button
-                    type="button"
-                    onClick={() => onStart(task, "short")}
-                    disabled={swapping || correctingId !== null}
-                    className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
-                  >
-                    Paso {task.shortStepMin} min
-                  </button>
-                ) : null}
-                {view.canSwap ? (
-                  <button
-                    type="button"
-                    onClick={() => void onSwap(task)}
-                    disabled={swapping || correctingId !== null}
-                    className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
-                  >
-                    Otra
-                  </button>
-                ) : null}
-              </div>
-              <div className="flex w-full flex-wrap gap-x-4 gap-y-1 text-sm text-muted sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => onAlreadyDone(task)}
-                  disabled={swapping || correctingId !== null}
-                  className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
-                >
-                  Ya la hice
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNotApplicable(task)}
-                  disabled={swapping || correctingId !== null}
-                  className="min-h-11 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
-                >
-                  No aplica
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      <p className="mt-5 text-sm leading-6 text-muted">
-        {view.pendingToday} {view.pendingToday === 1 ? "pendiente" : "pendientes"} hoy
-        {view.remainingEligible > 0
-          ? ` · ${view.remainingEligible} más después de esta franja`
-          : ""}
-        .
-      </p>
-      <p className="mt-2 text-sm leading-6 text-muted">
-        {view.swapsRemaining > 0
-          ? `${view.swapsRemaining} ${
-              view.swapsRemaining === 1 ? "cambio" : "cambios"
-            }${view.canSwap ? "" : " · sin otra tarea elegible"}.`
-          : "Ya usaste los 3 cambios de hoy."}
-      </p>
-      <p className="mt-2 text-sm leading-6 text-muted">
-        Resuelve esta franja para abrir la siguiente.
-      </p>
-      <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
-        <VoiceControl tone={tone} ready={toneReady} onTone={onTone} />
+      <div className="first-actions">
         <button
           type="button"
-          onClick={onEndDay}
-          className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
+          className="bg-foreground px-6 text-base font-semibold text-background disabled:opacity-60"
+          disabled={busy}
+          onClick={() => onStart(task, "full")}
         >
-          Terminar por hoy
+          {primaryLabel}
+        </button>
+        {tasks.length > 1 ? (
+          <button
+            type="button"
+            className="first-secondary"
+            disabled={busy}
+            onClick={() => {
+              setIndex((value) => value + 1);
+              setMenuOpen(false);
+            }}
+          >
+            Ver otra
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="first-more"
+          disabled={busy}
+          aria-label="Más opciones"
+          aria-expanded={menuOpen}
+          aria-controls="first-more-menu"
+          onClick={() => setMenuOpen((value) => !value)}
+        >
+          ⋯
         </button>
       </div>
+
+      {menuOpen ? (
+        <div id="first-more-menu" className="first-menu">
+          {task.shortStepMin && !task.shortStepDone ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onStart(task, "short")}
+            >
+              Solo tengo {task.shortStepMin} min
+            </button>
+          ) : null}
+          {view.canSwap ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void onSwap(task)}
+            >
+              Cambiar por otra tarea
+            </button>
+          ) : null}
+          <button type="button" disabled={busy} onClick={() => onAlreadyDone(task)}>
+            Ya está hecho
+          </button>
+          <button type="button" disabled={busy} onClick={() => onNotApplicable(task)}>
+            Hoy no
+          </button>
+          <button type="button" disabled={busy} onClick={onEndDay}>
+            Terminar por hoy
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -157,6 +157,7 @@ Anclas con preparación y recordatorios externos, exportación `.ics` y ventanas
 Para eliminar ambigüedad, el MVP usa una regla sencilla, sin multiplicadores:
 
 - La versión completa tiene una recompensa fija igual a sus **minutos configurados**. Una carta de 15 min ofrece 15 RC, aunque se termine antes.
+- **Presentación de la recompensa (2026-10-30):** la tarjeta y el timer no muestran la sigla RC. Al terminar se comunica una sola vez como «Ganaste X min para ti»; el detalle de RC vive en Monedero. El ledger, el tope y la idempotencia no cambian.
 - Un escalón tiene una recompensa fija igual a sus minutos, siempre inferior al total de la tarea. Ejemplo: 1 RC por el primer paso de la ropa.
 - La recompensa se muestra y se congela al iniciar. El primer asalto de una ocurrencia fija también el tope de la tarea completa, aunque se empiece por un escalón. Editar la plantilla después no cambia ese acuerdo, una sesión en curso ni pagos anteriores.
 - **Tope por ocurrencia:** la recompensa de la versión completa fijada al empezar. Si ya se pagó un escalón, al completar el resto se acredita únicamente la diferencia.
@@ -241,12 +242,12 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 **Reglas de la dirección visual:**
 
 - **Una jerarquía clara:** una acción principal por tarjeta o vista; el resto son enlaces o controles secundarios discretos.
-- **Sin sombras, sin degradados y sin tarjetas dentro de tarjetas.** Las secciones se separan con reglas finas y espacio, no con elevación.
-- **Un solo acento bermellón** para un marcador pequeño, el foco o una acción puntual; las acciones principales pueden ser tinta. El resto es papel, tinta y gris. No usar el acento en todo.
+- **Profundidad suave:** superficies de vidrio con fallback sólido, sombra ambiental y gradientes cálidos; las secciones no se anidan como tarjetas dentro de tarjetas.
+- **Un solo acento** (índigo en la base Liquid) para un marcador pequeño, el foco o una acción puntual; las acciones principales pueden ser tinta o el color primario. El resto es papel, vidrio, tinta y gris. No usar el acento en todo.
 - **Tipografía protagonista:** títulos grandes y breves; etiquetas pequeñas en mayúsculas con tracking; cuerpo legible; números tabulares para el timer.
 - **Mucho espacio en blanco** y un ancho de lectura corto; la pantalla debe respirar incluso en móvil.
 - **El timer es la pieza central** durante el asalto. La franja es una lista serena; el editor es una vista secundaria tranquila, no un dashboard.
-- **Esquinas rectas o casi rectas** y bordes de 1 px; evitar el look de tarjetas redondeadas y almohadillas.
+- **Esquinas suaves (16–32 px)** en tarjetas y controles; los bordes de control siguen siendo visibles y no dependen solo del color.
 - **Modo noche cálido desde D3.** La imagen TURA alimenta el tema nocturno: papel claro de día y una noche cálida de bajo brillo. Entra automáticamente de 20:00 a 07:00 y una elección manual de claro u oscuro siempre gana; no se fuerza contra la preferencia del usuario.
 
 ### Tipografía
@@ -266,6 +267,8 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 **Paleta implementada:** papel `#F4F1EA`, tinta `#171512`, gris `#544E47`, línea `#D8D2C6` (solo separadores decorativos), control `#8C8275` (bordes de campos/controles) y acento bermellón `#C43D2E`. Los ratios se midieron en C3; el acento no se usa como texto de cuerpo.
 
 **Base elegida después de la exploración (Liquid Focus, 2026-10-30):** fondo ambiental `#EFF6F5`, tinta `#17252A`, superficies de vidrio con fallback sólido, muted `#3B5457`, acento `#4F6BFF`, primario `#3948C8` y timer circular. En móvil la navegación principal baja a un dock de vidrio; en escritorio queda arriba. Modo noche `#0C161B`/`#EAF7F6`/`#8EA2FF`. Lexend se mantiene; el vidrio nunca es la única capa de legibilidad.
+
+**Carta Ahora (2026-10-30):** la franja se presenta de una tarjeta a la vez: título, duración, `Empezar`, `Ver otra` y `⋯`. Las otras cartas de la misma franja se recorren con `Ver otra`; el paso corto, el cambio por otra tarea y las correcciones viven en `⋯`. No se muestran RC, categorías, pendientes ni contadores de cambios en la primera vista.
 
 **Paleta de noche (D3):** fondo `#1B1815`, tinta `#F3EEE5`, superficie `#24201B`, gris `#C4BBAD`, línea `#463F35` (decorativa), control `#9A8F80` y acento `#E0705F`. La tinta, el gris y el control miden 15.30:1, 9.31:1 y 5.57:1 sobre el fondo; la línea y la superficie son decorativas. La selección usa tinta oscura sobre el acento (5.77:1).
 

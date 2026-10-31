@@ -423,3 +423,83 @@ body > * {
   padding-inline: 1rem;
   box-shadow: 0 12px 24px -18px rgba(0, 0, 0, 0.4);
 }
+
+/* Minimal task card */
+.first-eyebrow {
+  margin-top: 2rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.first-title {
+  margin-top: 0.6rem;
+  font-size: clamp(2rem, 7vw, 3.2rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.first-duration {
+  margin-top: 0.75rem;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.first-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.first-secondary,
+.first-more,
+.first-back {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.first-more {
+  min-width: 3rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--foreground);
+  font-size: 1.2rem;
+}
+
+.first-menu {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 1rem;
+  padding: 0.6rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
+  background: var(--surface-2);
+}
+
+.first-menu button {
+  justify-content: flex-start;
+  text-align: left;
+  color: var(--foreground);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+@media (max-width: 240px) {
+  .first-actions {
+    gap: 0.5rem;
+  }
+
+  .first-title {
+    font-size: 2rem;
+  }
+}

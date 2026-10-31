@@ -174,8 +174,8 @@ export function SessionView({
           tone, "close", `${current.id}:${current.startedAt ?? current.updatedAt}`,
         );
         const credit = result.creditedRc > 0
-          ? `Ganaste ${result.creditedRc} RC`
-          : "Sin RC nuevo.";
+          ? `Ganaste ${result.creditedRc} min para ti`
+          : "Sin minutos nuevos.";
         onFinished(!isShort, [credit, closing].filter(Boolean).join(" "));
       } finally {
         db.close();
@@ -263,9 +263,6 @@ export function SessionView({
       <h2 className="mt-3 text-2xl font-semibold leading-tight sm:text-3xl">
         {displayTitle}
       </h2>
-      <p className="mt-2 text-sm leading-6 text-muted">
-        Recompensa: +{current.rewardTargetRc} RC
-      </p>
       {phrase ? <p className="mt-2 text-sm leading-6 text-muted">{phrase}</p> : null}
       {!isTodaySession ? (
         <p className="mt-2 text-sm leading-6 text-muted">
