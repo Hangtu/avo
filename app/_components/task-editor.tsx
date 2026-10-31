@@ -186,6 +186,25 @@ function clearDraft(): void {
   }
 }
 
+function DisclosureChevron() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      className="task-block-chevron h-4 w-4 shrink-0 text-muted"
+    >
+      <path
+        d="m5 8 5 5 5-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null }) {
   const t = useTranslations("editor");
   const common = useTranslations("common");
@@ -209,6 +228,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const openedInitialTask = useRef(false);
   const draftBootstrapped = useRef(false);
   const [draftReady, setDraftReady] = useState(false);
+  const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
   const retryBatch = useRef<{ signature: string; ids: string[] } | null>(null);
 
   useEffect(() => {
@@ -519,6 +539,10 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       ),
   }));
   const editingTask = form?.id ? active.find((task) => task.id === form.id) ?? null : null;
+
+  function rememberSection(key: string, open: boolean) {
+    setClosedSections((current) => ({ ...current, [key]: !open }));
+  }
 
   function compactRow(task: Task) {
     const time = taskTime(task);
@@ -1008,15 +1032,23 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             <div className="mt-2">
               {blocks.map((block) =>
                 block.tasks.length > 0 ? (
-                  <section key={block.key} className="task-plain mt-5" aria-label={t(block.labelKey)}>
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-2 border-b-2 border-control pb-2">
-                      <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                  <details
+                    key={block.key}
+                    className="task-block task-plain mt-5"
+                    open={!closedSections[block.key]}
+                    onToggle={(event) => rememberSection(block.key, event.currentTarget.open)}
+                  >
+                    <summary className="flex min-h-11 w-full cursor-pointer flex-wrap items-center justify-between gap-x-2 border-b-2 border-control pb-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
                         {t(block.labelKey)}
-                      </h4>
-                      <span className="text-xs tabular-nums text-muted">{block.tasks.length}</span>
-                    </div>
+                      </span>
+                      <span className="flex items-center gap-2 text-xs tabular-nums text-muted">
+                        {block.tasks.length}
+                        <DisclosureChevron />
+                      </span>
+                    </summary>
                     <ul className="task-list">{block.tasks.map((task) => compactRow(task))}</ul>
-                  </section>
+                  </details>
                 ) : null,
               )}
             </div>
@@ -1024,22 +1056,39 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           </div>
 
           {unscheduled.length > 0 ? (
-            <section className="task-plain mt-8" aria-labelledby="unscheduled-title">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-2 border-b border-line pb-2">
-                <h3 id="unscheduled-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+            <details
+              className="task-block task-plain mt-8"
+              open={!closedSections.unscheduled}
+              onToggle={(event) => rememberSection("unscheduled", event.currentTarget.open)}
+            >
+              <summary className="flex min-h-11 w-full cursor-pointer flex-wrap items-center justify-between gap-x-2 border-b border-line pb-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
                   {t("list.unscheduled")}
-                </h3>
-                <span className="text-xs tabular-nums text-muted">{unscheduled.length}</span>
-              </div>
+                </span>
+                <span className="flex items-center gap-2 text-xs tabular-nums text-muted">
+                  {unscheduled.length}
+                  <DisclosureChevron />
+                </span>
+              </summary>
               <ul className="task-list">{unscheduled.map((task) => compactRow(task))}</ul>
-            </section>
+            </details>
           ) : null}
 
           {archived.length > 0 ? (
-            <section className="task-plain mt-8" aria-labelledby="archived-title">
-              <h3 id="archived-title" className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">
-                {t("list.archived")}
-              </h3>
+            <details
+              className="task-block task-plain mt-8"
+              open={!closedSections.archived}
+              onToggle={(event) => rememberSection("archived", event.currentTarget.open)}
+            >
+              <summary className="flex min-h-11 w-full cursor-pointer flex-wrap items-center justify-between gap-x-2 border-b border-line pb-2">
+                <span className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">
+                  {t("list.archived")}
+                </span>
+                <span className="flex items-center gap-2 text-xs tabular-nums text-muted">
+                  {archived.length}
+                  <DisclosureChevron />
+                </span>
+              </summary>
               <ul className="task-list mt-3 space-y-2">
                 {archived.map((task) => (
                   <li key={task.id} className="border-b border-line py-3 text-sm text-muted">
@@ -1047,7 +1096,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                   </li>
                 ))}
               </ul>
-            </section>
+            </details>
           ) : null}
         </>
       )}

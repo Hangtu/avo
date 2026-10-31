@@ -678,6 +678,34 @@ body > * {
   }
 }
 
+/* Task editor: collapsible day blocks. */
+.task-block > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.task-block > summary::-webkit-details-marker {
+  display: none;
+}
+
+.task-block > summary::marker {
+  content: "";
+}
+
+.task-block-chevron {
+  transition: transform 180ms ease;
+}
+
+.task-block:not([open]) > summary .task-block-chevron {
+  transform: rotate(-90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-block-chevron {
+    transition: none;
+  }
+}
+
 /* Task editor: day and block toggles */
 :root[data-ui="liquid"] .day-toggle {
   display: inline-flex;
