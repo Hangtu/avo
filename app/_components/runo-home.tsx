@@ -576,7 +576,6 @@ export function RunoHome() {
                   onAlreadyDone={(task) => void correctTask(task, "already_done")}
                   onNotApplicable={(task) => void correctTask(task, "not_applicable")}
                   onEdit={(task) => openEditorForTask(task.id)}
-                  onEndDay={endDay}
                   swapping={swapping}
                   correctingId={correctingId}
                 />
@@ -731,7 +730,6 @@ function Franja({
   onAlreadyDone,
   onNotApplicable,
   onEdit,
-  onEndDay,
   swapping,
   correctingId,
 }: {
@@ -741,7 +739,6 @@ function Franja({
   onAlreadyDone: (task: FranjaTask) => void;
   onNotApplicable: (task: FranjaTask) => void;
   onEdit: (task: FranjaTask) => void;
-  onEndDay: () => void;
   swapping: boolean;
   correctingId: string | null;
 }) {
@@ -819,17 +816,14 @@ function Franja({
               Cambiar por otra tarea 🔄
             </button>
           ) : null}
-          <button type="button" disabled={busy} onClick={() => onEdit(task)}>
-            Editar tarea ✏️
-          </button>
           <button type="button" disabled={busy} onClick={() => onAlreadyDone(task)}>
             Ya está hecho ✅
           </button>
           <button type="button" disabled={busy} onClick={() => onNotApplicable(task)}>
-            Hoy no 🌙
+            Hoy no ❌
           </button>
-          <button type="button" disabled={busy} onClick={onEndDay}>
-            Terminar por hoy 🌅
+          <button type="button" disabled={busy} onClick={() => onEdit(task)}>
+            Editar tarea ✏️
           </button>
         </div>
       ) : null}
