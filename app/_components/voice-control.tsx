@@ -22,7 +22,7 @@ export function VoiceControl({
       >
         <option value={0}>Silencio</option>
         <option value={1}>Normal</option>
-        <option value={2}>Duro (a pedido)</option>
+        <option value={2}>Fuerte</option>
       </select>
     </label>
   );

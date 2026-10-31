@@ -18,7 +18,7 @@ export function ThemeControl({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <label className="flex min-h-11 flex-wrap items-center gap-2 text-sm text-muted">
-        <span>Tema</span>
+        <span>Modo</span>
         <select
           value={mode}
           disabled={!ready || busy}
@@ -27,7 +27,7 @@ export function ThemeControl({
         >
           <option value="auto">Automático</option>
           <option value="light">Claro</option>
-          <option value="dark">Noche</option>
+          <option value="dark">Oscuro</option>
         </select>
       </label>
       {error ? (

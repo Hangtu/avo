@@ -62,6 +62,7 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 13. **Sesión rápida acotada:** nombre + minutos desde Hoy o el día cerrado, visible incluso con una tarea asignada; no es una Task del Mazo, no entra a franja ni altera el día, no paga RC y solo hay una sesión activa. Su sesión/ocurrencia se conserva para sobrevivir una recarga; al terminar vuelve a donde empezó. Es una salida para trabajo inmediato, no una segunda economía.
 14. **Pendientes de una vez:** lista persistente separada de las tareas recurrentes, con pestaña propia y captura desde Hoy. No tiene días, franja, prioridad ni escalón; no paga RC ni entra a franjas; completados desaparecen. Timer directo, 25 min iniciales, una sola sesión activa y el siguiente pendiente no arranca solo.
 15. **Ayuda contextual, no párrafos de ayuda:** las instrucciones secundarias viven en un icono `i` con tooltip accesible (hover, foco o toque; Escape y toque fuera lo cierran). No esconder estados, validaciones, acciones ni límites esenciales; tampoco depender solo de hover. `Tarea rápida` y `＋ Pendiente` comparten la cabecera de Hoy.
+16. **Lenguaje llano:** los textos de interfaz deben entenderlos personas sin conocer el modelo interno. Evitar «tres cartas», «franja», «mazo», «elegible», «sesión», «ancla», «bloque», «ledger» o «RC» como vocabulario principal; explicar o quitar la jerga. Preferir «Ahora», «tus tareas», «lo que quieres hacer después», «hoy no», «5 min más». Los estados y errores también se escriben en lenguaje cotidiano.
 
 ## 4. Economía: una sola interpretación
 

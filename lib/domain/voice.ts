@@ -13,11 +13,11 @@ export const VOICE_PHRASES: Readonly<Record<VoiceContext, readonly string[]>> = 
     "Un poco es mejor que nada.",
   ],
   close: [
-    "Hecho. Tú decides si vas por otra franja.",
+    "Hecho. Tú decides si sigues con otra cosa.",
     "Lo hecho queda. Ahora puedes parar.",
   ],
   push: [
-    "Deja el scroll y haz lo que dijiste. 👀",
+    "Deja el teléfono y haz lo que dijiste. 👀",
     "No necesitas ganas para empezar; necesitas empezar. ⚡",
   ],
 };

@@ -112,7 +112,7 @@ export function SessionView({
       }
     } catch (cause) {
       console.error("No se pudo cerrar el timer", cause);
-      setExpiryError("No se pudo guardar el vencimiento. Vuelve a intentarlo.");
+      setExpiryError("No pude guardar que se acabó el tiempo. Inténtalo de nuevo.");
     }
   }, [current.id, ringBell]);
 
@@ -154,7 +154,7 @@ export function SessionView({
       await action();
     } catch (cause) {
       console.error("No se pudo guardar el resultado", cause);
-      setActionError("No se pudo guardar el resultado. Inténtalo de nuevo.");
+      setActionError("No pude guardar el resultado. Inténtalo de nuevo.");
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -179,12 +179,12 @@ export function SessionView({
           tone, "close", `${current.id}:${current.startedAt ?? current.updatedAt}`,
         );
         const credit = isPending
-          ? "Pendiente terminado."
+          ? "Terminaste el pendiente."
           : isQuick
-            ? "Sesión rápida terminada."
+            ? "Terminaste la tarea rápida."
             : result.creditedRc > 0
               ? `Ganaste ${result.creditedRc} min para ti`
-              : "Sin minutos nuevos.";
+              : "No ganaste minutos esta vez.";
         onFinished(!isQuick && !isShort, [credit, closing].filter(Boolean).join(" "));
       } finally {
         db.close();
@@ -245,38 +245,38 @@ export function SessionView({
     <section className="border-y border-line py-8 sm:py-10">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {current.status === "running"
-          ? isShort ? "Primer paso" : isPending ? "Pendiente" : "En curso"
+          ? isShort ? "Primer paso" : "Ahora"
           : current.status === "awaiting_confirmation"
-            ? "Tiempo cumplido"
+            ? "Se acabó el tiempo"
             : current.status === "paused"
-              ? isShort ? "Paso pausado" : isPending ? "Pendiente pausado" : "Pausada"
-              : "Sesión cerrada"}
+              ? isShort ? "Paso en pausa" : "En pausa"
+              : "Terminado"}
       </p>
       <div className="mt-3 flex items-start gap-2">
         <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">
           {displayTitle}
         </h2>
         {current.status === "running" || current.status === "paused" ? (
-          <HelpTip label="Información sobre esta sesión">
+          <HelpTip label="Cómo funciona el reloj">
             {current.status === "paused"
-              ? "La pausa no cuenta como fallo. Al continuar retomas exactamente donde ibas. No se inicia otra tarea hasta resolver esta."
-              : "El reloj sigue aunque cambies de pantalla. Al volver, retomas donde ibas. No se inicia otra tarea hasta resolver esta."}
+              ? "Descansar no es fallar. Al seguir, empiezas justo donde te quedaste. No puedes empezar otra tarea hasta terminar esta."
+              : "El reloj sigue aunque cierres esta pantalla. Si vuelves, sigues donde ibas. No puedes empezar otra tarea hasta terminar esta."}
           </HelpTip>
         ) : null}
       </div>
       {phrase ? <p className="mt-2 text-sm leading-6 text-muted">{phrase}</p> : null}
       {isPending ? (
         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-          Pendiente · no suma minutos
+          Pendiente
         </p>
       ) : isQuick ? (
         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-          Fuera de tus tareas · no suma minutos
+          Tarea rápida
         </p>
       ) : null}
       {!isQuick && !isPending && !isTodaySession ? (
         <p className="mt-2 text-sm leading-6 text-muted">
-          Sesión de un día anterior; conserva su tarea original.
+          Esto empezó ayer. Sigue con la misma tarea.
         </p>
       ) : null}
 
@@ -326,18 +326,18 @@ export function SessionView({
         <div className="mt-6 space-y-4">
           <p role="status" className="text-base leading-7 text-muted">
             {isPending
-              ? "Se acabó el tiempo del pendiente. Puedes terminarlo o dejarlo para después."
+              ? "Se acabó el tiempo del pendiente. Dinos si terminaste."
               : isQuick
-                ? "Se acabó el tiempo de la sesión rápida. No se inicia otra hasta confirmar."
+                ? "Se acabó el tiempo de la tarea rápida. Dinos si terminaste."
                 : isShort
-                  ? "Se acabó el tiempo del paso. La tarea sigue pendiente."
-                  : "Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar."}
+                  ? "Se acabó el tiempo del primer paso. La tarea no está terminada."
+                  : "Se acabó el tiempo. Dinos si terminaste."}
           </p>
           <Vigia progress={progress} isShort={isShort} />
           {!showNoOptions ? (
             <>
               <p className="text-lg font-semibold">
-                {isShort ? "¿Completaste el paso?" : "¿La terminaste?"}
+                {isShort ? "¿Hiciste el primer paso?" : "¿La terminaste?"}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
@@ -354,7 +354,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
                 >
-                  {busy ? "Guardando…" : "Reintentar 5 min"}
+                  {busy ? "Guardando…" : "5 min más"}
                 </button>
                 <button
                   type="button"
@@ -370,8 +370,8 @@ export function SessionView({
             <>
               <p className="text-lg font-semibold">
                 {isShort
-                  ? "¿Qué pasó con el paso?"
-                  : isPending ? "¿Qué pasó con el pendiente?" : "¿Qué pasó con la tarea?"}
+                  ? "¿Qué pasó con el primer paso?"
+                  : isPending ? "¿Qué pasó con el pendiente?" : "¿Qué pasó?"}
               </p>
               {noPhrase ? (
                 <p className="border-l-2 border-accent pl-4 text-base leading-7">
@@ -380,8 +380,8 @@ export function SessionView({
               ) : null}
               <p className="text-sm leading-6 text-muted">
                 {isPending
-                  ? "Puedes reintentar cinco minutos o dejarlo para después."
-                  : "Puedes reintentar cinco minutos o marcarla como no aplica."}
+                  ? "Puedes darle 5 minutos más o dejarlo para después."
+                  : "Puedes darle 5 minutos más o decir que hoy no."}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
@@ -390,7 +390,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
                 >
-                  {busy ? "Guardando…" : "Reintentar 5 min"}
+                  {busy ? "Guardando…" : "5 min más"}
                 </button>
                 <button
                   type="button"
@@ -398,7 +398,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
                 >
-                  {isPending ? "Dejarlo para después" : "No aplica"}
+                  {isPending ? "Dejarlo para después" : "Hoy no"}
                 </button>
               </div>
               <button
@@ -417,7 +417,7 @@ export function SessionView({
       {current.status === "paused" ? (
         <div className="mt-6 space-y-4">
           <p className="text-base leading-7 text-muted">
-            El tiempo está congelado en{" "}
+            El tiempo está en pausa:{" "}
             <span className="text-lg font-semibold tabular-nums text-foreground">
               {formatRemaining(current.remainingSecAtStart * 1000)}
             </span>.
@@ -430,7 +430,7 @@ export function SessionView({
               disabled={busy}
               className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
             >
-              {busy ? "Guardando…" : "Continuar"}
+              {busy ? "Guardando…" : "Seguir"}
             </button>
             <button
               type="button"
@@ -438,7 +438,7 @@ export function SessionView({
               disabled={busy}
               className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
             >
-              {isPending ? "Dejarlo para después" : "No aplica"}
+              {isPending ? "Dejarlo para después" : "Hoy no"}
             </button>
           </div>
         </div>
@@ -458,7 +458,7 @@ export function SessionView({
             onClick={() => void expire()}
             className="mt-3 min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background"
           >
-            Reintentar
+            Intentar de nuevo
           </button>
         </div>
       ) : null}

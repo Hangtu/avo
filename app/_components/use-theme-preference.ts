@@ -37,7 +37,7 @@ export function useThemePreference() {
       } catch (cause) {
         console.error("No se pudo leer el tema", cause);
         if (!cancelled) {
-          setError("No se pudo leer el tema; se usa el automático.");
+          setError("No pude leer tu color. Uso el automático.");
           setMode("auto");
         }
       } finally {
@@ -94,7 +94,7 @@ export function useThemePreference() {
       }
     } catch (cause) {
       console.error("No se pudo guardar el tema", cause);
-      setError("No se pudo guardar el tema.");
+      setError("No pude guardar tu color.");
     } finally {
       setBusy(false);
     }

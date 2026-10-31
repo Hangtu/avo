@@ -19,7 +19,7 @@ const lexend = Lexend({
 export const metadata: Metadata = {
   applicationName: "Runo",
   title: "Runo",
-  description: "Recordar, empezar y volver a tu vida, una franja a la vez.",
+  description: "Recordar, empezar y volver a tu vida, un paso a la vez.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

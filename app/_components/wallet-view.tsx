@@ -50,7 +50,7 @@ export function WalletView() {
       } catch (cause) {
         if (!cancelled) {
           console.error("No se pudo abrir el monedero", cause);
-          setLoadError("No se pudo leer tu saldo local.");
+          setLoadError("No pude abrir tu saldo.");
         }
       } finally {
         db?.close();
@@ -68,11 +68,11 @@ export function WalletView() {
     if (balance === null || busy) return;
     const value = Number(amount);
     if (!Number.isSafeInteger(value) || value <= 0) {
-      setError("Escribe una cantidad entera positiva de RC.");
+      setError("Escribe cuántos minutos quieres usar.");
       return;
     }
     if (value > balance) {
-      setError("No hay saldo suficiente para ese canje.");
+      setError("No tienes suficientes minutos.");
       return;
     }
     setError(null);
@@ -90,7 +90,7 @@ export function WalletView() {
       try {
         const result = await redeemRc(db, confirmation.amount, confirmation.actionId, Date.now());
         setBalance(result.balance);
-        setNotice(`Canjeaste ${confirmation.amount} RC.`);
+        setNotice(`Usaste ${confirmation.amount} minutos.`);
         setConfirmation(null);
         setAmount("");
       } finally {
@@ -98,7 +98,7 @@ export function WalletView() {
       }
     } catch (cause) {
       console.error("No se pudo canjear", cause);
-      setError(cause instanceof Error ? cause.message : "No se pudo canjear.");
+      setError(cause instanceof Error ? cause.message : "No pude usar esos minutos.");
     } finally {
       setBusy(false);
     }
@@ -113,9 +113,9 @@ export function WalletView() {
         <h2 id="wallet-title" className="text-4xl font-semibold tracking-tight sm:text-5xl">
           Tu saldo
         </h2>
-        <HelpTip label="Información sobre el saldo">
-          1 RC equivale a 1 minuto de ocio. El descanso de Runo es gratis; este saldo
-          solo se gasta cuando tú decides canjearlo.
+        <HelpTip label="Cómo funciona tu saldo">
+          Cada RC es un minuto para ti. El descanso es gratis. Solo los usas
+          cuando tú quieres.
         </HelpTip>
       </div>
 
@@ -127,11 +127,11 @@ export function WalletView() {
             onClick={() => setReloadKey((key) => key + 1)}
             className="mt-3 min-h-11 text-sm font-semibold underline underline-offset-4"
           >
-            Reintentar
+            Intentar de nuevo
           </button>
         </div>
       ) : balance === null ? (
-        <p className="mt-6 text-sm text-muted">Leyendo el ledger…</p>
+        <p className="mt-6 text-sm text-muted">Cargando tu saldo…</p>
       ) : (
         <>
           <p className="mt-7 text-4xl font-semibold tabular-nums">
@@ -146,15 +146,15 @@ export function WalletView() {
 
           {balance === 0 ? (
             <p className="mt-5 text-sm leading-6 text-muted">
-              Aún no tienes RC. Completa una tarea para empezar.
+              Aún no tienes minutos. Termina una tarea para empezar.
             </p>
           ) : confirmation ? (
             <div className="mt-6 border-y border-line py-5">
               <p className="text-lg font-semibold">
-                ¿Canjear {confirmation.amount} RC?
+                ¿Usar {confirmation.amount} minutos?
               </p>
               <p className="mt-1 text-sm leading-6 text-muted">
-                Se descontarán {confirmation.amount} minutos de tu saldo.
+                Se van a quitar {confirmation.amount} minutos de tu saldo.
               </p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <button
@@ -163,7 +163,7 @@ export function WalletView() {
                   disabled={busy}
                   className="min-h-11 bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
                 >
-                  {busy ? "Canjeando…" : "Confirmar"}
+                  {busy ? "Guardando…" : "Sí, usarlos"}
                 </button>
                 <button
                   type="button"
@@ -178,7 +178,7 @@ export function WalletView() {
           ) : (
             <div className="mt-6">
               <label className="block max-w-xs">
-                <span className="text-sm font-medium">Minutos a canjear</span>
+                <span className="text-sm font-medium">¿Cuántos minutos quieres usar?</span>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -200,7 +200,7 @@ export function WalletView() {
                 disabled={busy}
                 className="mt-4 min-h-11 bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
               >
-                Revisar canje
+                Revisar
               </button>
             </div>
           )}

@@ -82,7 +82,7 @@ export function useSessionAudio(running: boolean) {
       } catch (cause) {
         if (!cancelled) {
           console.error("No se pudo leer la preferencia de audio", cause);
-          setError("No se pudo leer la preferencia de sonido.");
+          setError("No pude abrir tu sonido.");
         }
       } finally {
         db?.close();
@@ -136,7 +136,7 @@ export function useSessionAudio(running: boolean) {
     setError(null);
     if (nextEnabled) {
       const ctx = ensureContext();
-      if (!ctx) setError("El audio no está disponible en este navegador.");
+      if (!ctx) setError("El sonido no funciona aquí.");
       try {
         await ctx?.resume();
       } catch {
@@ -148,7 +148,7 @@ export function useSessionAudio(running: boolean) {
       setSettings(next);
     } catch (cause) {
       console.error("No se pudo guardar el audio", cause);
-      setError("No se pudo guardar la preferencia de sonido.");
+      setError("No pude guardar tu sonido.");
     }
   }, [ensureContext, persistAudio, settings]);
 
@@ -160,7 +160,7 @@ export function useSessionAudio(running: boolean) {
       setSettings(next);
     } catch (cause) {
       console.error("No se pudo guardar el sonido", cause);
-      setError("No se pudo guardar la preferencia de sonido.");
+      setError("No pude guardar tu sonido.");
     }
   }, [persistAudio, settings]);
 
@@ -168,7 +168,7 @@ export function useSessionAudio(running: boolean) {
     if (!settings?.audioEnabled) return;
     const ctx = ensureContext();
     if (!ctx) {
-      setError("El audio no está disponible; el aviso visual sigue.");
+      setError("El sonido no funciona; verás el aviso en pantalla.");
       return;
     }
     void ctx.resume().catch(() => {});
@@ -192,7 +192,7 @@ export function useSessionAudio(running: boolean) {
       });
     } catch (cause) {
       console.error("No se pudo tocar la campana", cause);
-      setError("La campana no pudo reproducirse; el aviso visual sigue disponible.");
+      setError("No pude tocar la campana. Verás el aviso en pantalla.");
     }
   }, [ensureContext, settings?.audioEnabled]);
 
@@ -202,7 +202,7 @@ export function useSessionAudio(running: boolean) {
     if (!ctx) return;
     void ctx.resume().catch(() => {
       queueMicrotask(() => {
-        setError("El navegador no permitió iniciar el audio; usa el aviso visual.");
+        setError("No pude encender el sonido. Mira el aviso en pantalla.");
       });
     });
 
@@ -211,7 +211,7 @@ export function useSessionAudio(running: boolean) {
     } catch (cause) {
       console.error("No se pudo iniciar el sonido de trabajo", cause);
       queueMicrotask(() => {
-        setError("El sonido no está disponible; el timer sigue funcionando.");
+        setError("El sonido no funciona; el reloj sigue.");
       });
       return;
     }

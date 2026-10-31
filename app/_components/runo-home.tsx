@@ -203,7 +203,7 @@ export function RunoHome() {
         console.error("No se pudo preparar Runo", error);
         setView({
           kind: "error",
-          message: "No se pudo abrir el almacenamiento local de este navegador.",
+          message: "No pude leer lo que tienes guardado.",
         });
       }
     }
@@ -270,7 +270,7 @@ export function RunoHome() {
       }
     } catch (error) {
       console.error("No se pudo iniciar el ancla", error);
-      setNotice(error instanceof Error ? error.message : "No se pudo iniciar el ancla.");
+      setNotice(error instanceof Error ? error.message : "No pude empezar la hora fija.");
     } finally {
       setAnchorBusy(false);
     }
@@ -294,7 +294,7 @@ export function RunoHome() {
       refreshView(null);
     } catch (error) {
       console.error("No se pudo marcar el ancla", error);
-      setNotice(error instanceof Error ? error.message : "No se pudo marcar el ancla.");
+      setNotice(error instanceof Error ? error.message : "No pude marcarla.");
     } finally {
       setAnchorBusy(false);
     }
@@ -390,7 +390,7 @@ export function RunoHome() {
       refreshView(null);
     } catch (error) {
       console.error("No se pudo cerrar el día", error);
-      setNotice("No se pudo cerrar el día. Inténtalo de nuevo.");
+      setNotice("No pude cerrar el día. Inténtalo de nuevo.");
     }
   }, [refreshView]);
 
@@ -414,10 +414,10 @@ export function RunoHome() {
       } finally {
         db.close();
       }
-      refreshView(kind === "already_done" ? "Ya la hice." : "Hoy no aplica.");
+      refreshView(kind === "already_done" ? "Ya estaba hecho." : "Hoy no.");
     } catch (error) {
       console.error("No se pudo corregir la tarea", error);
-      setNotice(error instanceof Error ? error.message : "No se pudo corregir la tarea.");
+      setNotice(error instanceof Error ? error.message : "No pude corregirla.");
     } finally {
       correctBusy.current = false;
       setCorrectingId(null);
@@ -445,22 +445,22 @@ export function RunoHome() {
           occurrences,
         });
         if (result.swapped) {
-          refreshView("Cambiada.");
+          refreshView("Listo, la cambié.");
         } else if (result.reason === "no_alternative") {
-          setNotice("No hay otra tarea elegible ahora.");
+          setNotice("No hay otra tarea para ahora.");
         } else if (result.reason === "no_swaps") {
-          setNotice("Ya usaste los 3 cambios de hoy.");
+          setNotice("Ya cambiaste 3 veces hoy.");
         } else if (result.reason === "active_session") {
-          setNotice("No se puede cambiar mientras hay una sesión activa.");
+          setNotice("Primero termina lo que ya empezaste.");
         } else {
-          setNotice("No se pudo cambiar la tarea.");
+          setNotice("No pude cambiarla.");
         }
       } finally {
         db.close();
       }
     } catch (error) {
       console.error("No se pudo cambiar la tarea", error);
-      setNotice("No se pudo cambiar la tarea. Inténtalo de nuevo.");
+      setNotice("No pude cambiarla. Inténtalo de nuevo.");
     } finally {
       swapBusy.current = false;
       setSwapping(false);
@@ -512,7 +512,7 @@ export function RunoHome() {
     } catch (error) {
       console.error("No se pudo iniciar la sesión rápida", error);
       setNotice(
-        error instanceof Error ? error.message : "No se pudo iniciar la sesión rápida.",
+        error instanceof Error ? error.message : "No pude empezar la tarea rápida.",
       );
     } finally {
       quickBusyRef.current = false;
@@ -542,7 +542,7 @@ export function RunoHome() {
       }
     } catch (error) {
       console.error("No se pudo empezar el pendiente", error);
-      throw error instanceof Error ? error : new Error("No se pudo empezar el pendiente.");
+      throw error instanceof Error ? error : new Error("No pude empezar el pendiente.");
     } finally {
       pendingBusyRef.current = false;
     }
@@ -575,7 +575,7 @@ export function RunoHome() {
     } catch (error) {
       console.error("No se pudo iniciar la tarea", error);
       setNotice(
-        error instanceof Error ? error.message : "No se pudo iniciar la tarea.",
+        error instanceof Error ? error.message : "No pude empezar la tarea.",
       );
     } finally {
       setPendingStart(null);
@@ -707,12 +707,12 @@ export function RunoHome() {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
                   Tarea rápida
                 </p>
-                <HelpTip label="Información sobre la tarea rápida">
-                  No se guarda como tarea ni suma minutos. Al terminar vuelves a donde estabas.
+                <HelpTip label="Para qué sirve la tarea rápida">
+                  Esto es solo para ahora. No se guarda en tus tareas. Cuando termines, vuelves aquí.
                 </HelpTip>
               </div>
               <h2 id="quick-task-title" className="mt-2 text-xl font-semibold tracking-tight">
-                Algo fuera de la lista
+                Algo para ahora
               </h2>
               <QuickTaskForm
                 busy={quickBusy}
@@ -887,7 +887,7 @@ function Countdown({
         {count === 0 ? "…" : count}
       </p>
       <p className="mt-4 text-sm leading-6 text-muted">
-        {duration} min. La cuenta se puede cancelar.
+        {duration} min. Puedes cancelar.
       </p>
       {count > 0 ? (
         <button
@@ -924,14 +924,14 @@ function ErrorState({
       <h2 className="text-xl font-semibold">No pude abrir tus datos</h2>
       <p className="mt-2 text-base leading-7 text-muted">{message}</p>
       <p className="mt-3 text-sm leading-6 text-muted">
-        Revisa que el navegador permita IndexedDB.
+        Revisa que esta app pueda guardar datos. Si sigue, ábrela de nuevo.
       </p>
       <button
         type="button"
         onClick={onRetry}
         className="mt-4 min-h-11 text-sm font-semibold underline underline-offset-4"
       >
-        Reintentar
+        Intentar de nuevo
       </button>
     </section>
   );
@@ -1056,14 +1056,14 @@ function EmptyState({ onEndDay }: { onEndDay: () => void }) {
   return (
     <section className="border-t border-line pt-6">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        Franja actual
+        Ahora
       </p>
       <div className="mt-3 flex items-start gap-2">
         <h2 className="text-2xl font-semibold tracking-tight">
-          No hay tareas elegibles ahora.
+          No tienes nada que hacer ahora.
         </h2>
-        <HelpTip label="Información sobre este estado">
-          Puedes volver más tarde o revisar tus tareas.
+        <HelpTip label="Qué hacer ahora">
+          Vuelve más tarde o mira tus tareas.
         </HelpTip>
       </div>
       <button
@@ -1080,17 +1080,17 @@ function EmptyState({ onEndDay }: { onEndDay: () => void }) {
 function DayClosed({ view }: { view: Extract<View, { kind: "closed" }> }) {
   return (
     <section
-      aria-label={`Día cerrado, ${view.dateLabel}`}
+      aria-label={`Hoy terminado, ${view.dateLabel}`}
       className="border-y border-line py-8 sm:py-10"
     >
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        Día cerrado
+        Hoy
       </p>
       <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-        Terminaste por hoy.
+        Ya terminaste por hoy.
       </h2>
       <p className="mt-3 text-base leading-7 text-muted">
-        Lo hecho queda guardado. No se pagó lo pendiente.
+        Lo que hiciste queda guardado. Lo que no hiciste no te quita nada.
       </p>
       <p className="mt-2 text-sm leading-6 text-muted">Mañana seguimos.</p>
     </section>

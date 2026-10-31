@@ -17,9 +17,9 @@ export function assertId(id: string): void {
   }
 }
 
-function positiveMinutes(value: number, label: string): void {
+function positiveMinutes(value: number): void {
   if (!Number.isSafeInteger(value) || value < 1 || value > Math.floor(Number.MAX_SAFE_INTEGER / 60)) {
-    throw new DomainError("validation", `${label} debe ser un número entero positivo de minutos.`);
+    throw new DomainError("validation", "Escribe cuántos minutos.");
   }
 }
 
@@ -29,17 +29,17 @@ export function validateTaskInput(input: TaskInput): TaskInput {
     throw new DomainError("validation", "Escribe el nombre de la tarea.");
   }
   if (typeof input.category !== "string" || !input.category.trim()) {
-    throw new DomainError("validation", "Indica una categoría.");
+    throw new DomainError("validation", "Elige un tipo.");
   }
-  positiveMinutes(input.durationMin, "La duración");
+  positiveMinutes(input.durationMin);
   if (![1, 2, 3].includes(input.priority)) {
-    throw new DomainError("validation", "La prioridad debe estar entre 1 y 3.");
+    throw new DomainError("validation", "La importancia debe estar entre 1 y 3.");
   }
   if (
     !Array.isArray(input.days) ||
     input.days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
   ) {
-    throw new DomainError("validation", "Selecciona días válidos de la semana.");
+    throw new DomainError("validation", "Elige días de la semana.");
   }
 
   const normalized: TaskInput = {
@@ -53,7 +53,7 @@ export function validateTaskInput(input: TaskInput): TaskInput {
     const start = parseClockTime(input.window.start);
     const end = parseClockTime(input.window.end);
     if (clockMinutes(start) >= clockMinutes(end)) {
-      throw new DomainError("validation", "La franja debe terminar después de empezar, en el mismo día.");
+      throw new DomainError("validation", "La hora final debe ser después de la inicial.");
     }
     normalized.window = { start, end };
   }
@@ -64,16 +64,16 @@ export function validateTaskInput(input: TaskInput): TaskInput {
       (clockMinutes(normalized.fixedTime) < clockMinutes(normalized.window.start) ||
         clockMinutes(normalized.fixedTime) >= clockMinutes(normalized.window.end))
     ) {
-      throw new DomainError("validation", "La hora fija debe estar dentro de la franja.");
+      throw new DomainError("validation", "La hora exacta debe estar dentro del horario.");
     }
   }
   if (input.shortStep) {
     if (typeof input.shortStep.title !== "string" || !input.shortStep.title.trim()) {
-      throw new DomainError("validation", "Describe la acción concreta del primer paso.");
+      throw new DomainError("validation", "Escribe qué harás en el primer paso.");
     }
-    positiveMinutes(input.shortStep.durationMin, "El primer paso");
+    positiveMinutes(input.shortStep.durationMin);
     if (input.shortStep.durationMin >= input.durationMin) {
-      throw new DomainError("validation", "El primer paso debe ser más corto que la tarea completa.");
+      throw new DomainError("validation", "El primer paso debe durar menos que la tarea completa.");
     }
     normalized.shortStep = {
       title: input.shortStep.title.trim(),
@@ -88,7 +88,7 @@ export function validatePendingInput(input: PendingInput): PendingInput {
   if (typeof input.title !== "string" || !input.title.trim()) {
     throw new DomainError("validation", "Escribe el nombre del pendiente.");
   }
-  positiveMinutes(input.durationMin, "La duración");
+  positiveMinutes(input.durationMin);
   return { title: input.title.trim(), durationMin: input.durationMin };
 }
 

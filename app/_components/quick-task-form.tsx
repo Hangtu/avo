@@ -26,7 +26,7 @@ export function QuickTaskForm({
       return;
     }
     if (!Number.isSafeInteger(value) || value < 1) {
-      setFormError("Usa un número entero de minutos mayor que cero.");
+      setFormError("Escribe cuántos minutos.");
       return;
     }
     setFormError(null);
@@ -43,7 +43,7 @@ export function QuickTaskForm({
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-          placeholder="Ej. Pagar las cuentas del banco"
+          placeholder="Ej. Pagar las cuentas"
         />
       </label>
       <label className="block">
@@ -59,7 +59,7 @@ export function QuickTaskForm({
           className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
         />
       </label>
-      <div className="flex flex-wrap gap-2" aria-label="Duraciones rápidas">
+      <div className="flex flex-wrap gap-2" aria-label="Minutos rápidos">
         {[5, 15, 25, 30].map((value) => (
           <button
             key={value}

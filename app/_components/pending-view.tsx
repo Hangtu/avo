@@ -59,7 +59,7 @@ export function PendingView({
       } catch (error) {
         if (cancelled) return;
         console.error("No se pudieron cargar los pendientes", error);
-        setLoadError("No se pudieron cargar tus pendientes.");
+        setLoadError("No pude abrir tus pendientes.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -84,12 +84,12 @@ export function PendingView({
     const value = Number(minutes);
     if (!cleanTitle) {
       addingRef.current = false;
-      setFormError("Escribe qué necesitas hacer.");
+      setFormError("Escribe qué quieres hacer.");
       return;
     }
     if (!Number.isSafeInteger(value) || value < 1) {
       addingRef.current = false;
-      setFormError("Usa un número entero de minutos mayor que cero.");
+      setFormError("Escribe cuántos minutos.");
       return;
     }
     setFormError(null);
@@ -108,14 +108,14 @@ export function PendingView({
         setItems((previous) => [pending, ...previous]);
         setTitle("");
         setMinutes("25");
-        setStatus("Pendiente agregado.");
+        setStatus("Listo, lo agregué.");
         titleRef.current?.focus();
       } finally {
         db.close();
       }
     } catch (error) {
       console.error("No se pudo agregar el pendiente", error);
-      setFormError(error instanceof Error ? error.message : "No se pudo agregar el pendiente.");
+      setFormError(error instanceof Error ? error.message : "No pude guardarlo.");
     } finally {
       addingRef.current = false;
       setAdding(false);
@@ -132,7 +132,7 @@ export function PendingView({
       await onStart(pending);
     } catch (error) {
       console.error("No se pudo empezar el pendiente", error);
-      setActionError(error instanceof Error ? error.message : "No se pudo empezar el pendiente.");
+      setActionError(error instanceof Error ? error.message : "No pude empezar el pendiente.");
     } finally {
       actionBusyRef.current = false;
       setBusyId(null);
@@ -153,10 +153,10 @@ export function PendingView({
         db.close();
       }
       setItems((previous) => previous.filter((item) => item.id !== pending.id));
-      setStatus("Hecho. Ya no está en la lista.");
+      setStatus("Listo, ya no está en la lista.");
     } catch (error) {
       console.error("No se pudo completar el pendiente", error);
-      setActionError(error instanceof Error ? error.message : "No se pudo completar el pendiente.");
+      setActionError(error instanceof Error ? error.message : "No pude marcarlo como hecho.");
     } finally {
       actionBusyRef.current = false;
       setBusyId(null);
@@ -178,10 +178,10 @@ export function PendingView({
       }
       setItems((previous) => previous.filter((item) => item.id !== pending.id));
       setDeleteId(null);
-      setStatus("Pendiente quitado.");
+      setStatus("Listo, lo quité.");
     } catch (error) {
       console.error("No se pudo quitar el pendiente", error);
-      setActionError(error instanceof Error ? error.message : "No se pudo quitar el pendiente.");
+      setActionError(error instanceof Error ? error.message : "No pude quitarlo.");
     } finally {
       actionBusyRef.current = false;
       setBusyId(null);
@@ -195,11 +195,10 @@ export function PendingView({
       </p>
       <div className="mt-3 flex items-start gap-2">
         <h2 id="pending-title" className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Cosas que haces una vez.
+          Lo que quieres hacer después.
         </h2>
-        <HelpTip label="Información sobre los pendientes">
-          No se repiten ni entran a tus tres cartas. Se quedan aquí hasta que las termines.
-          No suman minutos.
+        <HelpTip label="Para qué sirven los pendientes">
+          Aquí guardas cosas para hacer después. Se quedan hasta que las termines.
         </HelpTip>
       </div>
 
@@ -212,14 +211,14 @@ export function PendingView({
       <form onSubmit={submit} className="mt-7 border-y border-line py-5">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
           <label className="block min-w-0">
-            <span className="text-sm font-medium">¿Qué traes en la cabeza?</span>
+            <span className="text-sm font-medium">¿Qué quieres hacer?</span>
             <input
               ref={titleRef}
               required
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-              placeholder="Ej. Pagar las cuentas del banco"
+              placeholder="Ej. Pagar las cuentas"
             />
           </label>
           <label className="block">
@@ -236,7 +235,7 @@ export function PendingView({
             />
           </label>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2" aria-label="Duraciones rápidas">
+        <div className="mt-3 flex flex-wrap gap-2" aria-label="Minutos rápidos">
           {[5, 15, 25, 30].map((value) => (
             <button
               key={value}
@@ -260,7 +259,7 @@ export function PendingView({
           disabled={adding}
           className="mt-4 min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
         >
-          {adding ? "Agregando…" : "Agregar pendiente"}
+          {adding ? "Guardando…" : "Agregar"}
         </button>
       </form>
 
@@ -277,7 +276,7 @@ export function PendingView({
 
       {loading ? (
         <p role="status" className="mt-7 text-sm text-muted">
-          Cargando pendientes…
+          Cargando tus pendientes…
         </p>
       ) : null}
 
@@ -289,21 +288,21 @@ export function PendingView({
             onClick={() => setLoadKey((key) => key + 1)}
             className="mt-3 min-h-11 text-sm font-semibold underline underline-offset-4"
           >
-            Reintentar
+            Intentar de nuevo
           </button>
         </div>
       ) : null}
 
       {!loading && !loadError && items.length === 0 ? (
         <p className="mt-7 border-t border-line pt-5 text-base leading-7 text-muted">
-          Nada pendiente por ahora. Agrega algo que no quieras olvidar.
+          No tienes pendientes. Agrega algo que no quieras olvidar.
         </p>
       ) : null}
 
       {!loading && !loadError && items.length > 0 ? (
         <div className="mt-7">
           <div className="flex items-baseline justify-between gap-3 border-b border-line pb-3">
-            <h3 className="text-sm font-semibold">Tu lista</h3>
+            <h3 className="text-sm font-semibold">Tus pendientes</h3>
             <p className="text-xs text-muted">
               {items.length} {items.length === 1 ? "pendiente" : "pendientes"}
             </p>
@@ -352,7 +351,7 @@ export function PendingView({
 
                 {deleteId === pending.id ? (
                   <div className="mt-3 border-l-2 border-accent pl-4" role="alert">
-                    <p className="text-sm leading-6">¿Quitar este pendiente de la lista?</p>
+                    <p className="text-sm leading-6">¿Lo quito de la lista?</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button
                         type="button"

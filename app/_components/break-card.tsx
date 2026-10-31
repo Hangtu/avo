@@ -60,9 +60,8 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
           Descanso
         </p>
-        <HelpTip label="Información sobre el descanso">
-          Es gratis y no paga RC. No bloquea la siguiente tarea; puedes empezar otra
-          cuando quieras y el descanso termina solo.
+        <HelpTip label="Cómo funciona el descanso">
+          Es gratis. Puedes empezar otra cosa cuando quieras; el descanso termina solo.
         </HelpTip>
       </div>
 
@@ -102,7 +101,7 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
             onClick={onClose}
             className="mt-4 min-h-11 rounded-none border border-control px-5 text-sm font-semibold"
           >
-            Saltar descanso
+            Terminar descanso
           </button>
         </>
       ) : null}

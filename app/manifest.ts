@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Runo",
     short_name: "Runo",
-    description: "Recordar, empezar y volver a tu vida, una franja a la vez.",
+    description: "Recordar, empezar y volver a tu vida, un paso a la vez.",
     start_url: "/",
     scope: "/",
     display: "standalone",

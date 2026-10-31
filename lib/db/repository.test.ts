@@ -205,13 +205,13 @@ describe("ocurrencias y acuerdos", () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
     await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
-    await expect(expireSession(db, "s1", NOW + 1000)).rejects.toThrow("todavía no");
+    await expect(expireSession(db, "s1", NOW + 1000)).rejects.toThrow("Todavía queda tiempo");
     const running = await db.sessions.get("s1");
     const { runningSlot: _runningSlot, startedAt: _startedAt, ...rest } = running!;
     void _runningSlot;
     void _startedAt;
     await db.sessions.put({ ...rest, status: "paused", startedAt: null });
-    await expect(expireSession(db, "s1", NOW + 15 * 60 * 1000)).rejects.toThrow("corriendo");
+    await expect(expireSession(db, "s1", NOW + 15 * 60 * 1000)).rejects.toThrow("no está corriendo");
     expect(await db.events.where("type").equals("timer_expired").count()).toBe(0);
   });
 
@@ -310,7 +310,7 @@ describe("resultados y correcciones", () => {
     expect(await retrySession(db, "s1", "retry-1", deadline + 2000)).toEqual(retried);
     expect(await db.events.where("type").equals("resumed").count()).toBe(1);
 
-    await expect(retrySession(db, "s1", "retry-2", deadline + 3000)).rejects.toThrow("corriendo");
+    await expect(retrySession(db, "s1", "retry-2", deadline + 3000)).rejects.toThrow("Todavía queda tiempo");
   });
 
   it("permite un segundo vencimiento tras reintentar y registra eventos separados", async () => {
@@ -377,7 +377,7 @@ describe("pausa y reanudación", () => {
 
     await expect(startSession(db, {
       sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: NOW + 20_000,
-    })).rejects.toThrow("continúa o cierra");
+    })).rejects.toThrow("Primero termina");
 
     await resumeSession(db, "s1", NOW + 20_000);
     await completeSession(db, "s1", NOW + 25_000);
@@ -406,7 +406,7 @@ describe("pausa y reanudación", () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
     await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
-    await expect(pauseSession(db, "s1", NOW + 15 * 60 * 1000)).rejects.toThrow("venció");
+    await expect(pauseSession(db, "s1", NOW + 15 * 60 * 1000)).rejects.toThrow("El tiempo ya terminó");
     expect(await db.events.where("type").equals("paused").count()).toBe(0);
   });
 });
@@ -476,7 +476,7 @@ describe("franjas y cierre del día", () => {
     expect(after.hand).toBeNull();
     await expect(startSession(db, {
       sessionId: "blocked", taskId: "a", date: MONDAY, variant: "full", now: NOW + 3000,
-    })).rejects.toThrow("cerrado");
+    })).rejects.toThrow("terminó");
   });
 
   it("terminar por hoy con sesión pausada conserva el tiempo congelado", async () => {
@@ -522,7 +522,7 @@ describe("bloqueo de tarea y franja", () => {
 
     await expect(startSession(db, {
       sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: deadline + 1000,
-    })).rejects.toThrow("continúa o cierra");
+    })).rejects.toThrow("Primero termina");
     expect(await db.sessions.count()).toBe(1);
 
     await completeSession(db, "s1", deadline + 2000);
@@ -918,7 +918,7 @@ describe("ancla ligera", () => {
     await ensureOccurrence(db, "gym", MONDAY, NOW);
     await expect(startSession(db, {
       sessionId: "gym-session", taskId: "gym", date: MONDAY, variant: "full", now: gymNow, anchor: true,
-    })).rejects.toThrow("presentada");
+    })).rejects.toThrow("aviso");
   });
 
   it("no aplica desde el ancla sin abrir sesión", async () => {
@@ -974,8 +974,8 @@ describe("correcciones directas de la franja", () => {
     const id = occurrenceIdFor("ropa", MONDAY);
     await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
 
-    await expect(markOccurrenceAlreadyDoneDirect(db, id, NOW + 1000)).rejects.toThrow("en curso");
-    await expect(markOccurrenceNotApplicableDirect(db, id, NOW + 1000, "franja")).rejects.toThrow("en curso");
+    await expect(markOccurrenceAlreadyDoneDirect(db, id, NOW + 1000)).rejects.toThrow("empezada");
+    await expect(markOccurrenceNotApplicableDirect(db, id, NOW + 1000, "franja")).rejects.toThrow("empezada");
   });
 });
 
@@ -1088,7 +1088,7 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     await expect(startSession(db, {
       sessionId: "after-archive", taskId: task.task.id, date: MONDAY,
       variant: "full", now: NOW + 63_000,
-    })).rejects.toThrow("no está disponible");
+    })).rejects.toThrow("ya no está");
   });
 
   it("registra una exposición por carta y franja, no por render", async () => {
@@ -1135,7 +1135,7 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     await expect(startSession(db, {
       sessionId: "franja-ajena", taskId: hand.tasks[1].task.id, date: MONDAY,
       variant: "full", now: NOW + 1000, handId: "hand:otra",
-    })).rejects.toThrow("franja");
+    })).rejects.toThrow("lista");
   });
 
   it("guarda un lote de tareas de forma atómica y reutiliza sus IDs al reintentar", async () => {
@@ -1239,7 +1239,7 @@ describe("sesiones rápidas", () => {
 
     await expect(startQuickSession(db, {
       sessionId: "quick-2", taskId: "quick:2", title: "Otra", durationMin: 5, now: NOW + 1,
-    })).rejects.toThrow("continúa o cierra");
+    })).rejects.toThrow("Primero termina");
 
     await completeSessionWithCredit(db, "quick-1", NOW + 2);
     const second = await startQuickSession(db, {
@@ -1275,7 +1275,7 @@ describe("sesiones rápidas", () => {
     })).rejects.toThrow("nombre");
     await expect(startQuickSession(db, {
       sessionId: "quick-2", taskId: "quick:2", title: "Algo", durationMin: 0, now: NOW,
-    })).rejects.toThrow("duración");
+    })).rejects.toThrow("cuántos minutos");
     expect(await db.sessions.count()).toBe(0);
     expect(await db.occurrences.count()).toBe(0);
   });
@@ -1330,7 +1330,7 @@ describe("pendientes de una sola vez", () => {
 
     await expect(startPendingSession(db, {
       sessionId: "ps2", pendingId: "p2", now: NOW + 6,
-    })).rejects.toThrow("continúa o cierra");
+    })).rejects.toThrow("Primero termina");
 
     const result = await completeSessionWithCredit(db, "ps1", NOW + 7);
     expect(result).toMatchObject({ creditedRc: 0, totalCreditedRc: 0 });
@@ -1392,12 +1392,12 @@ describe("pendientes de una sola vez", () => {
     }, NOW)).rejects.toThrow("nombre");
     await expect(createPending(db, "p2", {
       title: "Algo", durationMin: 0,
-    }, NOW)).rejects.toThrow("duración");
+    }, NOW)).rejects.toThrow("cuántos minutos");
     expect(await db.pendings.count()).toBe(0);
 
     await createPending(db, "p3", { title: "Algo", durationMin: 5 }, NOW);
     await startPendingSession(db, { sessionId: "ps3", pendingId: "p3", now: NOW + 1 });
-    await expect(deletePending(db, "p3", NOW + 2)).rejects.toThrow("sesión abierta");
-    await expect(completePendingDirect(db, "p3", NOW + 3)).rejects.toThrow("sesión abierta");
+    await expect(deletePending(db, "p3", NOW + 2)).rejects.toThrow("tiempo de este pendiente");
+    await expect(completePendingDirect(db, "p3", NOW + 3)).rejects.toThrow("tiempo de este pendiente");
   });
 });

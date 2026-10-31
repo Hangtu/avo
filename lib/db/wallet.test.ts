@@ -38,9 +38,9 @@ describe("monedero y canje", () => {
   it("no permite deuda, cero, fracciones ni más que el saldo", async () => {
     const db = await testDb();
     await credit(db, 10);
-    await expect(redeemRc(db, 11, "over", NOW)).rejects.toThrow("saldo");
-    await expect(redeemRc(db, 0, "zero", NOW)).rejects.toThrow("entera positiva");
-    await expect(redeemRc(db, 1.5, "fraction", NOW)).rejects.toThrow("entera positiva");
+    await expect(redeemRc(db, 11, "over", NOW)).rejects.toThrow("minutos");
+    await expect(redeemRc(db, 0, "zero", NOW)).rejects.toThrow("cuántos minutos");
+    await expect(redeemRc(db, 1.5, "fraction", NOW)).rejects.toThrow("cuántos minutos");
     expect(await getBalance(db)).toBe(10);
     expect(await db.ledger.filter((entry) => entry.reason === "redemption").count()).toBe(0);
   });

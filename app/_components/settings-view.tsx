@@ -48,7 +48,7 @@ export function SettingsView({
         if (!cancelled) setSettings(next);
       } catch (cause) {
         console.error("No se pudieron abrir los ajustes", cause);
-        if (!cancelled) setError("No se pudieron leer los ajustes.");
+        if (!cancelled) setError("No pude abrir los ajustes.");
       } finally {
         db?.close();
       }
@@ -78,7 +78,7 @@ export function SettingsView({
       }
     } catch (cause) {
       console.error("No se pudieron guardar los ajustes", cause);
-      setError("No se pudieron guardar los ajustes.");
+      setError("No pude guardar los ajustes.");
     } finally {
       setBusy(false);
     }
@@ -91,7 +91,7 @@ export function SettingsView({
   return (
     <section aria-labelledby="settings-title">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        Configuración
+        Opciones
       </p>
       <h2 id="settings-title" className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
         Ajustes
@@ -100,8 +100,8 @@ export function SettingsView({
       <div className="mt-7 border-t border-line pt-5">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold">Sonido</h3>
-          <HelpTip label="Información sobre el sonido">
-            Apagado por defecto. Solo se activa si tú lo pides.
+          <HelpTip label="Cómo funciona el sonido">
+            Empieza apagado. Tú decides si lo prendes.
           </HelpTip>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -123,7 +123,7 @@ export function SettingsView({
                 disabled={busy}
                 className="min-h-11 border border-control bg-background px-3 text-sm disabled:opacity-60"
               >
-                <option value="brown">Ruido marrón</option>
+                <option value="brown">Ruido suave</option>
                 <option value="tick">Tic-tac</option>
               </select>
             </label>
@@ -134,8 +134,8 @@ export function SettingsView({
       <div className="mt-7 border-t border-line pt-5">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold">Voz</h3>
-          <HelpTip label="Información sobre la voz">
-            La voz normal está disponible; el modo duro solo cuando lo pides.
+          <HelpTip label="Cómo funciona la voz">
+            La voz normal es tranquila. La voz fuerte solo si tú la eliges.
           </HelpTip>
         </div>
         <div className="mt-3">
@@ -145,9 +145,9 @@ export function SettingsView({
 
       <div className="mt-7 border-t border-line pt-5">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold">Apariencia</h3>
-          <HelpTip label="Información sobre el tema">
-            El tema automático cambia a noche cálida de 20:00 a 07:00.
+          <h3 className="text-lg font-semibold">Color</h3>
+          <HelpTip label="Cómo cambia el color">
+            De noche se pone oscuro solo, de 8 de la noche a 7 de la mañana.
           </HelpTip>
         </div>
         <div className="mt-3">
@@ -171,7 +171,7 @@ export function SettingsView({
             disabled={busy}
             className="h-5 w-5"
           />
-          Mostrar Monedero en la navegación
+          Mostrar el Monedero abajo
         </label>
         {settings.showWallet ? (
           <button

@@ -25,7 +25,7 @@ export async function redeemRc(
   assertId(actionId);
   assertTimestamp(now);
   if (!Number.isSafeInteger(amount) || amount <= 0) {
-    throw new DomainError("validation", "Canjea una cantidad entera positiva de RC.");
+    throw new DomainError("validation", "Escribe cuántos minutos quieres usar.");
   }
 
   const sourceKey = `redeem:${actionId}`;
@@ -40,7 +40,7 @@ export async function redeemRc(
 
     const balance = await getBalance(db);
     if (amount > balance) {
-      throw new DomainError("invalid_transition", "No hay saldo suficiente para ese canje.");
+      throw new DomainError("invalid_transition", "No tienes suficientes minutos.");
     }
 
     const { entry, inserted } = await appendLedgerEntry(db, {

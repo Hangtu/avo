@@ -49,7 +49,7 @@ export async function createTasks(
       });
       if (!inserted) {
         const existing = await db.tasks.get(item.id);
-        if (!existing) throw new DomainError("conflict", "La tarea registrada ya no existe.");
+        if (!existing) throw new DomainError("conflict", "Esa tarea ya no está.");
         created.push(existing);
         continue;
       }
@@ -79,7 +79,7 @@ export async function updateTask(
   const values = validateTaskInput(input);
   return db.transaction("rw", db.tasks, db.events, async () => {
     const previous = await db.tasks.get(id);
-    if (!previous) throw new DomainError("not_found", "La tarea ya no existe.");
+    if (!previous) throw new DomainError("not_found", "Esa tarea ya no está.");
     const { inserted } = await appendEvent(db, {
       actionId, type: "task_updated", at: now, taskId: id, context: taskEventContext(values),
     });
@@ -100,7 +100,7 @@ export async function archiveTask(db: RunoDatabase, id: string, now: number): Pr
   assertTimestamp(now);
   await db.transaction("rw", db.tasks, db.events, async () => {
     const task = await db.tasks.get(id);
-    if (!task) throw new DomainError("not_found", "La tarea ya no existe.");
+    if (!task) throw new DomainError("not_found", "Esa tarea ya no está.");
     if (task.archivedAt !== null) return;
     await appendEvent(db, {
       actionId: `task:archive:${id}`, type: "task_archived", at: now,
@@ -158,7 +158,7 @@ export async function completePendingDirect(
   return db.transaction("rw", db.pendings, db.sessions, db.events, async () => {
     const pending = await db.pendings.get(pendingId);
     if (!pending || pending.deletedAt !== null) {
-      throw new DomainError("not_found", "Ese pendiente ya no existe.");
+      throw new DomainError("not_found", "Ese pendiente ya no está.");
     }
     if (pending.completedAt !== null) return pending;
     const active = await db.sessions
@@ -166,7 +166,7 @@ export async function completePendingDirect(
         ["running", "paused", "awaiting_confirmation"].includes(session.status))
       .first();
     if (active) {
-      throw new DomainError("conflict", "Termina la sesión abierta de este pendiente primero.");
+      throw new DomainError("conflict", "Primero termina el tiempo de este pendiente.");
     }
     await appendEvent(db, {
       actionId: `pending-done:${pendingId}`, type: "already_done", at: now,
@@ -186,14 +186,14 @@ export async function deletePending(
   assertTimestamp(now);
   await db.transaction("rw", db.pendings, db.sessions, async () => {
     const pending = await db.pendings.get(pendingId);
-    if (!pending) throw new DomainError("not_found", "Ese pendiente ya no existe.");
+    if (!pending) throw new DomainError("not_found", "Ese pendiente ya no está.");
     if (pending.deletedAt !== null) return;
     const active = await db.sessions
       .filter((session) => session.pendingId === pendingId &&
         ["running", "paused", "awaiting_confirmation"].includes(session.status))
       .first();
     if (active) {
-      throw new DomainError("conflict", "Primero resuelve la sesión abierta de este pendiente.");
+      throw new DomainError("conflict", "Primero termina el tiempo de este pendiente.");
     }
     await db.pendings.update(pendingId, { deletedAt: now, updatedAt: now });
   });
@@ -288,10 +288,10 @@ export async function markOccurrenceNotApplicableDirect(
     if (!occurrence) throw new DomainError("not_found", "La ocurrencia ya no existe.");
     if (occurrence.status === "not_applicable") return occurrence;
     if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
-      throw new DomainError("invalid_transition", "Esta tarea ya se cerró.");
+      throw new DomainError("invalid_transition", "Esa tarea ya está terminada.");
     }
     if (occurrence.status === "in_progress") {
-      throw new DomainError("invalid_transition", "La tarea está en curso; resuelve su sesión primero.");
+      throw new DomainError("invalid_transition", "Esa tarea ya está empezada. Primero termina su tiempo.");
     }
     await appendEvent(db, {
       actionId: `direct-not-applicable:${occurrence.id}`, type: "not_applicable", at: now,
@@ -314,10 +314,10 @@ export async function markOccurrenceAlreadyDoneDirect(
     if (!occurrence) throw new DomainError("not_found", "La ocurrencia ya no existe.");
     if (occurrence.status === "already_done") return occurrence;
     if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
-      throw new DomainError("invalid_transition", "Esta tarea ya se cerró.");
+      throw new DomainError("invalid_transition", "Esa tarea ya está terminada.");
     }
     if (occurrence.status === "in_progress") {
-      throw new DomainError("invalid_transition", "La tarea está en curso; resuelve su sesión primero.");
+      throw new DomainError("invalid_transition", "Esa tarea ya está empezada. Primero termina su tiempo.");
     }
     await appendEvent(db, {
       actionId: `direct-already-done:${occurrence.id}`, type: "already_done", at: now,
@@ -360,7 +360,7 @@ export async function ensureOccurrence(
     if (existing) return existing;
     const task = await db.tasks.get(taskId);
     if (!task || task.archivedAt !== null || !task.days.includes(weekdayOf(date))) {
-      throw new DomainError("invalid_transition", "Esta tarea no está programada para ese día.");
+      throw new DomainError("invalid_transition", "Esa tarea no es para ese día.");
     }
     const occurrence = pendingOccurrence(taskId, date, now);
     await db.occurrences.add(occurrence);
@@ -406,17 +406,17 @@ export async function startSession(
     }
     const task = await db.tasks.get(taskId);
     if (!task || task.archivedAt !== null) {
-      throw new DomainError("not_found", "La tarea no está disponible.");
+      throw new DomainError("not_found", "Esa tarea ya no está.");
     }
     const day = await db.days.get(date);
     if (day?.closedAt != null) {
-      throw new DomainError("invalid_transition", "El día ya está cerrado.");
+      throw new DomainError("invalid_transition", "El día ya terminó.");
     }
 
     const occurrence = await db.occurrences.get(occurrenceIdFor(taskId, date)) ??
       pendingOccurrence(taskId, date, now);
     if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
-      throw new DomainError("invalid_transition", "Esta tarea ya se cerró para esa fecha.");
+      throw new DomainError("invalid_transition", "Esa tarea ya está resuelta para hoy.");
     }
     if (handId) {
       const hand = await db.hands.get(handId);
@@ -424,21 +424,21 @@ export async function startSession(
         !hand || hand.status !== "open" || hand.date !== date ||
         !hand.occurrenceIds.includes(occurrence.id)
       ) {
-        throw new DomainError("invalid_transition", "Esta franja ya no está disponible.");
+        throw new DomainError("invalid_transition", "Esa lista ya cambió. Vuelve a abrir Hoy.");
       }
     }
     if (anchor && (!task.fixedTime || occurrence.anchorPresentedAt === null)) {
-      throw new DomainError("invalid_transition", "Este ancla no está presentada.");
+      throw new DomainError("invalid_transition", "Ese aviso ya no está disponible.");
     }
     if (!occurrence.agreement &&
       (date !== toLocalDate(now) || !availabilityOf(task, occurrence, now).eligible)) {
-      throw new DomainError("invalid_transition", "Esta tarea no está disponible en este horario.");
+      throw new DomainError("invalid_transition", "Esa tarea no es para este momento.");
     }
     const active = await db.sessions
       .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
       .first();
     if (active && !(anchor && active.status === "paused")) {
-      throw new DomainError("conflict", "Primero continúa o cierra la sesión que ya está abierta.");
+      throw new DomainError("conflict", "Primero termina lo que ya empezaste.");
     }
 
     const agreement = occurrence.agreement ?? {
@@ -448,7 +448,7 @@ export async function startSession(
       lockedAt: now,
     };
     if (variant === "short" && (!agreement.task.shortStep || occurrence.shortStepCompleted)) {
-      throw new DomainError("invalid_transition", "No hay un primer paso pendiente para esta tarea.");
+      throw new DomainError("invalid_transition", "Esta tarea no tiene un primer paso pendiente.");
     }
     const durationMin = variant === "short"
       ? agreement.task.shortStep!.durationMin : agreement.task.durationMin;
@@ -525,7 +525,7 @@ export async function startQuickSession(
       .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
       .first();
     if (active) {
-      throw new DomainError("conflict", "Primero continúa o cierra la sesión que ya está abierta.");
+      throw new DomainError("conflict", "Primero termina lo que ya empezaste.");
     }
     if (await db.occurrences.get(occurrenceId)) {
       throw new DomainError("conflict", "Esta sesión rápida ya fue registrada.");
@@ -613,14 +613,14 @@ export async function startPendingSession(
       .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
       .first();
     if (active) {
-      throw new DomainError("conflict", "Primero continúa o cierra la sesión que ya está abierta.");
+      throw new DomainError("conflict", "Primero termina lo que ya empezaste.");
     }
     const pending = await db.pendings.get(pendingId);
     if (!pending || pending.deletedAt !== null) {
-      throw new DomainError("not_found", "Ese pendiente ya no existe.");
+      throw new DomainError("not_found", "Ese pendiente ya no está.");
     }
     if (pending.completedAt !== null) {
-      throw new DomainError("invalid_transition", "Ese pendiente ya está terminado.");
+      throw new DomainError("invalid_transition", "Ese pendiente ya está hecho.");
     }
 
     const values = validatePendingInput({
@@ -694,15 +694,15 @@ export async function expireSession(
   assertTimestamp(now);
   return db.transaction("rw", db.sessions, db.events, async () => {
     const session = await db.sessions.get(sessionId);
-    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (!session) throw new DomainError("not_found", "Ese tiempo ya no existe.");
     if (session.status === "awaiting_confirmation") return session;
     if (session.status !== "running") {
-      throw new DomainError("invalid_transition", "Solo una sesión corriendo puede vencer.");
+      throw new DomainError("invalid_transition", "Ese tiempo ya no está corriendo.");
     }
 
     const deadline = session.startedAt + session.remainingSecAtStart * 1000;
     if (now < deadline) {
-      throw new DomainError("invalid_transition", "El timer todavía no ha vencido.");
+      throw new DomainError("invalid_transition", "Todavía queda tiempo.");
     }
 
     await appendEvent(db, {
@@ -774,7 +774,7 @@ export async function completeSessionWithCredit(
     "rw", db.sessions, db.occurrences, db.events, db.ledger, db.pendings,
     async () => {
     const session = await db.sessions.get(sessionId);
-    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (!session) throw new DomainError("not_found", "Ese tiempo ya no existe.");
     if (session.status === "completed") {
       if (session.pendingId) {
         const pending = await db.pendings.get(session.pendingId);
@@ -788,17 +788,17 @@ export async function completeSessionWithCredit(
       return { session, creditedRc: 0, totalCreditedRc: occurrence?.creditedRc ?? 0 };
     }
     if (session.status !== "running" && session.status !== "awaiting_confirmation") {
-      throw new DomainError("invalid_transition", "Esta sesión no se puede completar.");
+      throw new DomainError("invalid_transition", "Ese tiempo ya no se puede terminar.");
     }
     const occurrence = await db.occurrences.get(session.occurrenceId);
-    if (!occurrence) throw new DomainError("not_found", "La tarea de la sesión ya no existe.");
+    if (!occurrence) throw new DomainError("not_found", "Esa tarea ya no está.");
     if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status) && occurrence.status !== "completed") {
-      throw new DomainError("invalid_transition", "Esta tarea ya se cerró de otra forma.");
+      throw new DomainError("invalid_transition", "Esa tarea ya está resuelta de otra forma.");
     }
     if (session.pendingId) {
       const pending = await db.pendings.get(session.pendingId);
       if (!pending || pending.deletedAt !== null) {
-        throw new DomainError("not_found", "Ese pendiente ya no existe.");
+        throw new DomainError("not_found", "Ese pendiente ya no está.");
       }
     }
 
@@ -865,19 +865,19 @@ export async function markOccurrenceNotApplicable(
   assertTimestamp(now);
   return db.transaction("rw", db.sessions, db.occurrences, db.events, async () => {
     const session = await db.sessions.get(sessionId);
-    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (!session) throw new DomainError("not_found", "Ese tiempo ya no existe.");
     if (session.status === "abandoned") return session;
     if (
       session.status !== "running" &&
       session.status !== "awaiting_confirmation" &&
       session.status !== "paused"
     ) {
-      throw new DomainError("invalid_transition", "Esta sesión ya no se puede cerrar así.");
+      throw new DomainError("invalid_transition", "Ese tiempo ya no se puede cerrar así.");
     }
     const occurrence = await db.occurrences.get(session.occurrenceId);
-    if (!occurrence) throw new DomainError("not_found", "La tarea de la sesión ya no existe.");
+    if (!occurrence) throw new DomainError("not_found", "Esa tarea ya no está.");
     if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
-      throw new DomainError("invalid_transition", "Esta tarea ya se cerró.");
+      throw new DomainError("invalid_transition", "Esa tarea ya está terminada.");
     }
 
     const elapsedSec = elapsedSecondsFor(session, now);
@@ -913,14 +913,14 @@ export async function retrySession(
 
   return db.transaction("rw", db.sessions, db.events, async () => {
     const session = await db.sessions.get(sessionId);
-    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (!session) throw new DomainError("not_found", "Ese tiempo ya no existe.");
     if (session.status === "running") {
       const previous = await db.events.get(eventIdFor(`retry:${actionId}`, "resumed"));
       if (previous) return session;
-      throw new DomainError("invalid_transition", "El timer todavía está corriendo.");
+      throw new DomainError("invalid_transition", "Todavía queda tiempo.");
     }
     if (session.status !== "awaiting_confirmation") {
-      throw new DomainError("invalid_transition", "Esta sesión no se puede reintentar.");
+      throw new DomainError("invalid_transition", "Ese tiempo ya no se puede continuar.");
     }
 
     const { inserted } = await appendEvent(db, {
@@ -953,15 +953,15 @@ export async function pauseSession(
   assertTimestamp(now);
   return db.transaction("rw", db.sessions, db.events, async () => {
     const session = await db.sessions.get(sessionId);
-    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (!session) throw new DomainError("not_found", "Ese tiempo ya no existe.");
     if (session.status === "paused") return session;
     if (session.status !== "running") {
-      throw new DomainError("invalid_transition", "Solo una sesión corriendo puede pausarse.");
+      throw new DomainError("invalid_transition", "Solo puedes pausar un tiempo que está corriendo.");
     }
 
     const deadline = session.startedAt + session.remainingSecAtStart * 1000;
     if (now >= deadline) {
-      throw new DomainError("invalid_transition", "El timer ya venció; confirma el resultado.");
+      throw new DomainError("invalid_transition", "El tiempo ya terminó. Dinos cómo te fue.");
     }
     const remainingSec = Math.max(0, Math.ceil((deadline - now) / 1000));
     const segmentSec = session.remainingSecAtStart - remainingSec;
@@ -1009,10 +1009,10 @@ export async function resumeSession(
   assertTimestamp(now);
   return db.transaction("rw", db.sessions, db.events, async () => {
     const session = await db.sessions.get(sessionId);
-    if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
+    if (!session) throw new DomainError("not_found", "Ese tiempo ya no existe.");
     if (session.status === "running") return session;
     if (session.status !== "paused") {
-      throw new DomainError("invalid_transition", "Esta sesión no está pausada.");
+      throw new DomainError("invalid_transition", "Ese tiempo no está en pausa.");
     }
 
     await appendEvent(db, {
@@ -1207,7 +1207,7 @@ export async function closeDay(
 
   return db.transaction("rw", db.days, db.hands, db.sessions, db.occurrences, db.events, async () => {
     const day = await db.days.get(date);
-    if (!day) throw new DomainError("not_found", "El día ya no existe.");
+    if (!day) throw new DomainError("not_found", "El día ya no está.");
     if (day.closedAt != null) return day;
 
     const context: Record<string, string | number> = { reason: "end_day" };

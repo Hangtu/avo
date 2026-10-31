@@ -21,7 +21,7 @@ export function useVoicePreference() {
       } catch (cause) {
         if (!cancelled) {
           console.error("No se pudo leer la voz", cause);
-          setError("No se pudo leer la preferencia de voz.");
+          setError("No pude abrir tu voz.");
         }
       } finally {
         db?.close();
@@ -49,7 +49,7 @@ export function useVoicePreference() {
       setToneState(next);
     } catch (cause) {
       console.error("No se pudo guardar la voz", cause);
-      setError("No se pudo guardar la preferencia de voz.");
+      setError("No pude guardar tu voz.");
     }
   }, []);
 
