@@ -85,7 +85,13 @@ export async function getSettings(db: RunoDatabase, now: number): Promise<Settin
   assertTimestamp(now);
   return db.transaction("rw", db.settings, async () => {
     const existing = await db.settings.get("preferences");
-    if (existing) return existing;
+    if (existing) {
+      return validateSettings({
+        ...defaultSettings(existing.updatedAt),
+        ...existing,
+        showWallet: existing.showWallet ?? false,
+      });
+    }
     const settings = defaultSettings(now);
     await db.settings.add(settings);
     return settings;

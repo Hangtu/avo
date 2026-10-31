@@ -11,7 +11,7 @@ describe("semilla del Mazo", () => {
     const db = await testDb();
     expect(await seedDatabase(db, NOW)).toEqual({ createdTaskCount: 10 });
     expect(await db.tasks.count()).toBe(10);
-    expect((await getSettings(db, NOW)).audioEnabled).toBe(false);
+    expect(await getSettings(db, NOW)).toMatchObject({ audioEnabled: false, showWallet: false });
     expect(await db.tasks.filter((task) => task.days.length === 0).count()).toBe(3);
   });
 

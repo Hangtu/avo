@@ -139,6 +139,7 @@ export interface Settings {
   sound: "brown" | "tick";
   maxTone: 0 | 1 | 2;
   theme: "auto" | "light" | "dark";
+  showWallet: boolean;
   updatedAt: number;
 }
 

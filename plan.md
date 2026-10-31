@@ -268,7 +268,7 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 
 **Base elegida después de la exploración (Liquid Focus, 2026-10-30):** fondo ambiental `#EFF6F5`, tinta `#17252A`, superficies de vidrio con fallback sólido, muted `#3B5457`, acento `#4F6BFF`, primario `#3948C8` y timer circular. En móvil la navegación principal baja a un dock de vidrio; en escritorio queda arriba. Modo noche `#0C161B`/`#EAF7F6`/`#8EA2FF`. Lexend se mantiene; el vidrio nunca es la única capa de legibilidad.
 
-**Carta Ahora (2026-10-30):** la franja se presenta de una tarjeta a la vez: título, duración, `Empezar`, `Ver otra` y `⋯`. Las otras cartas de la misma franja se recorren con `Ver otra`; el paso corto, el cambio por otra tarea y las correcciones viven en `⋯`. No se muestran RC, categorías, pendientes ni contadores de cambios en la primera vista.
+**Carta Ahora (2026-10-30):** la franja se presenta de una tarjeta a la vez: título, duración, `Empezar`, `Ver otra` y `⋯`. Las otras cartas de la misma franja se recorren con `Ver otra`; el paso corto, el cambio por otra tarea y las correcciones viven en `⋯`. No se muestran RC, categorías, pendientes ni contadores de cambios en la primera vista. Sonido y voz viven en **Ajustes**; el Monedero está oculto de la navegación por defecto y se puede habilitar allí.
 
 **Paleta de noche (D3):** fondo `#1B1815`, tinta `#F3EEE5`, superficie `#24201B`, gris `#C4BBAD`, línea `#463F35` (decorativa), control `#9A8F80` y acento `#E0705F`. La tinta, el gris y el control miden 15.30:1, 9.31:1 y 5.57:1 sobre el fondo; la línea y la superficie son decorativas. La selección usa tinta oscura sobre el acento (5.77:1).
 
@@ -366,7 +366,7 @@ Los tipos viven en `lib/domain/types.ts`, las validaciones en `lib/domain/valida
 | **Session** | Ocurrencia, franja si aplica, variante, snapshot de tarea/duración/recompensa, estado, restante del tramo, inicio del tramo y tiempo acumulado. Una sola sesión activa (corriendo o pausada); una pausada bloquea iniciar otra tarea; una anterior puede quedar pausada por un ancla |
 | **Event** | ID y acción idempotente, tipo canónico (§9), timestamp, referencias pertinentes y contexto/motivo explícito |
 | **Ledger** | Movimiento entero de RC, motivo, timestamp y origen único del crédito o canje; fuente del saldo |
-| **Settings** | Audio apagado inicialmente, perfil de sonido, intensidad máxima 0–2 del MVP y tema automático/manual; preferencias persistentes. El máximo de cambios (3) y el descanso (10 min) son fijos en el primer corte; su ajuste queda para después |
+| **Settings** | Audio apagado inicialmente, perfil de sonido, intensidad máxima 0–2 del MVP, tema automático/manual y visibilidad del Monedero (apagado por defecto); preferencias persistentes. El máximo de cambios (3) y el descanso (10 min) son fijos en el primer corte; su ajuste queda para después |
 
 **Estados de ocurrencia:** pendiente, en progreso, parcial, completada, ya realizada fuera de la app o no aplica. Los últimos tres la excluyen de nuevas propuestas para esa fecha.
 

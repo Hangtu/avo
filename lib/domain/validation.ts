@@ -91,6 +91,7 @@ export function defaultSettings(now: number): Settings {
     sound: "brown",
     maxTone: 2,
     theme: "auto",
+    showWallet: false,
     updatedAt: now,
   };
 }
@@ -102,7 +103,8 @@ export function validateSettings(settings: Settings): Settings {
     typeof settings.audioEnabled !== "boolean" ||
     !["brown", "tick"].includes(settings.sound) ||
     ![0, 1, 2].includes(settings.maxTone) ||
-    !["auto", "light", "dark"].includes(settings.theme)
+    !["auto", "light", "dark"].includes(settings.theme) ||
+    typeof settings.showWallet !== "boolean"
   ) {
     throw new DomainError("validation", "La configuración no es válida.");
   }

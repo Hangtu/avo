@@ -48,12 +48,13 @@ describe("validación de tareas", () => {
 describe("preferencias", () => {
   it("arranca sin audio, tema automático y techo de tono 2", () => {
     expect(defaultSettings(NOW)).toMatchObject({
-      audioEnabled: false, maxTone: 2, theme: "auto",
+      audioEnabled: false, maxTone: 2, theme: "auto", showWallet: false,
     });
   });
 
   it("no admite nivel 3 en el MVP ni preferencias corruptas", () => {
     expect(() => validateSettings({ ...defaultSettings(NOW), maxTone: 3 } as never)).toThrow();
     expect(() => validateSettings({ ...defaultSettings(NOW), theme: "otro" } as never)).toThrow();
+    expect(() => validateSettings({ ...defaultSettings(NOW), showWallet: "sí" } as never)).toThrow();
   });
 });

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openDatabase } from "@/lib/db/database";
 import {
-  closeDay,
   completeSessionWithCredit,
   expireSession,
   markOccurrenceNotApplicable,
@@ -17,7 +16,6 @@ import type { Session } from "@/lib/domain/types";
 import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
 import { pulse } from "@/lib/platform/haptics";
 import { useSessionAudio } from "./use-session-audio";
-import { VoiceControl } from "./voice-control";
 import { useWakeLock } from "./use-wake-lock";
 
 function formatRemaining(milliseconds: number): string {
@@ -45,14 +43,10 @@ export function SessionView({
   session,
   onFinished,
   tone,
-  toneReady,
-  onTone,
 }: {
   session: Session;
   onFinished: (offerBreak?: boolean, message?: string) => void;
   tone: VoiceTone;
-  toneReady: boolean;
-  onTone: (tone: VoiceTone) => void;
 }) {
   const [current, setCurrent] = useState(session);
   const [remainingMs, setRemainingMs] = useState(() =>
@@ -68,6 +62,7 @@ export function SessionView({
   const [today, setToday] = useState<string | null>(null);
   const [pushPhrase, setPushPhrase] = useState<string | null>(null);
   const [pushCount, setPushCount] = useState(0);
+  const [noPhrase, setNoPhrase] = useState<string | null>(null);
   const busyRef = useRef(false);
   const isShort = current.variant === "short";
   const sessionDate = dateFromOccurrenceId(current.occurrenceId);
@@ -90,8 +85,7 @@ export function SessionView({
   );
 
   useWakeLock(current.status === "running");
-  const audio = useSessionAudio(current.status === "running");
-  const { ringBell } = audio;
+  const { ringBell } = useSessionAudio(current.status === "running");
 
   useEffect(() => {
     function updateToday() {
@@ -165,6 +159,15 @@ export function SessionView({
     }
   }, []);
 
+  function askNo() {
+    setRetryId(newActionId());
+    setNoPhrase(
+      tone > 0 ? chooseVoicePhrase(2, "push", `${current.id}:no:${pushCount}`) : null,
+    );
+    setPushCount((count) => count + 1);
+    setShowNoOptions(true);
+  }
+
   async function complete() {
     await runAction(async () => {
       const db = await openDatabase();
@@ -232,30 +235,13 @@ export function SessionView({
     });
   }
 
-  async function endDayNow() {
-    await runAction(async () => {
-      const db = await openDatabase();
-      try {
-        await closeDay(db, sessionDate, Date.now());
-        onFinished(false);
-      } finally {
-        db.close();
-      }
-    });
-  }
-
-  function askNo() {
-    setRetryId(newActionId());
-    setShowNoOptions(true);
-  }
-
   return (
     <section className="border-y border-line py-8 sm:py-10">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {current.status === "running"
           ? isShort ? "Primer paso" : "En curso"
           : current.status === "awaiting_confirmation"
-            ? isShort ? "Paso cumplido" : "Tiempo cumplido"
+            ? "Tiempo cumplido"
             : current.status === "paused"
               ? isShort ? "Paso pausado" : "Pausada"
               : "Sesión cerrada"}
@@ -286,10 +272,6 @@ export function SessionView({
           <p className="mt-6 text-center text-sm leading-6 text-muted">
             El reloj sigue aunque cambies de pantalla. Al volver, retomas donde ibas.
             No se inicia otra tarea hasta resolver esta.
-          </p>
-          <p className="mt-2 text-center text-xs leading-5 text-muted">
-            Sin alarma ni aviso con la app cerrada. La pantalla puede apagarse si el
-            sistema no la mantiene despierta.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <button
@@ -344,6 +326,14 @@ export function SessionView({
                 </button>
                 <button
                   type="button"
+                  onClick={() => void retry()}
+                  disabled={busy}
+                  className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
+                >
+                  {busy ? "Guardando…" : "Reintentar 5 min"}
+                </button>
+                <button
+                  type="button"
                   onClick={askNo}
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
@@ -357,6 +347,11 @@ export function SessionView({
               <p className="text-lg font-semibold">
                 {isShort ? "¿Qué pasó con el paso?" : "¿Qué pasó con la tarea?"}
               </p>
+              {noPhrase ? (
+                <p className="border-l-2 border-accent pl-4 text-sm leading-6">
+                  {noPhrase}
+                </p>
+              ) : null}
               <p className="text-sm leading-6 text-muted">
                 Puedes reintentar cinco minutos o marcarla como no aplica.
               </p>
@@ -425,77 +420,33 @@ export function SessionView({
         </div>
       ) : null}
 
-      {current.status === "running" ||
-      current.status === "paused" ||
-      current.status === "awaiting_confirmation" ? (
-        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+      {tone > 0 &&
+      (current.status === "running" ||
+        current.status === "paused" ||
+        current.status === "awaiting_confirmation") ? (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
           <button
             type="button"
-            onClick={() => void audio.toggle()}
-            disabled={!audio.ready}
-            aria-pressed={audio.enabled}
-            className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+            onClick={() => {
+              const next = chooseVoicePhrase(
+                2, "push", `${current.id}:${pushCount}`, pushPhrase ?? undefined,
+              );
+              setPushPhrase(next);
+              setPushCount((count) => count + 1);
+            }}
+            className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
           >
-            {audio.enabled ? "Silenciar" : "Activar sonido"}
+            Empujón
           </button>
-          {audio.enabled ? (
-            <label className="flex min-h-11 flex-wrap items-center gap-2">
-              <span>Sonido</span>
-              <select
-                value={audio.sound}
-                onChange={(event) => void audio.choose(event.target.value as "brown" | "tick")}
-                className="min-h-11 max-w-full border border-control bg-background px-3 text-sm"
-              >
-                <option value="brown">Ruido marrón</option>
-                <option value="tick">Tic-tac</option>
-              </select>
-            </label>
-          ) : null}
-          {audio.error ? <span role="status">{audio.error}</span> : null}
         </div>
       ) : null}
 
-      {current.status === "running" ||
-      current.status === "paused" ||
-      current.status === "awaiting_confirmation" ? (
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-          <VoiceControl tone={tone} ready={toneReady} onTone={onTone} />
-          {tone === 2 ? (
-            <button
-              type="button"
-              onClick={() => {
-                const next = chooseVoicePhrase(
-                  2, "push", `${current.id}:${pushCount}`, pushPhrase ?? undefined,
-                );
-                setPushPhrase(next);
-                setPushCount((count) => count + 1);
-              }}
-              className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
-            >
-              Empujón
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {tone === 2 && pushPhrase ? (
+      {tone > 0 && pushPhrase ? (
         <p className="mt-2 border-l-2 border-control pl-4 text-sm leading-6">
           {pushPhrase}
         </p>
       ) : null}
 
-      {current.status === "running" ||
-      current.status === "paused" ||
-      current.status === "awaiting_confirmation" ? (
-        <button
-          type="button"
-          onClick={() => void endDayNow()}
-          disabled={busy}
-          className="mt-4 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
-        >
-          {isTodaySession ? "Terminar por hoy" : "Cerrar sesión anterior"}
-        </button>
-      ) : null}
 
       {actionError ? (
         <p className="mt-5 border-l-2 border-accent pl-4 text-sm leading-6" role="alert">

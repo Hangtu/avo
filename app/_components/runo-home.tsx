@@ -7,6 +7,7 @@ import {
   ensureDay,
   ensureFranja,
   ensureOccurrence,
+  getSettings,
   listTasks,
   markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicableDirect,
@@ -23,6 +24,7 @@ import { useAnchorWatcher } from "./use-anchor-watcher";
 import { TaskEditor } from "./task-editor";
 import { useVoicePreference } from "./use-voice-preference";
 import { WalletView } from "./wallet-view";
+import { SettingsView } from "./settings-view";
 import { ThemeControl } from "./theme-control";
 import { useThemePreference } from "./use-theme-preference";
 
@@ -86,6 +88,8 @@ export function RunoHome() {
   const [swapping, setSwapping] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showWalletLink, setShowWalletLink] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
   const [correctingId, setCorrectingId] = useState<string | null>(null);
@@ -106,6 +110,8 @@ export function RunoHome() {
         const dateLabel = formatDate(now);
 
         await seedDatabase(db, now);
+        const preferences = await getSettings(db, now);
+        if (!cancelled) setShowWalletLink(preferences.showWallet);
         const day = await ensureDay(db, date, now);
 
         const active = await db.sessions
@@ -273,6 +279,7 @@ export function RunoHome() {
   const anchorWatcherEnabled =
     !showEditor &&
     !showWallet &&
+    !showSettings &&
     pendingStart === null &&
     correctingId === null &&
     (view.kind === "ready" || view.kind === "empty" || view.kind === "session");
@@ -282,18 +289,28 @@ export function RunoHome() {
   const openEditor = useCallback(() => {
     setShowBreak(false);
     setShowWallet(false);
+    setShowSettings(false);
     setShowEditor(true);
   }, []);
 
   const openWallet = useCallback(() => {
     setShowBreak(false);
     setShowEditor(false);
+    setShowSettings(false);
     setShowWallet(true);
+  }, []);
+
+  const openSettings = useCallback(() => {
+    setShowBreak(false);
+    setShowEditor(false);
+    setShowWallet(false);
+    setShowSettings(true);
   }, []);
 
   const closeSecondary = useCallback(() => {
     setShowEditor(false);
     setShowWallet(false);
+    setShowSettings(false);
     setNotice(null);
     setView({ kind: "loading" });
     setRefreshKey((key) => key + 1);
@@ -438,7 +455,7 @@ export function RunoHome() {
               <p className="text-sm text-muted">{view.dateLabel}</p>
             ) : null}
             <div className="hidden items-center justify-end gap-3 sm:flex">
-              {showEditor || showWallet ? (
+              {showEditor || showWallet || showSettings ? (
                 <button
                   type="button"
                   onClick={closeSecondary}
@@ -448,14 +465,16 @@ export function RunoHome() {
                 </button>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={openWallet}
-                    disabled={pendingStart !== null}
-                    className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
-                  >
-                    Monedero
-                  </button>
+                  {showWalletLink ? (
+                    <button
+                      type="button"
+                      onClick={openWallet}
+                      disabled={pendingStart !== null}
+                      className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+                    >
+                      Monedero
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={openEditor}
@@ -463,6 +482,14 @@ export function RunoHome() {
                     className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
                   >
                     Tareas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openSettings}
+                    disabled={pendingStart !== null}
+                    className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+                  >
+                    Ajustes
                   </button>
                 </>
               )}
@@ -472,8 +499,17 @@ export function RunoHome() {
 
         <div className="flex flex-1 flex-col justify-center py-8">
           {showEditor ? <TaskEditor /> : null}
+          {showSettings ? (
+            <SettingsView
+              tone={voice.tone ?? 0}
+              voiceReady={voice.ready}
+              onTone={voice.setTone}
+              onWalletVisibilityChange={setShowWalletLink}
+              onOpenWallet={openWallet}
+            />
+          ) : null}
           {showWallet ? <WalletView /> : null}
-          {!showEditor && !showWallet && notice ? (
+          {!showEditor && !showWallet && !showSettings && notice ? (
             <p
               role="alert"
               className="mb-4 border-l-2 border-line pl-4 text-sm leading-6"
@@ -482,7 +518,7 @@ export function RunoHome() {
             </p>
           ) : null}
 
-          {!showEditor && !showWallet && pendingStart ? (
+          {!showEditor && !showWallet && !showSettings && pendingStart ? (
             <Countdown
               task={pendingStart.task}
               variant={pendingStart.variant}
@@ -490,7 +526,7 @@ export function RunoHome() {
               onCancel={() => setPendingStart(null)}
             />
           ) : null}
-          {!showEditor && !showWallet && !pendingStart ? (
+          {!showEditor && !showWallet && !showSettings && !pendingStart ? (
             <>
               {view.kind === "loading" ? <LoadingState /> : null}
               {view.kind === "error" ? (
@@ -505,8 +541,6 @@ export function RunoHome() {
                   session={view.session}
                   onFinished={finishSession}
                   tone={voice.tone ?? 0}
-                  toneReady={voice.ready}
-                  onTone={voice.setTone}
                 />
               ) : null}
               {view.kind === "anchor" ? (
@@ -555,10 +589,10 @@ export function RunoHome() {
           <button
             type="button"
             onClick={() => {
-              if (showEditor || showWallet) closeSecondary();
+              if (showEditor || showWallet || showSettings) closeSecondary();
             }}
             disabled={pendingStart !== null}
-            aria-current={!showEditor && !showWallet ? "page" : undefined}
+            aria-current={!showEditor && !showWallet && !showSettings ? "page" : undefined}
           >
             Hoy
           </button>
@@ -572,12 +606,22 @@ export function RunoHome() {
           </button>
           <button
             type="button"
-            onClick={openWallet}
+            onClick={openSettings}
             disabled={pendingStart !== null}
-            aria-current={showWallet ? "page" : undefined}
+            aria-current={showSettings ? "page" : undefined}
           >
-            Monedero
+            Ajustes
           </button>
+          {showWalletLink ? (
+            <button
+              type="button"
+              onClick={openWallet}
+              disabled={pendingStart !== null}
+              aria-current={showWallet ? "page" : undefined}
+            >
+              Monedero
+            </button>
+          ) : null}
         </nav>
       </div>
     </main>
