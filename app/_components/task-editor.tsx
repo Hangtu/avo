@@ -139,6 +139,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [categoryMode, setCategoryMode] = useState<"existing" | "new">("existing");
+  const [customWindow, setCustomWindow] = useState(false);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -163,6 +164,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             if (target) {
               openedInitialTask.current = true;
               setCategoryMode("existing");
+              setCustomWindow(false);
               setForm(formFromTask(target));
             }
           }
@@ -190,6 +192,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     const next = emptyForm();
     next.days = [selectedDay];
     setCategoryMode("existing");
+    setCustomWindow(false);
     setForm(next);
   }
 
@@ -197,6 +200,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     setFormError(null);
     setNotice(null);
     setCategoryMode("existing");
+    setCustomWindow(false);
     setForm(formFromTask(task));
   }
 
@@ -274,6 +278,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
   function formBlock(): "any" | "morning" | "afternoon" | "night" | "custom" {
     if (!form?.useWindow) return "any";
+    if (customWindow) return "custom";
     const { windowStart: start, windowEnd: end } = form;
     if (start < end && start >= "05:00" && end <= "12:00") return "morning";
     if (start < end && start >= "12:00" && end <= "19:00") return "afternoon";
@@ -285,13 +290,16 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   function chooseBlock(block: "any" | "morning" | "afternoon" | "night" | "custom") {
     if (!form) return;
     if (block === "any") {
+      setCustomWindow(false);
       patch({ useWindow: false });
       return;
     }
     if (block === "custom") {
+      setCustomWindow(true);
       patch({ useWindow: true });
       return;
     }
+    setCustomWindow(false);
     const ranges = {
       morning: { start: "05:00", end: "12:00" },
       afternoon: { start: "12:00", end: "19:00" },
