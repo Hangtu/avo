@@ -264,6 +264,41 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
   const active = tasks?.filter((task) => task.archivedAt === null) ?? [];
   const archived = tasks?.filter((task) => task.archivedAt !== null) ?? [];
+  const categories = Array.from(
+    new Set((tasks ?? []).map((task) => task.category.trim()).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b));
+
+  function formBlock(): "any" | "morning" | "afternoon" | "night" | "custom" {
+    if (!form?.useWindow) return "any";
+    const { windowStart: start, windowEnd: end } = form;
+    if (start < end && start >= "05:00" && end <= "12:00") return "morning";
+    if (start < end && start >= "12:00" && end <= "19:00") return "afternoon";
+    if (start < end && start >= "19:00" && end <= "23:59") return "night";
+    if (start < end && start < "05:00" && end <= "05:00") return "night";
+    return "custom";
+  }
+
+  function chooseBlock(block: "any" | "morning" | "afternoon" | "night" | "custom") {
+    if (!form) return;
+    if (block === "any") {
+      patch({ useWindow: false });
+      return;
+    }
+    if (block === "custom") {
+      patch({ useWindow: true });
+      return;
+    }
+    const ranges = {
+      morning: { start: "05:00", end: "12:00" },
+      afternoon: { start: "12:00", end: "19:00" },
+      night: { start: "19:00", end: "23:59" },
+    } as const;
+    patch({
+      useWindow: true,
+      windowStart: ranges[block].start,
+      windowEnd: ranges[block].end,
+    });
+  }
   const dayTasks = active.filter((task) => task.days.includes(selectedDay));
   const unscheduled = active.filter((task) => task.days.length === 0);
   const dayCounts = WEEKDAYS.map((day) => ({
@@ -343,9 +378,19 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           onSubmit={save}
           className="mt-5 border-y border-line py-6"
         >
-          <h3 className="text-xl font-semibold">
-            {form.id ? "Editar tarea" : "Nueva tarea"}
-          </h3>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-xl font-semibold">
+              {form.id ? "Editar tarea" : "Nueva tarea"}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setForm(null)}
+              disabled={saving}
+              className="min-h-11 text-sm font-semibold text-muted underline underline-offset-4 disabled:opacity-60"
+            >
+              ← Volver
+            </button>
+          </div>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="block sm:col-span-2">
@@ -362,11 +407,17 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               <span className="text-sm font-medium">Categoría</span>
               <input
                 required
+                list="task-categories"
                 value={form.category}
                 onChange={(event) => patch({ category: event.target.value })}
                 className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                 placeholder="personal"
               />
+              <datalist id="task-categories">
+                {categories.map((category) => (
+                  <option key={category} value={category} />
+                ))}
+              </datalist>
             </label>
             <label className="block">
               <span className="text-sm font-medium">Duración (min)</span>
@@ -401,21 +452,24 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           <fieldset className="mt-5">
             <legend className="text-sm font-medium">Días</legend>
             <div className="mt-2 flex flex-wrap gap-2">
-              {WEEKDAYS.map((day) => (
-                <button
-                  key={day.value}
-                  type="button"
-                  aria-pressed={form.days.includes(day.value)}
-                  onClick={() => toggleDay(day.value)}
-                  className={`min-h-11 rounded-none border border-control px-4 text-sm font-semibold ${
-                    form.days.includes(day.value)
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-control bg-background"
-                  }`}
-                >
-                  {day.label}
-                </button>
-              ))}
+              {WEEKDAYS.map((day) => {
+                const selected = form.days.includes(day.value);
+                return (
+                  <label
+                    key={day.value}
+                    className="day-toggle"
+                    data-on={selected}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleDay(day.value)}
+                      className="sr-only"
+                    />
+                    <span>{selected ? "✓ " : ""}{day.label}</span>
+                  </label>
+                );
+              })}
             </div>
             {form.days.length === 0 ? (
               <p className="mt-2 text-sm text-muted">
@@ -425,37 +479,54 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           </fieldset>
 
           <div className="mt-5 space-y-4">
-            <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={form.useWindow}
-                onChange={(event) => patch({ useWindow: event.target.checked })}
-                className="h-6 w-6"
-              />
-              Usar franja horaria
-            </label>
-            {form.useWindow ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="text-sm text-muted">Desde</span>
-                  <input
-                    type="time"
-                    value={form.windowStart}
-                    onChange={(event) => patch({ windowStart: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm text-muted">Hasta</span>
-                  <input
-                    type="time"
-                    value={form.windowEnd}
-                    onChange={(event) => patch({ windowEnd: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                  />
-                </label>
+            <fieldset>
+              <legend className="text-sm font-medium">¿Cuándo?</legend>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {([
+                  ["any", "Sin bloque"],
+                  ["morning", "Mañana"],
+                  ["afternoon", "Tarde"],
+                  ["night", "Noche"],
+                  ["custom", "Personalizado"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    data-on={formBlock() === value}
+                    aria-pressed={formBlock() === value}
+                    onClick={() => chooseBlock(value)}
+                    className="day-toggle justify-center"
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-            ) : null}
+              {formBlock() === "custom" ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm text-muted">Desde</span>
+                    <input
+                      type="time"
+                      value={form.windowStart}
+                      onChange={(event) => patch({ windowStart: event.target.value })}
+                      className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm text-muted">Hasta</span>
+                    <input
+                      type="time"
+                      value={form.windowEnd}
+                      onChange={(event) => patch({ windowEnd: event.target.value })}
+                      className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                    />
+                  </label>
+                </div>
+              ) : null}
+              <p className="mt-2 text-sm leading-6 text-muted">
+                El bloque es opcional; si necesitas una hora exacta, actívala abajo.
+              </p>
+            </fieldset>
 
             <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
               <input
@@ -464,7 +535,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 onChange={(event) => patch({ useFixedTime: event.target.checked })}
                 className="h-6 w-6"
               />
-              Hora fija
+              Hora exacta
             </label>
             {form.useFixedTime ? (
               <label className="block max-w-40">
