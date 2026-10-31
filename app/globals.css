@@ -519,6 +519,12 @@ body > * {
   font-weight: 500;
 }
 
+@media (max-width: 320px) {
+  :root[data-ui="liquid"] .runo-shell h1 {
+    font-size: 1.7rem;
+  }
+}
+
 @media (max-width: 240px) {
   .first-actions {
     gap: 0.5rem;

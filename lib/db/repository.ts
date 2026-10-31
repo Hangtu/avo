@@ -395,6 +395,109 @@ export async function startSession(
   });
 }
 
+export interface StartQuickSessionInput {
+  sessionId: string;
+  taskId: string;
+  title: string;
+  durationMin: number;
+  now: number;
+}
+
+/**
+ * Starts a one-off focus session that never becomes a task or enters a franja.
+ * It can run after the day is closed and intentionally earns no RC.
+ */
+export async function startQuickSession(
+  db: RunoDatabase, input: StartQuickSessionInput,
+): Promise<Session> {
+  const { sessionId, taskId, title, durationMin, now } = input;
+  assertId(sessionId);
+  assertId(taskId);
+  assertTimestamp(now);
+  const values = validateTaskInput({
+    title,
+    days: [],
+    durationMin,
+    priority: 2,
+    category: "rápida",
+  });
+  const date = toLocalDate(now);
+  const occurrenceId = occurrenceIdFor(taskId, date);
+
+  return db.transaction("rw", db.occurrences, db.sessions, db.events, async () => {
+    const previous = await db.sessions.get(sessionId);
+    if (previous) {
+      if (
+        previous.occurrenceId !== occurrenceId || previous.quick !== true ||
+        previous.taskSnapshot.title !== values.title ||
+        previous.durationSec !== values.durationMin * 60
+      ) {
+        throw new DomainError("conflict", "Ese identificador pertenece a otra sesión rápida.");
+      }
+      return previous;
+    }
+    const active = await db.sessions
+      .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
+      .first();
+    if (active) {
+      throw new DomainError("conflict", "Primero continúa o cierra la sesión que ya está abierta.");
+    }
+    if (await db.occurrences.get(occurrenceId)) {
+      throw new DomainError("conflict", "Esta sesión rápida ya fue registrada.");
+    }
+
+    const task: Task = {
+      ...values, id: taskId, createdAt: now, updatedAt: now, archivedAt: null,
+    };
+    const durationSec = values.durationMin * 60;
+    const agreement = {
+      task: structuredClone(task),
+      rewardCapRc: 0,
+      shortStepRc: null,
+      lockedAt: now,
+    };
+    const occurrence: Occurrence = {
+      id: occurrenceId,
+      taskId,
+      date,
+      status: "in_progress",
+      timerElapsedSec: 0,
+      creditedRc: 0,
+      shortStepCompleted: false,
+      agreement,
+      anchorPresentedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const session: Session = {
+      id: sessionId,
+      occurrenceId,
+      handId: null,
+      variant: "full",
+      quick: true,
+      taskSnapshot: structuredClone(task),
+      durationSec,
+      rewardTargetRc: 0,
+      rewardCapRc: 0,
+      remainingSecAtStart: durationSec,
+      elapsedSec: 0,
+      status: "running",
+      startedAt: now,
+      runningSlot: "running",
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.occurrences.add(occurrence);
+    await db.sessions.add(session);
+    await appendEvent(db, {
+      actionId: `start:${sessionId}`, type: "started", at: now,
+      taskId, occurrenceId, sessionId,
+      context: { variant: "full", quick: true },
+    });
+    return session;
+  });
+}
+
 /**
  * Moves a running session to confirmation at or after its wall-clock deadline.
  * Idempotent: retries return the already-expired session without another event.

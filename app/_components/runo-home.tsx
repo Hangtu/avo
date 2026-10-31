@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
   closeDay,
@@ -12,6 +12,7 @@ import {
   markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicableDirect,
   recordOffered,
+  startQuickSession,
   startSession,
   swapFranjaTask,
 } from "@/lib/db/repository";
@@ -95,6 +96,8 @@ export function RunoHome() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
   const [correctingId, setCorrectingId] = useState<string | null>(null);
+  const [quickBusy, setQuickBusy] = useState(false);
+  const quickBusyRef = useRef(false);
   const voice = useVoicePreference();
   const theme = useThemePreference();
   const swapBusy = useRef(false);
@@ -438,6 +441,38 @@ export function RunoHome() {
     }
   }, []);
 
+  const beginQuickSession = useCallback(async (title: string, durationMin: number) => {
+    if (quickBusyRef.current) return;
+    quickBusyRef.current = true;
+    setQuickBusy(true);
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      try {
+        const now = Date.now();
+        const session = await startQuickSession(db, {
+          sessionId: newSessionId(),
+          taskId: `quick:${newSessionId()}`,
+          title,
+          durationMin,
+          now,
+        });
+        setShowBreak(false);
+        setView({ kind: "session", dateLabel: formatDate(now), session });
+      } finally {
+        db.close();
+      }
+    } catch (error) {
+      console.error("No se pudo iniciar la sesión rápida", error);
+      setNotice(
+        error instanceof Error ? error.message : "No se pudo iniciar la sesión rápida.",
+      );
+    } finally {
+      quickBusyRef.current = false;
+      setQuickBusy(false);
+    }
+  }, []);
+
   const beginSession = useCallback(async (
     task: FranjaTask,
     variant: "full" | "short",
@@ -610,7 +645,13 @@ export function RunoHome() {
               {view.kind === "empty" ? (
                 <EmptyState onEndDay={endDay} />
               ) : null}
-              {view.kind === "closed" ? <DayClosed view={view} /> : null}
+              {view.kind === "closed" ? (
+                <DayClosed
+                  view={view}
+                  busy={quickBusy}
+                  onStartQuick={beginQuickSession}
+                />
+              ) : null}
             </>
           ) : null}
         </div>
@@ -890,7 +931,36 @@ function EmptyState({ onEndDay }: { onEndDay: () => void }) {
   );
 }
 
-function DayClosed({ view }: { view: Extract<View, { kind: "closed" }> }) {
+function DayClosed({
+  view,
+  busy,
+  onStartQuick,
+}: {
+  view: Extract<View, { kind: "closed" }>;
+  busy: boolean;
+  onStartQuick: (title: string, durationMin: number) => void | Promise<void>;
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [minutes, setMinutes] = useState("25");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  function submitQuick(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanTitle = title.trim();
+    const value = Number(minutes);
+    if (!cleanTitle) {
+      setFormError("Escribe qué vas a hacer.");
+      return;
+    }
+    if (!Number.isSafeInteger(value) || value < 1) {
+      setFormError("Usa un número entero de minutos mayor que cero.");
+      return;
+    }
+    setFormError(null);
+    void onStartQuick(cleanTitle, value);
+  }
+
   return (
     <section
       aria-label={`Día cerrado, ${view.dateLabel}`}
@@ -906,6 +976,95 @@ function DayClosed({ view }: { view: Extract<View, { kind: "closed" }> }) {
         Lo hecho queda guardado. No se pagó lo pendiente.
       </p>
       <p className="mt-2 text-sm leading-6 text-muted">Mañana seguimos.</p>
+
+      <div className="mt-5 border-t border-line pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">¿Algo para ahora?</p>
+            <p className="text-xs leading-5 text-muted">
+              No se guarda en Tareas ni suma minutos.
+            </p>
+          </div>
+          {!formOpen ? (
+            <button
+              type="button"
+              onClick={() => setFormOpen(true)}
+              disabled={busy}
+              className="min-h-11 rounded-none bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
+            >
+              Tarea rápida ⏱️
+            </button>
+          ) : null}
+        </div>
+
+        {formOpen ? (
+          <form onSubmit={submitQuick} className="mt-3 space-y-3">
+            <label className="block">
+              <span className="text-sm font-medium">¿Qué vas a hacer?</span>
+              <input
+                required
+                autoFocus
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                placeholder="Ej. Pagar las cuentas del banco"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium">Minutos</span>
+              <input
+                required
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={minutes}
+                onChange={(event) => setMinutes(event.target.value)}
+                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2" aria-label="Duraciones rápidas">
+              {[5, 15, 25, 30].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  data-on={Number(minutes) === value}
+                  aria-pressed={Number(minutes) === value}
+                  onClick={() => setMinutes(String(value))}
+                  className="day-toggle justify-center"
+                >
+                  {value} min
+                </button>
+              ))}
+            </div>
+            {formError ? (
+              <p className="border-l-2 border-accent pl-4 text-sm" role="alert">
+                {formError}
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="submit"
+                disabled={busy}
+                className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
+              >
+                {busy ? "Empezando…" : "Empezar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormOpen(false);
+                  setFormError(null);
+                }}
+                disabled={busy}
+                className="min-h-11 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </div>
     </section>
   );
 }

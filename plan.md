@@ -2,11 +2,11 @@
 
 > **Runo te ayuda a recordar, elegir con menos esfuerzo y empezar una tarea adecuada al momento. Te acompaña con tiempo visible, presión configurable y recompensas, sin castigarte por atender tu vida.**
 
-**Versión del alcance:** 1.2 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas y descanso gratuito; Runo Coins pasa a la segunda capa.
+**Versión del alcance:** 1.3 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito y sesión rápida sin RC; Runo Coins pasa a la segunda capa.
 **Estado de ejecución y siguiente acción:** [`STATUS.md`](./STATUS.md). Este plan describe el producto; no certifica funcionalidades construidas.
 **Instrucciones para agentes:** [`AGENTS.md`](./AGENTS.md).
 
-**Resumen:** una carta visible · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · El Reloj · sin LLM en el MVP.
+**Resumen:** una carta visible · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · sesión rápida fuera de la lista · El Reloj · sin LLM en el MVP.
 
 ---
 
@@ -47,6 +47,7 @@ Los cuatro trabajos de Runo son: **recordar y orientar · facilitar el arranque 
 | **Franja (Hand)** | Bloque de hasta tres cartas; varias por día, ordenadas; no es un máximo de tareas del día | MVP |
 | **Tirada** | Propuesta de una sola carta elegible | MVP |
 | **Asalto** | Sesión de una tarea o de un escalón, con timer y pausa | MVP |
+| **Sesión rápida** | Timer one-off con nombre y minutos, fuera del Mazo y sin RC; no altera el día | MVP (B13) |
 | **Escalón** | Primer paso corto opcional; no equivale automáticamente a terminar la tarea | MVP |
 | **Descanso** | Pausa gratuita de 10 min tras completar; saltable, no paga RC y no bloquea la siguiente tarea | MVP |
 | **Ancla ligera** | Tarea con hora fija que recibe prioridad con la app visible | MVP |
@@ -125,6 +126,17 @@ El progreso registrado es **tiempo del timer y resultados declarados**, no una m
 
 **«Terminé por hoy» conserva lo ganado; no paga lo pendiente.** Si hay una sesión activa, se cierra como abandonada y la ocurrencia queda pendiente; si hay un descanso, termina. No hay resumen obligatorio ni pérdida de saldo por cerrar temprano.
 
+### 4.5 Sesión rápida
+
+Después de cerrar el día, la pantalla ofrece **Tarea rápida**: un timer one-off para algo que no estaba en la lista, como pagar cuentas o resolver un pendiente inmediato.
+
+- Pide un nombre y minutos enteros; no usa categoría, prioridad, días, franja ni escalón.
+- **No es una tarea del Mazo** y no entra a ninguna franja, ocurrencia diaria o cola de propuestas. Internamente conserva su sesión/ocurrencia para sobrevivir una recarga, pero no aparece en Tareas.
+- **No paga RC** ni genera ledger. Es tiempo de foco, no una recompensa económica; así no se puede usar para producir minutos de ocio sin límite.
+- No cambia el estado del día cerrado. Al terminar o abandonar, vuelve a la pantalla de día cerrado y permite otra sesión rápida.
+- Solo puede haber una sesión activa a la vez, igual que con las tareas. Pausa, «El bebé», «No aplica» y la confirmación de término funcionan con el mismo timer.
+- Arranca directo al confirmar el formulario, sin la cuenta 3-2-1 de las tareas; el formulario ya es la confirmación.
+
 ## 5. Días, franjas horarias y anclas
 
 ### En el MVP
@@ -165,6 +177,7 @@ Para eliminar ambigüedad, el MVP usa una regla sencilla, sin multiplicadores:
 - Tiempo agotado, abandono, pausa y «Ya la hice» no pagan. Completar un escalón configurado sí paga ese paso, sin declarar completa toda la tarea.
 - Confirmar el mismo resultado otra vez, recargar o pulsar dos veces no vuelve a pagar. La actualización de ocurrencia, evento y ledger debe ser transaccional e idempotente.
 - La prioridad ordena tareas, **no multiplica RC**. Bonos del Jefe o progresión se evaluarán en fase 2; no existen todavía.
+- Las **sesiones rápidas** no generan RC ni movimientos del ledger. No son una tarea del Mazo y no alteran la economía.
 
 ### Saldo y canje
 
@@ -369,7 +382,7 @@ Los tipos viven en `lib/domain/types.ts`, las validaciones en `lib/domain/valida
 | **Occurrence** | Identidad única por tarea + fecha local, estado, progreso, tope de recompensa, RC ya acreditados y marca de presentación de ancla. En MVP hay una ocurrencia por tarea/fecha; más de una diaria queda fuera |
 | **Day** | Fecha local, contador persistente de cambios voluntarios (0–3) y `closedAt` para «Terminar por hoy». El valor inicial de cambios es 3; el ajuste en Ajustes queda para después del primer corte |
 | **Hand** | ID, fecha, número de franja, hasta tres IDs de ocurrencia y estado abierto/cerrado. Solo una franja puede estar abierta a la vez; la siguiente se crea al cerrar la actual |
-| **Session** | Ocurrencia, franja si aplica, variante, snapshot de tarea/duración/recompensa, estado, restante del tramo, inicio del tramo y tiempo acumulado. Una sola sesión activa (corriendo o pausada); una pausada bloquea iniciar otra tarea; una anterior puede quedar pausada por un ancla |
+| **Session** | Ocurrencia, franja si aplica, variante, snapshot de tarea/duración/recompensa, estado, restante del tramo, inicio del tramo y tiempo acumulado. Una sola sesión activa (corriendo o pausada); una pausada bloquea iniciar otra tarea; una anterior puede quedar pausada por un ancla. La sesión rápida usa un snapshot sintético sin Task, no tiene franja y fija recompensa 0 |
 | **Event** | ID y acción idempotente, tipo canónico (§9), timestamp, referencias pertinentes y contexto/motivo explícito |
 | **Ledger** | Movimiento entero de RC, motivo, timestamp y origen único del crédito o canje; fuente del saldo |
 | **Settings** | Audio apagado inicialmente, perfil de sonido, intensidad máxima 0–2 del MVP, tema automático/manual y visibilidad del Monedero (apagado por defecto); preferencias persistentes. El máximo de cambios (3) y el descanso (10 min) son fijos en el primer corte; su ajuste queda para después |
@@ -444,6 +457,7 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Moneda (segunda capa) | 1 RC = 1 min; recompensa fija por variante, con tope por ocurrencia (§6) |
 | Economía | RC en segunda capa; descanso gratuito en el primer corte; sin multiplicadores, deuda o préstamos |
 | Descanso | 10 min gratis tras completar, saltable, sin RC y sin bloquear la siguiente tarea |
+| Sesión rápida | Nombre + minutos desde día cerrado; no es tarea, no entra a franja, no paga RC, no altera el día; una a la vez y persiste para recargar |
 | Tono inicial | Techo 2, tono efectivo normal 1; modo duro solicitado o con motivo explícito; no por usar cambios |
 | Elian / nivel 3 | Reservados para una fase posterior, con habilitación explícita y sin descalificación personal |
 | Dirección visual | Minimalismo editorial evolucionado a **Liquid Focus**: Lexend, fondo ambiental, vidrio con fallback, índigo, una acción principal y dock móvil; referencias en `docs/design/references/` |
@@ -471,6 +485,7 @@ Los IDs y el estado viven en `STATUS.md`. Esta tabla asegura que cada requisito 
 | Asalto y recuperación | B3, B4, B6, B10 | Timer con 3-2-1, confirmación, pausa/reanudación y restauración |
 | Bloqueo y descanso | B11, B12 | Bloqueo de tarea/franja con salidas explícitas y descanso gratuito |
 | Escalones | B9 | Paso corto opcional, progreso parcial y sin falsear la tarea completa |
+| Sesión rápida | B13 | Timer one-off desde día cerrado, fuera del Mazo/franja y sin RC |
 | Economía | C1, C2 | Segunda capa: recompensas fijas e idempotentes, saldo durable y canje manual |
 | Identidad y acompañamiento | C3, C4, C5, C6 | El Reloj accesible, Vigía, audio opt-in y voz local |
 | Horario y plataforma | D1, D2, D3 | Ancla visible con pausa segura, fallback visual y uso de una mano |
@@ -502,7 +517,7 @@ Proyecto A los lunes y Proyecto B los martes son **casos de prueba del editor y 
 ### 17.3 Orden de construcción y validación
 
 1. **A · Cimiento:** A7 (pruebas y baseline), A3 (contratos/DB), A4–A6 (semilla/eventos/selección). A1–A2 (instalación y shell offline) se hacen antes de la validación móvil y no bloquean el bucle local. A0 se resuelve antes de la primera validación móvil.
-2. **B · Bucle:** apertura por franjas, tres cambios, timer/3-2-1, bloqueo de tarea/franja, pausa, cierre de franja, descanso y editor. No cerrar el bloque sin cubrir todos sus IDs.
+2. **B · Bucle:** apertura por franjas, tres cambios, timer/3-2-1, bloqueo de tarea/franja, pausa, cierre de franja, descanso, editor y sesión rápida. No cerrar el bloque sin cubrir todos sus IDs.
 3. **C · Economía y piel:** primero C1/C2 (segunda capa) y luego accesibilidad/El Reloj, Vigía, audio y banco local de frases. Coordinar B9 con C1 para probar el tope de recompensa.
 4. **D · Horario y pulido:** ancla con interrupción segura, fallbacks, una mano y validación de salida.
 

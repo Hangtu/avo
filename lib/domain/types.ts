@@ -80,6 +80,8 @@ interface SessionBase {
   occurrenceId: string;
   handId: string | null;
   variant: SessionVariant;
+  /** One-off timer outside the daily task/franja system; never earns RC. */
+  quick?: boolean;
   taskSnapshot: Task;
   durationSec: number;
   rewardTargetRc: number;

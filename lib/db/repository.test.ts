@@ -5,7 +5,7 @@ import {
   archiveTask, claimAnchor, closeDay, completeSession, completeSessionWithCredit, createTask, createTasks, ensureDay, ensureFranja,
   ensureOccurrence, expireSession, getSettings, listTasks, markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicable, markOccurrenceNotApplicableDirect, occurrenceIdFor, pauseSession, recordOffered, resumeSession,
-  retrySession, saveSettings, startSession,
+  retrySession, saveSettings, startQuickSession, startSession,
   swapFranjaTask, updateTask,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
@@ -1131,5 +1131,96 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     expect(retried.map((task) => task.id)).toEqual(["task:a", "task:b"]);
     expect(await db.tasks.count()).toBe(2);
     expect(await db.events.where("type").equals("task_created").count()).toBe(2);
+  });
+});
+
+
+describe("sesiones rápidas", () => {
+  it("corre fuera de las tareas y del día cerrado sin pagar RC", async () => {
+    const db = await testDb();
+    await ensureDay(db, MONDAY, NOW);
+    await closeDay(db, MONDAY, NOW + 1);
+    const session = await startQuickSession(db, {
+      sessionId: "quick-1",
+      taskId: "quick:cuentas",
+      title: "Pagar las cuentas",
+      durationMin: 30,
+      now: NOW + 2,
+    });
+
+    expect(session).toMatchObject({
+      quick: true, handId: null, variant: "full", status: "running",
+      durationSec: 30 * 60, remainingSecAtStart: 30 * 60,
+      rewardTargetRc: 0, rewardCapRc: 0,
+      taskSnapshot: { title: "Pagar las cuentas", durationMin: 30, days: [] },
+    });
+    expect(await db.tasks.count()).toBe(0);
+    expect(await db.occurrences.count()).toBe(1);
+    const started = await db.events.where("type").equals("started").first();
+    expect(started).toMatchObject({
+      taskId: "quick:cuentas", sessionId: "quick-1", context: { quick: true },
+    });
+
+    const result = await completeSessionWithCredit(db, "quick-1", NOW + 3);
+    expect(result).toMatchObject({ creditedRc: 0, totalCreditedRc: 0 });
+    expect(await db.ledger.count()).toBe(0);
+    expect((await db.occurrences.get("quick%3Acuentas@2026-10-26"))!.status).toBe("completed");
+    expect((await db.days.get(MONDAY))!.closedAt).toBe(NOW + 1);
+  });
+
+  it("es idempotente, bloquea otra sesión y permite otra después de cerrar", async () => {
+    const db = await testDb();
+    const input = {
+      sessionId: "quick-1",
+      taskId: "quick:1",
+      title: "Pagar las cuentas",
+      durationMin: 10,
+      now: NOW,
+    };
+    const first = await startQuickSession(db, input);
+    expect(await startQuickSession(db, input)).toEqual(first);
+    expect(await db.events.where("type").equals("started").count()).toBe(1);
+
+    await expect(startQuickSession(db, {
+      sessionId: "quick-2", taskId: "quick:2", title: "Otra", durationMin: 5, now: NOW + 1,
+    })).rejects.toThrow("continúa o cierra");
+
+    await completeSessionWithCredit(db, "quick-1", NOW + 2);
+    const second = await startQuickSession(db, {
+      sessionId: "quick-2", taskId: "quick:2", title: "Otra", durationMin: 5, now: NOW + 3,
+    });
+    expect(second).toMatchObject({ quick: true, status: "running", rewardTargetRc: 0 });
+    expect(await db.tasks.count()).toBe(0);
+  });
+
+  it("restaura la sesión rápida y conserva el día cerrado al reabrir", async () => {
+    const db = await testDb();
+    await ensureDay(db, MONDAY, NOW);
+    await closeDay(db, MONDAY, NOW + 1);
+    await startQuickSession(db, {
+      sessionId: "quick-1", taskId: "quick:1", title: "Pagar las cuentas",
+      durationMin: 5, now: NOW + 2,
+    });
+    db.close();
+
+    const reopened = await testDb(db.name);
+    expect(await reopened.sessions.get("quick-1")).toMatchObject({
+      quick: true, status: "running", rewardTargetRc: 0, handId: null,
+    });
+    expect((await reopened.days.get(MONDAY))!.closedAt).toBe(NOW + 1);
+    await completeSessionWithCredit(reopened, "quick-1", NOW + 3);
+    expect(await reopened.ledger.count()).toBe(0);
+  });
+
+  it("rechaza nombre o duración inválidos antes de escribir", async () => {
+    const db = await testDb();
+    await expect(startQuickSession(db, {
+      sessionId: "quick-1", taskId: "quick:1", title: "  ", durationMin: 10, now: NOW,
+    })).rejects.toThrow("nombre");
+    await expect(startQuickSession(db, {
+      sessionId: "quick-2", taskId: "quick:2", title: "Algo", durationMin: 0, now: NOW,
+    })).rejects.toThrow("duración");
+    expect(await db.sessions.count()).toBe(0);
+    expect(await db.occurrences.count()).toBe(0);
   });
 });

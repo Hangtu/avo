@@ -64,6 +64,7 @@ export function SessionView({
   const [noPhrase, setNoPhrase] = useState<string | null>(null);
   const busyRef = useRef(false);
   const isShort = current.variant === "short";
+  const isQuick = current.quick === true;
   const sessionDate = dateFromOccurrenceId(current.occurrenceId);
   const isTodaySession = today === null || sessionDate === today;
   const segmentRemainingSec = current.status === "running"
@@ -175,10 +176,12 @@ export function SessionView({
         const closing = chooseVoicePhrase(
           tone, "close", `${current.id}:${current.startedAt ?? current.updatedAt}`,
         );
-        const credit = result.creditedRc > 0
-          ? `Ganaste ${result.creditedRc} min para ti`
-          : "Sin minutos nuevos.";
-        onFinished(!isShort, [credit, closing].filter(Boolean).join(" "));
+        const credit = isQuick
+          ? "Sesión rápida terminada."
+          : result.creditedRc > 0
+            ? `Ganaste ${result.creditedRc} min para ti`
+            : "Sin minutos nuevos.";
+        onFinished(!isQuick && !isShort, [credit, closing].filter(Boolean).join(" "));
       } finally {
         db.close();
       }
@@ -249,6 +252,11 @@ export function SessionView({
         {displayTitle}
       </h2>
       {phrase ? <p className="mt-2 text-sm leading-6 text-muted">{phrase}</p> : null}
+      {isQuick ? (
+        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+          Fuera de tus tareas · no suma minutos
+        </p>
+      ) : null}
       {!isTodaySession ? (
         <p className="mt-2 text-sm leading-6 text-muted">
           Sesión de un día anterior; conserva su tarea original.
@@ -304,9 +312,11 @@ export function SessionView({
       {current.status === "awaiting_confirmation" ? (
         <div className="mt-6 space-y-4">
           <p role="status" className="text-base leading-7 text-muted">
-            {isShort
-              ? "Se acabó el tiempo del paso. La tarea sigue pendiente."
-              : "Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar."}
+            {isQuick
+              ? "Se acabó el tiempo de la sesión rápida. No se inicia otra hasta confirmar."
+              : isShort
+                ? "Se acabó el tiempo del paso. La tarea sigue pendiente."
+                : "Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar."}
           </p>
           <Vigia progress={progress} isShort={isShort} />
           {!showNoOptions ? (
