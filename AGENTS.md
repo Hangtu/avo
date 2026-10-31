@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 App personal de hábitos, organización y timer, con presión configurable y recompensas en minutos de ocio. Un solo usuario, español de México. El objetivo es ayudar a actuar y volver a la vida, no maximizar adicción o tiempo dentro de la app.
 
-**Alcance vigente:** `plan.md` v1.1, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
+**Alcance vigente:** `plan.md` v1.2, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
 
 ## 1. Lectura y fuentes de verdad
 

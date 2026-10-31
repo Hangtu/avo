@@ -15,26 +15,59 @@ import {
 
 export { occurrenceIdFor } from "@/lib/domain/occurrence";
 
+export interface CreateTaskBatchItem {
+  id: string;
+  input: TaskInput;
+}
+
+/**
+ * Creates a set of independent task templates as one operation. All inputs are
+ * validated before the transaction, so a failed write leaves no partial batch.
+ * Callers should keep the same IDs when retrying the same form content.
+ */
+export async function createTasks(
+  db: RunoDatabase, items: readonly CreateTaskBatchItem[], now: number,
+): Promise<Task[]> {
+  assertTimestamp(now);
+  if (items.length === 0) return [];
+  const seen = new Set<string>();
+  const values = items.map((item) => {
+    assertId(item.id);
+    if (seen.has(item.id)) {
+      throw new DomainError("validation", "El lote contiene una tarea repetida.");
+    }
+    seen.add(item.id);
+    return { id: item.id, input: validateTaskInput(item.input) };
+  });
+
+  return db.transaction("rw", db.tasks, db.events, async () => {
+    const created: Task[] = [];
+    for (const item of values) {
+      const { inserted } = await appendEvent(db, {
+        actionId: `task:create:${item.id}`, type: "task_created", at: now,
+        taskId: item.id, context: taskEventContext(item.input),
+      });
+      if (!inserted) {
+        const existing = await db.tasks.get(item.id);
+        if (!existing) throw new DomainError("conflict", "La tarea registrada ya no existe.");
+        created.push(existing);
+        continue;
+      }
+      const task: Task = {
+        ...item.input, id: item.id, createdAt: now, updatedAt: now, archivedAt: null,
+      };
+      await db.tasks.add(task);
+      created.push(task);
+    }
+    return created;
+  });
+}
+
 export async function createTask(
   db: RunoDatabase, id: string, input: TaskInput, now: number,
 ): Promise<Task> {
-  assertId(id);
-  assertTimestamp(now);
-  const values = validateTaskInput(input);
-  return db.transaction("rw", db.tasks, db.events, async () => {
-    const { inserted } = await appendEvent(db, {
-      actionId: `task:create:${id}`, type: "task_created", at: now,
-      taskId: id, context: taskEventContext(values),
-    });
-    if (!inserted) {
-      const existing = await db.tasks.get(id);
-      if (!existing) throw new DomainError("conflict", "La tarea registrada ya no existe.");
-      return existing;
-    }
-    const task: Task = { ...values, id, createdAt: now, updatedAt: now, archivedAt: null };
-    await db.tasks.add(task);
-    return task;
-  });
+  const [task] = await createTasks(db, [{ id, input }], now);
+  return task;
 }
 
 export async function updateTask(
@@ -124,6 +157,38 @@ export async function claimAnchor(
       taskId, occurrenceId: occurrence.id, context: { fixedTime },
     });
     return updated;
+  });
+}
+
+/**
+ * Records the first time a card becomes visible in a franja. The identity is
+ * hand + occurrence, so re-renders and a second visit to the same card do not
+ * create another exposure. A card in a later franja is a new exposure.
+ */
+export async function recordOffered(
+  db: RunoDatabase,
+  input: { handId: string; taskId: string; occurrenceId: string; now: number },
+): Promise<void> {
+  const { handId, taskId, occurrenceId, now } = input;
+  assertId(handId);
+  assertId(taskId);
+  assertId(occurrenceId);
+  assertTimestamp(now);
+  await db.transaction("rw", db.hands, db.occurrences, db.events, async () => {
+    const [hand, occurrence] = await Promise.all([
+      db.hands.get(handId),
+      db.occurrences.get(occurrenceId),
+    ]);
+    if (!hand || !hand.occurrenceIds.includes(occurrenceId)) {
+      throw new DomainError("not_found", "La carta ya no pertenece a esta franja.");
+    }
+    if (!occurrence || occurrence.taskId !== taskId || occurrence.date !== hand.date) {
+      throw new DomainError("not_found", "La carta ya no coincide con esta franja.");
+    }
+    await appendEvent(db, {
+      actionId: `offer:${handId}:${occurrenceId}`, type: "offered", at: now,
+      taskId, occurrenceId, handId, context: { source: "ahora" },
+    });
   });
 }
 
@@ -241,7 +306,9 @@ export async function startSession(
     throw new DomainError("validation", "La versión de la tarea no es válida.");
   }
 
-  return db.transaction("rw", db.tasks, db.occurrences, db.days, db.sessions, db.events, async () => {
+  return db.transaction("rw", [
+    db.tasks, db.occurrences, db.days, db.hands, db.sessions, db.events,
+  ], async () => {
     const previous = await db.sessions.get(sessionId);
     if (previous) {
       if (
@@ -265,6 +332,15 @@ export async function startSession(
       pendingOccurrence(taskId, date, now);
     if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
       throw new DomainError("invalid_transition", "Esta tarea ya se cerró para esa fecha.");
+    }
+    if (handId) {
+      const hand = await db.hands.get(handId);
+      if (
+        !hand || hand.status !== "open" || hand.date !== date ||
+        !hand.occurrenceIds.includes(occurrence.id)
+      ) {
+        throw new DomainError("invalid_transition", "Esta franja ya no está disponible.");
+      }
     }
     if (anchor && (!task.fixedTime || occurrence.anchorPresentedAt === null)) {
       throw new DomainError("invalid_transition", "Este ancla no está presentada.");
@@ -675,15 +751,19 @@ function pendingCount(occurrences: readonly Occurrence[], date: LocalDate): numb
 }
 
 function taskViewsForHand(
-  hand: Hand, tasks: readonly Task[], occurrences: readonly Occurrence[],
+  hand: Hand, tasks: readonly Task[], occurrences: readonly Occurrence[], now: number,
 ): FranjaTaskView[] {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const occurrenceById = new Map(occurrences.map((occurrence) => [occurrence.id, occurrence]));
   return hand.occurrenceIds.flatMap((occurrenceId) => {
     const occurrence = occurrenceById.get(occurrenceId);
     if (!occurrence || TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) return [];
-    const task = occurrence.agreement?.task ?? taskById.get(occurrence.taskId);
-    if (!task) return [];
+    const liveTask = taskById.get(occurrence.taskId);
+    if (!liveTask || liveTask.archivedAt !== null) return [];
+    // A pending proposal follows the current template; a started agreement keeps
+    // its frozen snapshot, but archiving still hides the task.
+    if (!occurrence.agreement && !availabilityOf(liveTask, occurrence, now).eligible) return [];
+    const task = occurrence.agreement?.task ?? liveTask;
     return [{
       occurrenceId,
       task,
@@ -727,7 +807,7 @@ export async function ensureFranja(
   parseLocalDate(date);
   assertTimestamp(now);
 
-  return db.transaction("rw", db.days, db.hands, db.events, async () => {
+  return db.transaction("rw", db.days, db.hands, db.tasks, db.occurrences, db.events, async () => {
     const pendingToday = pendingCount(occurrences, date);
     const day = await db.days.get(date);
     const swapsRemaining = Math.max(0, 3 - (day?.swapsUsed ?? 0));
@@ -744,7 +824,12 @@ export async function ensureFranja(
       .first();
 
     if (hand) {
-      const views = taskViewsForHand(hand, tasks, occurrences);
+      const currentOccurrences = (await db.occurrences.bulkGet(hand.occurrenceIds))
+        .filter((occurrence): occurrence is Occurrence => occurrence !== undefined);
+      const currentTaskIds = [...new Set(currentOccurrences.map((occurrence) => occurrence.taskId))];
+      const currentTasks = (await db.tasks.bulkGet(currentTaskIds))
+        .filter((task): task is Task => task !== undefined);
+      const views = taskViewsForHand(hand, currentTasks, currentOccurrences, now);
       if (views.length === 0) {
         await closeHand(db, hand, now, "resolved");
         hand = undefined;
@@ -794,7 +879,7 @@ export async function ensureFranja(
     }).length;
     return {
       hand: created,
-      tasks: taskViewsForHand(created, tasks, occurrences),
+      tasks: taskViewsForHand(created, tasks, occurrences, now),
       pendingToday,
       remainingEligible,
       swapsRemaining,

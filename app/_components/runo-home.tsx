@@ -11,6 +11,7 @@ import {
   listTasks,
   markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicableDirect,
+  recordOffered,
   startSession,
   swapFranjaTask,
 } from "@/lib/db/repository";
@@ -81,6 +82,7 @@ export function RunoHome() {
   const [pendingStart, setPendingStart] = useState<{
     task: FranjaTask;
     variant: "full" | "short";
+    handId: string;
   } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showBreak, setShowBreak] = useState(false);
@@ -417,9 +419,29 @@ export function RunoHome() {
     }
   }, [refreshView, view]);
 
+  const offerTask = useCallback(async (handId: string, task: FranjaTask) => {
+    try {
+      const db = await openDatabase();
+      try {
+        await recordOffered(db, {
+          handId,
+          taskId: task.id,
+          occurrenceId: task.occurrenceId,
+          now: Date.now(),
+        });
+      } finally {
+        db.close();
+      }
+    } catch (error) {
+      // Instrumentation must never block the card the user is trying to start.
+      console.error("No se pudo registrar la carta mostrada", error);
+    }
+  }, []);
+
   const beginSession = useCallback(async (
     task: FranjaTask,
     variant: "full" | "short",
+    handId: string,
   ) => {
     setShowBreak(false);
     setNotice(null);
@@ -433,6 +455,7 @@ export function RunoHome() {
           date: toLocalDate(now),
           variant,
           now,
+          handId,
         });
         setView({ kind: "session", dateLabel: formatDate(now), session });
       } finally {
@@ -538,6 +561,7 @@ export function RunoHome() {
             <Countdown
               task={pendingStart.task}
               variant={pendingStart.variant}
+              handId={pendingStart.handId}
               onDone={beginSession}
               onCancel={() => setPendingStart(null)}
             />
@@ -571,7 +595,10 @@ export function RunoHome() {
               {view.kind === "ready" ? (
                 <Franja
                   view={view}
-                  onStart={(task, variant) => setPendingStart({ task, variant })}
+                  onStart={(task, variant) =>
+                    setPendingStart({ task, variant, handId: view.handId })
+                  }
+                  onOffer={offerTask}
                   onSwap={swapTask}
                   onAlreadyDone={(task) => void correctTask(task, "already_done")}
                   onNotApplicable={(task) => void correctTask(task, "not_applicable")}
@@ -635,12 +662,14 @@ export function RunoHome() {
 function Countdown({
   task,
   variant,
+  handId,
   onDone,
   onCancel,
 }: {
   task: FranjaTask;
   variant: "full" | "short";
-  onDone: (task: FranjaTask, variant: "full" | "short") => void | Promise<void>;
+  handId: string;
+  onDone: (task: FranjaTask, variant: "full" | "short", handId: string) => void | Promise<void>;
   onCancel: () => void;
 }) {
   const [count, setCount] = useState(3);
@@ -652,13 +681,13 @@ function Countdown({
     if (count === 0) {
       if (!fired.current) {
         fired.current = true;
-        void onDone(task, variant);
+        void onDone(task, variant, handId);
       }
       return;
     }
     const timeout = window.setTimeout(() => setCount((value) => value - 1), 1000);
     return () => window.clearTimeout(timeout);
-  }, [count, onDone, task, variant]);
+  }, [count, handId, onDone, task, variant]);
 
   return (
     <section
@@ -726,6 +755,7 @@ function ErrorState({
 function Franja({
   view,
   onStart,
+  onOffer,
   onSwap,
   onAlreadyDone,
   onNotApplicable,
@@ -735,6 +765,7 @@ function Franja({
 }: {
   view: Extract<View, { kind: "ready" }>;
   onStart: (task: FranjaTask, variant: "full" | "short") => void;
+  onOffer: (handId: string, task: FranjaTask) => void | Promise<void>;
   onSwap: (task: FranjaTask) => void | Promise<void>;
   onAlreadyDone: (task: FranjaTask) => void;
   onNotApplicable: (task: FranjaTask) => void;
@@ -747,6 +778,11 @@ function Franja({
   const tasks = view.tasks;
   const task = tasks[index % Math.max(tasks.length, 1)];
   const busy = swapping || correctingId !== null;
+
+  useEffect(() => {
+    if (!task) return;
+    void onOffer(view.handId, task);
+  }, [onOffer, task, view.handId]);
 
   if (!task) return null;
 

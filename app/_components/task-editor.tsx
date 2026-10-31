@@ -4,10 +4,12 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
   archiveTask,
+  createTasks,
   createTask,
   listTasks,
   updateTask,
 } from "@/lib/db/repository";
+import { BLOCK_RANGES, blockForTime, windowPreset, type BlockKey } from "@/lib/domain/schedule";
 import type { ClockTime, Weekday } from "@/lib/domain/time";
 import type { Task, TaskInput } from "@/lib/domain/types";
 
@@ -27,19 +29,13 @@ const PRIORITY_LABEL: Record<1 | 2 | 3, string> = {
   3: "Alta",
 };
 
-type BlockKey = "morning" | "afternoon" | "night";
-
 const BLOCKS: Array<{ value: BlockKey; label: string }> = [
   { value: "morning", label: "Mañana" },
   { value: "afternoon", label: "Tarde" },
   { value: "night", label: "Noche" },
 ];
 
-const BLOCK_RANGES: Record<BlockKey, { start: string; end: string }> = {
-  morning: { start: "05:00", end: "12:00" },
-  afternoon: { start: "12:00", end: "19:00" },
-  night: { start: "19:00", end: "23:59" },
-};
+const DRAFT_KEY = "runo:task-editor-draft:v1";
 
 interface FormState {
   id: string | null;
@@ -137,13 +133,54 @@ function timeMinutes(time: string | null): number {
   return hours * 60 + minutes;
 }
 
-function taskBlock(task: Task): "morning" | "afternoon" | "night" | "any" {
-  const time = taskTime(task);
-  if (!time) return "any";
-  const hour = Number(time.slice(0, 2));
-  if (hour >= 5 && hour < 12) return "morning";
-  if (hour >= 12 && hour < 19) return "afternoon";
-  return "night";
+interface EditorDraft {
+  form: FormState;
+  categoryMode: "existing" | "new";
+  customWindow: boolean;
+  newBlocks: BlockKey[];
+  newCustom: boolean;
+  copiedBlocks: BlockKey[];
+  selectedDay: Weekday;
+}
+
+function readDraft(): EditorDraft | null {
+  try {
+    const raw = window.sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as Partial<EditorDraft>;
+    if (!draft.form || typeof draft.form.title !== "string" || !Array.isArray(draft.form.days)) {
+      return null;
+    }
+    return {
+      form: draft.form,
+      categoryMode: draft.categoryMode === "new" ? "new" : "existing",
+      customWindow: draft.customWindow === true,
+      newBlocks: Array.isArray(draft.newBlocks) ? draft.newBlocks : [],
+      newCustom: draft.newCustom === true,
+      copiedBlocks: Array.isArray(draft.copiedBlocks) ? draft.copiedBlocks : [],
+      selectedDay: typeof draft.selectedDay === "number"
+        ? draft.selectedDay as Weekday
+        : new Date().getDay() as Weekday,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(draft: EditorDraft): void {
+  try {
+    window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Storage can be unavailable in private modes; the form still works.
+  }
+}
+
+function clearDraft(): void {
+  try {
+    window.sessionStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // Nothing to clear.
+  }
 }
 
 export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null }) {
@@ -165,6 +202,18 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     () => new Date().getDay() as Weekday,
   );
   const openedInitialTask = useRef(false);
+  const draftBootstrapped = useRef(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const retryBatch = useRef<{ signature: string; ids: string[] } | null>(null);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    if (!form) {
+      clearDraft();
+      return;
+    }
+    writeDraft({ form, categoryMode, customWindow, newBlocks, newCustom, copiedBlocks, selectedDay });
+  }, [draftReady, form, categoryMode, customWindow, newBlocks, newCustom, copiedBlocks, selectedDay]);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,12 +224,32 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         db = await openDatabase();
         const list = await listTasks(db, true);
         if (!cancelled) {
+          if (!draftBootstrapped.current) {
+            draftBootstrapped.current = true;
+            if (initialTaskId) {
+              clearDraft();
+            } else {
+              const draft = readDraft();
+              if (draft) {
+                setForm(draft.form);
+                setCategoryMode(draft.categoryMode);
+                setCustomWindow(draft.customWindow);
+                setNewBlocks(draft.newBlocks);
+                setNewCustom(draft.newCustom);
+                setCopiedBlocks(draft.copiedBlocks);
+                setSelectedDay(draft.selectedDay);
+                setNotice("Recuperé tu borrador.");
+              }
+            }
+            setDraftReady(true);
+          }
           setTasks(list);
           setLoadError(null);
           if (initialTaskId && !openedInitialTask.current) {
             const target = list.find((task) => task.id === initialTaskId);
             if (target) {
               openedInitialTask.current = true;
+              retryBatch.current = null;
               setCategoryMode("existing");
               setCustomWindow(false);
               setNewBlocks([]);
@@ -207,9 +276,18 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     };
   }, [initialTaskId, reloadKey]);
 
+  function closeForm() {
+    setForm(null);
+    setFormError(null);
+    setNotice(null);
+    clearDraft();
+    retryBatch.current = null;
+  }
+
   function startNew() {
     setFormError(null);
     setNotice(null);
+    retryBatch.current = null;
     const next = emptyForm();
     next.days = [selectedDay];
     setCategoryMode("existing");
@@ -223,6 +301,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   function startEdit(task: Task) {
     setFormError(null);
     setNotice(null);
+    retryBatch.current = null;
     setCategoryMode("existing");
     setCustomWindow(false);
     setNewBlocks([]);
@@ -333,15 +412,20 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           } else {
             inputs = [toInput({ ...form, useWindow: false })];
           }
-          for (const input of inputs) {
-            await createTask(db, `task:${newId()}`, input, now);
-          }
+          const signature = JSON.stringify(inputs);
+          const ids = retryBatch.current?.signature === signature
+            ? retryBatch.current.ids
+            : inputs.map(() => `task:${newId()}`);
+          retryBatch.current = { signature, ids };
+          await createTasks(db, inputs.map((input, index) => ({ id: ids[index], input })), now);
           setNotice(inputs.length > 1 ? `${inputs.length} tareas creadas.` : "Guardada.");
         }
       } finally {
         db.close();
       }
       setForm(null);
+      clearDraft();
+      retryBatch.current = null;
       if (form.id) setNotice("Guardada.");
       setReloadKey((key) => key + 1);
     } catch (error) {
@@ -383,12 +467,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   function formBlock(): "any" | "morning" | "afternoon" | "night" | "custom" {
     if (!form?.useWindow) return "any";
     if (customWindow) return "custom";
-    const { windowStart: start, windowEnd: end } = form;
-    if (start < end && start >= "05:00" && end <= "12:00") return "morning";
-    if (start < end && start >= "12:00" && end <= "19:00") return "afternoon";
-    if (start < end && start >= "19:00" && end <= "23:59") return "night";
-    if (start < end && start < "05:00" && end <= "05:00") return "night";
-    return "custom";
+    return windowPreset(form.windowStart, form.windowEnd);
   }
 
   function chooseBlock(block: "any" | "morning" | "afternoon" | "night" | "custom") {
@@ -404,15 +483,10 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       return;
     }
     setCustomWindow(false);
-    const ranges = {
-      morning: { start: "05:00", end: "12:00" },
-      afternoon: { start: "12:00", end: "19:00" },
-      night: { start: "19:00", end: "23:59" },
-    } as const;
     patch({
       useWindow: true,
-      windowStart: ranges[block].start,
-      windowEnd: ranges[block].end,
+      windowStart: BLOCK_RANGES[block].start,
+      windowEnd: BLOCK_RANGES[block].end,
     });
   }
   const dayTasks = active.filter((task) => task.days.includes(selectedDay));
@@ -431,7 +505,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   ].map((block) => ({
     ...block,
     tasks: dayTasks
-      .filter((task) => taskBlock(task) === block.key)
+      .filter((task) => blockForTime(taskTime(task)) === block.key)
       .sort((a, b) =>
         timeMinutes(taskTime(a)) - timeMinutes(taskTime(b)) || a.title.localeCompare(b.title),
       ),
@@ -445,16 +519,17 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         <button
           type="button"
           onClick={() => startEdit(task)}
-          className="flex min-h-14 w-full items-center gap-3 py-3 text-left"
+          className="flex min-h-14 w-full items-start gap-3 py-3 text-left"
         >
-          <span className="w-14 shrink-0 text-xs tabular-nums text-muted">
-            {time ?? "—"}
+          <span className="min-w-0 flex-1">
+            <span className="line-clamp-2 text-base font-semibold leading-snug">
+              {task.title}
+            </span>
+            <span className="mt-1 block text-xs text-muted">
+              {time ?? "Sin hora"} · {task.durationMin} min
+            </span>
           </span>
-          <span className="min-w-0 flex-1 truncate text-base font-semibold">
-            {task.title}
-          </span>
-          <span className="shrink-0 text-xs text-muted">{task.durationMin} min</span>
-          <span aria-hidden className="text-lg text-muted">›</span>
+          <span aria-hidden className="shrink-0 pt-0.5 text-lg text-muted">›</span>
         </button>
       </li>
     );
@@ -463,7 +538,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   return (
     <section aria-labelledby="tasks-title">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
             Configuración
           </p>
@@ -474,13 +549,15 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             Elige un día y toca una tarea para editarla.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={startNew}
-          className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background"
-        >
-          Nueva tarea
-        </button>
+        {!form ? (
+          <button
+            type="button"
+            onClick={startNew}
+            className="max-w-full min-h-11 rounded-none bg-foreground px-4 text-sm font-semibold text-background"
+          >
+            Nueva tarea
+          </button>
+        ) : null}
       </div>
 
       {notice ? (
@@ -500,7 +577,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             </h3>
             <button
               type="button"
-              onClick={() => setForm(null)}
+              onClick={closeForm}
               disabled={saving}
               className="min-h-11 text-sm font-semibold text-muted underline underline-offset-4 disabled:opacity-60"
             >
@@ -670,6 +747,11 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       </label>
                     </div>
                   ) : null}
+                  {form.useWindow ? (
+                    <p className="mt-2 text-xs tabular-nums text-muted">
+                      Horario: {form.windowStart}–{form.windowEnd}
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-sm leading-6 text-muted">
                     El bloque es opcional; si necesitas una hora exacta, actívala abajo.
                   </p>
@@ -753,6 +835,11 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       </label>
                     </div>
                   ) : null}
+                  {newCustom && form.useWindow ? (
+                    <p className="mt-2 text-xs tabular-nums text-muted">
+                      Horario: {form.windowStart}–{form.windowEnd}
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-sm leading-6 text-muted">
                     Puedes elegir varios bloques. Se crearán tareas separadas, una por bloque.
                   </p>
@@ -832,7 +919,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             </button>
             <button
               type="button"
-              onClick={() => setForm(null)}
+              onClick={closeForm}
               disabled={saving}
               className="min-h-11 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
             >
@@ -842,7 +929,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               <button
                 type="button"
                 onClick={() => {
-                  setForm(null);
+                  closeForm();
                   void archive(editingTask);
                 }}
                 disabled={saving}
@@ -855,7 +942,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         </form>
       ) : null}
 
-      {loadError ? (
+      {form ? null : loadError ? (
         <div className="mt-6 border-l-2 border-accent pl-4" role="alert">
           <p className="text-sm leading-6">{loadError}</p>
           <button
@@ -870,35 +957,37 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         <p className="mt-6 text-sm text-muted">Cargando tareas…</p>
       ) : (
         <>
-          <div className="mt-5" role="tablist" aria-label="Días de la semana">
-            <div className="grid grid-cols-7 gap-1">
-              {dayCounts.map((day) => (
-                <button
-                  key={day.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={selectedDay === day.value}
-                  onClick={() => setSelectedDay(day.value)}
-                  className={`min-h-14 min-w-0 rounded-none border px-1 py-2 text-xs font-semibold ${
-                    selectedDay === day.value
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-control bg-background text-foreground"
-                  }`}
-                >
-                  <span className="block">{day.label}</span>
-                  <span className="mt-1 block tabular-nums opacity-70">{day.count}</span>
-                </button>
-              ))}
+          <div className="mt-5" role="group" aria-label="Filtrar tareas por día">
+            <div className="days-strip">
+              <div className="days-strip-track">
+                {dayCounts.map((day) => (
+                  <button
+                    key={day.value}
+                    type="button"
+                    data-on={selectedDay === day.value}
+                    aria-pressed={selectedDay === day.value}
+                    aria-controls="day-tasks"
+                    onClick={() => setSelectedDay(day.value)}
+                    className="day-toggle min-h-14 px-1 py-2 text-xs"
+                  >
+                    <span className="block">{day.label}</span>
+                    <span className="mt-1 block tabular-nums opacity-70">{day.count}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="mt-6 flex items-end justify-between gap-3">
-            <h3 className="text-2xl font-semibold tracking-tight">{selectedDayInfo.full}</h3>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+            <h3 id="day-tasks-title" className="text-2xl font-semibold tracking-tight">
+              {selectedDayInfo.full}
+            </h3>
             <p className="text-sm text-muted">
               {dayTasks.length} {dayTasks.length === 1 ? "tarea" : "tareas"}
             </p>
           </div>
 
+          <div id="day-tasks" role="region" aria-labelledby="day-tasks-title">
           {dayTasks.length === 0 ? (
             <div className="mt-4 border-l-2 border-line pl-4">
               <p className="text-sm leading-6 text-muted">No tienes tareas este día.</p>
@@ -915,7 +1004,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               {blocks.map((block) =>
                 block.tasks.length > 0 ? (
                   <section key={block.key} className="task-plain mt-5" aria-label={block.label}>
-                    <div className="flex items-baseline justify-between border-b-2 border-control pb-2">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-2 border-b-2 border-control pb-2">
                       <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
                         {block.label}
                       </h4>
@@ -927,10 +1016,11 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               )}
             </div>
           )}
+          </div>
 
           {unscheduled.length > 0 ? (
             <section className="task-plain mt-8" aria-labelledby="unscheduled-title">
-              <div className="flex items-baseline justify-between border-b border-line pb-2">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-2 border-b border-line pb-2">
                 <h3 id="unscheduled-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
                   Sin programar
                 </h3>

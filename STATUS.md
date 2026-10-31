@@ -5,18 +5,18 @@
 
 **Última actualización:** 2026-10-30
 **Alcance vigente:** `plan.md` v1.2 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas y descanso gratuito; Runo Coins pasa a la segunda capa.
-**Fase:** MVP / Fase 1 — primer corte por franjas. UI base **Liquid Focus** con **carta Ahora**, título «Recuerda lo que importa.» y **editor por día en bloques** integrados en `main`; origen HTTPS desplegado en Vercel; Bloque B cerrado; C1–C4/C6 y D1 verificados; A0/A1/A2, C5, D2, D3 y D4 esperan la prueba en teléfono. 12/16 criterios G con evidencia local/remota. Siguiente prueba móvil del dueño.
-**Bloque activo:** D — Validación de salida y UI base; URL desplegada, cierre móvil pendiente. **Ítem en curso:** ninguno; siguiente prueba en teléfono.
+**Fase:** MVP / Fase 1 — primer corte por franjas. UI base **Liquid Focus** con **carta Ahora**, título «Recuerda lo que importa.» y **editor por día en bloques** integrados en `main`; producción en Vercel congelada. B8 corregido: propuestas reconciliadas, lote atómico, rangos específicos visibles, tira de días sin solapamiento y borrador conservado; también se integran `offered` y `handId`. **12/16 criterios G vigentes** (G04/G14 recuperados). A0/A1/A2, C5, D2, D3 y D4 conservan sus pendientes de teléfono.
+**Bloque activo:** D — validación de salida; B8 cerrado con evidencia local. **Ítem en curso:** ninguno; siguiente prueba del dueño en `localhost:3000`.
 
 ## Siguiente acción
 
-**Prueba en teléfono del origen desplegado.**
+**Probar en `localhost:3000` los cinco casos corregidos.**
 
-Abrir **https://runo-mu.vercel.app** en el teléfono objetivo, instalar/añadir a inicio, abrir standalone y repetir la apertura en modo avión. Probar G01, G02, G03 y G13, además de C5/D2/D3. La URL de producción es estable y el despliegue es público; no hay datos de uso en el servidor.
+Si el servidor de desarrollo ya estaba abierto antes de este cambio, reinícialo para que Turbopack sirva el CSS nuevo. Recorre: quitar el día actual a una carta propuesta, archivar una parcial, crear un lote de dos bloques, abrir el gym 18:00–18:30 y navegar fuera del editor con un borrador. La propuesta debe coincidir con lo que se puede iniciar y el borrador debe volver.
 
-**Después:** registrar el resultado del dueño, cerrar D4 y preparar la semana de prueba. No afirmar instalación, offline, audio, vibración o zoom reales antes de que el dueño los pruebe.
+La prueba móvil sigue pendiente en **https://runo-mu.vercel.app**: instalar, abrir standalone, reabrir en modo avión y probar G01/G02/G03/G13 y C5/D2/D3. No hay despliegue nuevo; producción sigue congelada hasta que el dueño lo autorice. No afirmar instalación, offline, audio, vibración o zoom reales antes de que el dueño los pruebe.
 
-**Completados en este avance:** A0–A2 técnicos, A7, A3–A6, B1–B7, B8–B12, C1–C6, D1–D3 y validación local/remota de D4. 195 tests pasan en entorno local, UTC y America/Mexico_City; typecheck, lint y build pasan. El origen **https://runo-mu.vercel.app** responde por HTTPS, con manifest/iconos sin errores de instalabilidad, service worker activo y recarga offline verificada en Chrome headless. D4 deja 12/16 criterios; G01/G02/G03/G13 esperan el teléfono. La dirección visual minimalista, Lexend, tema nocturno y tamaños de control están aplicadas. No se afirma utilidad ni validación móvil.
+**Evidencia de esta corrección:** 202/202 tests (15 archivos) en local, UTC y America/Mexico_City; `typecheck`, `lint` y `build` pasan. Chrome 157 sobre build de producción local: 390/320/195 CSS px con 0 solapamiento y sin scroll horizontal del documento; nombres a dos líneas; gym 18:00–18:30 como Personalizado con rango visible; borrador recuperado tras navegar; eventos `offered` y `started` con `handId` verificados en IndexedDB. Sin teléfono ni despliegue nuevo.
 
 **A0 desplegado:** producción en **https://runo-mu.vercel.app** (alias estable de Vercel, HTTPS, acceso público). El origen ya está fijado; lo que falta es la apertura/instalación en el teléfono del dueño. El proyecto Vercel quedó conectado al repositorio de GitHub. Los datos de Runo siguen siendo locales en IndexedDB; el servidor solo entrega la app.
 
@@ -25,12 +25,12 @@ Abrir **https://runo-mu.vercel.app** en el teléfono objetivo, instalar/añadir 
 | Bloque | Ítems | Implementados con evidencia técnica (🧪 o ✅) | Verificados según criterio (✅) | Estado |
 |---|---|---|---|---|
 | **A · Cimiento** | 8 | 8 | 5 | A0 desplegado; A1/A2 técnicos remotos; falta teléfono |
-| **B · El bucle** | 12 | 12 | 11 | Bloque cerrado; B3 🧪 (wake lock móvil), resto ✅ |
+| **B · El bucle** | 12 | 12 | 11 | B8 corregido; B3 🧪 (wake lock móvil) |
 | **C · Economía y piel** | 6 | 6 | 5 | C1–C4/C6 ✅; C5 🧪 audio real |
-| **D · Ancla y pulido** | 4 | 4 | 1 | D1 ✅; D2/D3 🧪; D4 local 12/16, cierre móvil pendiente |
-| **Total** | **30** | **30** | **22** | 30 ítems con evidencia; 22 verificados según criterio |
+| **D · Ancla y pulido** | 4 | 4 | 1 | D1 ✅; D2/D3 🧪; D4 12/16; faltan cuatro criterios móviles |
+| **Total** | **30** | **30** | **22** | 30 ítems en 🧪/✅; 22 verificados |
 
-**Validación de salida:** 12 de 16 criterios. **Prueba de uso:** no iniciada.
+**Validación de salida:** 12 de 16 criterios; G04/G14 recuperados y G01/G02/G03/G13 pendientes móviles. **Prueba de uso:** no iniciada.
 
 ## Reglas de seguimiento
 
@@ -92,7 +92,7 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 | **B5** | Cierre de franja / terminar por hoy | No se pasa a la siguiente franja hasta resolver las cartas actuales; se pueden hacer más de tres tareas en el día; cerrar conserva lo ganado sin pagar pendientes ni perder progreso | ✅ | `ensureFranja`/`closeDay`, `Hand` persistente y `Day.closedAt`. 174/174 tests. Chrome headless producción: tras completar una carta, la franja 1 conservó las otras dos sin rellenar; al resolver las tres apareció la franja 2; «Terminar por hoy» mostró día cerrado y sobrevivió recarga. Con sesión abierta, la abandonó y conservó el tiempo como parcial; sin ledger. |
 | **B6** | Restauración y fecha local | Reabrir restaura corriendo/pausada/confirmación según corresponda; sesión que cruza medianoche conserva su ocurrencia y no duplica tareas ni créditos | ✅ | `dateFromOccurrenceId`, carga con precedencia de sesión y cierre con la fecha de la ocurrencia. 174/174 tests. Chrome headless: correr y pausar sobrevivieron recarga; una sesión de lunes 23:50 mostró «Sesión de un día anterior» el martes, cerró el lunes y dejó el martes abierto; ocurrencia lunes parcial, martes pendiente, sin ledger ni duplicados. |
 | **B7** | Flujo y navegación mínimos | Bucle sin callejones; foco de una carta durante el trabajo; configuración accesible sin un dashboard obligatorio ni capas de modales | ✅ | Chrome headless: editor desde franja y desde sesión; volver restauró la sesión; foco mostró solo la tarea activa; pausa/continuar/terminar/descanso; día cerrado mantuvo «Tareas» accesible. Se añadió reintento al error de carga y al editor; Monedero quedó accesible desde C2. 174/174 tests. |
-| **B8** | Editor básico de tareas | Agregar, editar y archivar cualquier día; duración, días, franja/hora, prioridad y escalón validados; Proyecto A lunes/B martes funciona; no altera historial o sesión activa | ✅ | `task-editor.tsx` + repositorio existente. 174/174 tests. Chrome headless producción: «Tareas» abre el editor; creó «Tomar creatina» Lun/Mar 2 min Alta; la editó con franja 06:00–12:00, hora fija 08:00 y paso «Servir el agua» 1 min; se guardó; se archivó y apareció en Archivadas; al volver, la franja siguió igual. La tarea persistió con días, ventana, hora, escalón y `archivedAt`. Editar no toca el snapshot de una sesión (prueba de repositorio). |
+| **B8** | Editor básico de tareas | Agregar, editar y archivar cualquier día; duración, días, franja/hora, prioridad y escalón validados; Proyecto A lunes/B martes funciona; no altera historial o sesión activa | ✅ | Verificación anterior de alta/edición/archivo y snapshots conservada. **Corregido tras la inspección de `a8e061d`:** `taskViewsForHand` reconcilia la plantilla viva y la elegibilidad, conserva acuerdos y oculta archivadas; `createTasks` guarda el lote en una transacción con IDs estables de reintento; `windowPreset` solo reconoce rangos exactos y muestra el horario efectivo; la tira de días usa scroll horizontal con objetivos ≥44 px y las filas admiten dos líneas; el formulario conserva borrador en `sessionStorage` y oculta la lista mientras edita. [Informe](./docs/reviews/2026-10-30-tareas.md). 202/202 tests, typecheck/lint/build pasan. Chrome producción local: 390/320/195 CSS px sin solapamiento ni scroll horizontal, gym Personalizado 18:00–18:30 y borrador recuperado. Sin teléfono. |
 | **B9** | Escalón y progreso parcial | Paso corto opcional y concreto; completarlo no declara completa la tarea; permite continuar el resto y no permite cobrar el mismo paso repetidamente | ✅ | `startSession`/`completeSession` con variante short, `shortStepCompleted` y `remainingMin`. 174/174 tests. Chrome headless: cepillo ofreció «Paso 1 min»; el timer mostró «Preparar el cepillo» 01:00; al completarlo la tarea quedó parcial, con «2 min restantes · paso hecho»; «Continuar 2 min» abrió 02:00; completar la tarea ofreció descanso. Datos: shortStepCompleted true, dos sesiones completed (short/full); C1 acredita el paso y el resto sin repetir; el paso no se volvió a ofrecer. |
 | **B10** | Pausa / reanudación explícitas | Pausa guarda restante, incluida vida real; una pausada sigue bloqueando otra tarea; cerrar/reabrir mantiene la pausa; continuar retoma el restante exacto sin contar el tiempo pausado | ✅ | `pauseSession`/`resumeSession` y UI con «Pausar»/«El bebé». 174/174 tests. Chrome headless producción: café pausado en 05:00, 10 min después y tras recargar seguía en 05:00; «Continuar» retomó 05:00 y un minuto después mostró 04:00; «El bebé» registró `paused` + `life_real`. Una pausada rechaza `startSession` de otra tarea. |
 | **B11** | Descanso gratuito | Tras completar, ofrece 10 min gratis y saltable; no paga RC, no bloquea la siguiente tarea, no se autoinicia y termina si empieza otra tarea | ✅ | `break-card.tsx`; UI efímera, sin sesión ni ledger. Chrome headless producción: al completar apareció la oferta; el descanso no inició solo; al empezar corrió 10:00; al avanzar el reloj terminó sin iniciar otra tarea; la franja siguió visible y «Empezar» funcionó durante el descanso, terminándolo. 174/174 tests, typecheck/lint/build pasan. |
@@ -104,7 +104,7 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 
 ## Bloque C — Economía y piel
 
-**C1–C6, D1, D2 y D3 ya están implementados; D4 tiene validación local/remota 12/16.** La carta Ahora muestra una sola tarea y esconde RC/estadísticas; sonido y voz están en Ajustes; el Monedero se oculta por defecto y se activa allí. El descanso gratuito B11 sigue separado del canje. C5 queda 🧪 por audio real, D2 por vibración/iPhone, D3 por zoom/una mano en dispositivo y D4 por los cuatro criterios móviles. La URL ya existe; falta la prueba del dueño.
+**C1–C6, D1, D2 y D3 ya están implementados; D4 queda en 12/16 tras recuperar G04/G14.** La carta Ahora muestra una sola tarea y esconde RC/estadísticas; sonido y voz están en Ajustes; el Monedero se oculta por defecto y se activa allí. El descanso gratuito B11 sigue separado del canje. C5 queda 🧪 por audio real, D2 por vibración/iPhone y D3 por accesibilidad móvil. D4 espera solo G01/G02/G03/G13 en teléfono; la URL existe pero producción no se redesplegó.
 
 | ID | Qué | Terminado cuando… | Estado | Evidencia |
 |---|---|---|---|---|
@@ -123,8 +123,8 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 |---|---|---|---|---|
 | **D1** | Ancla ligera visible | Se presenta una vez por ocurrencia al llegar su hora o volver dentro de su franja; antes pausa y guarda otra sesión; no inicia sola, no consume cambios ni mueve citas; lo vencido no se fuerza como vigente | ✅ | `findDueAnchor` + `claimAnchor`, watcher cada 30 s/visibility y `AnchorView`. Chrome headless: a las 18:01 apareció «Hora fija · 18:00» sin timer; «Dejar pendiente» volvió a la franja y no reapareció tras recarga; con una sesión de 15 min corriendo, el ancla pausó la anterior y «Empezar» abrió el gym dejando la anterior pausada. `claimAnchor` registra `anchor_presented` una vez; `markOccurrenceNotApplicableDirect` cubre «No aplica». Fuera de 18:00–18:30 no se presenta. |
 | **D2** | Feedback y fallbacks de plataforma | Feedback visual siempre; vibración solo donde funcione, sin fallar en iPhone si no existe; no se promete sonido o wake lock con la app cerrada | 🧪 | `lib/platform/haptics.ts` con detección/captura de errores; `pulse("timer")` al vencer y `pulse("anchor")` al presentar. Chrome headless: con `navigator.vibrate` simulado, el timer registró `[120,80,120]` y el ancla `[60,40,60]` con su aviso visual; sin vibración, el ancla siguió visible; sin `wakeLock` el timer corrió; sin `AudioContext`, activar sonido mostró «El audio no está disponible…» y el timer siguió. Copia visible «Sin alarma ni aviso con la app cerrada» y «la pantalla puede apagarse»; el vencimiento tiene `role=status`. 189/189 tests. Falta iPhone/A0 real para cerrar la ausencia de vibración en Safari. |
-| **D3** | Una mano y preferencias visuales | Controles alcanzables y ≥44 px, zoom 200 % funcional, tema cálido automático/manual persistente, foco/etiquetas legibles en el dispositivo objetivo | 🧪 | **Base Liquid Focus** integrada en `main`: superficies de vidrio con fallback sólido, fondo ambiental, timer circular, dock inferior en móvil y Lexend. Contraste nocturno/claro revisado (muted 7.1:1, primario 7.16:1, control >3:1), 44×44, foco visible. Chrome headless: 390 y 215 CSS px sin scroll horizontal; dock de 3 botones, timer 242/105 px, controles sin áreas <44 px; a 20:30 entró oscuro. 195/195 tests; falta teléfono/A0 con zoom real, safe areas y blur real. |
-| **D4** | Validación de salida | Se verifican y documentan los 16 criterios siguientes; se conocen las limitaciones y se deja lista la semana de prueba, sin afirmar utilidad ya validada | 🧪 | Validación local/remota en build de producción, Chrome 157.0.8103.26 headless, macOS, TZ America/Mexico_City, commits 74a1cd1/6b54e7d: **12/16** criterios con evidencia; G01/G02/G03/G13 pendientes de teléfono. G02 local: arranque en frío 299 ms, reapertura 297 ms y restauración 297 ms; offline 977 ms. G03 local y Vercel headless: SW activo, recarga offline, completar y acreditar 3 RC offline, y sesión/ledger persistidos. G05 corrigió «Ya la hice»/«No aplica» directos; G06/G09/G10/G16 revalidados. 195/195 tests. No se inició la semana de prueba. |
+| **D3** | Una mano y preferencias visuales | Controles alcanzables y ≥44 px, zoom 200 % funcional, tema cálido automático/manual persistente, foco/etiquetas legibles en el dispositivo objetivo | 🧪 | **Base Liquid Focus** integrada en `main`: vidrio, timer circular, dock y Lexend. Evidencia previa de contraste/tema/timer conservada. La inspección de Tareas detectó días superpuestos y títulos recortados; B8 los corrigió y Chrome producción local midió 0 solapamiento y documento de 390/320/195 px exactos, con nombres a dos líneas y tira desplazable. 202/202 tests. Falta teléfono con zoom real, safe areas, una mano y blur real. |
+| **D4** | Validación de salida | Se verifican y documentan los 16 criterios siguientes; se conocen las limitaciones y se deja lista la semana de prueba, sin afirmar utilidad ya validada | 🧪 | Corte previo de producción local/remoto en 74a1cd1/6b54e7d: 12/16, con evidencia histórica de entrada/offline/créditos. La revisión de `a8e061d` bajó a 10/16; las correcciones locales de B8 recuperan G04 y G14 y dejan **12/16**. G01/G02/G03/G13 conservan sus pendientes de teléfono. 202/202 tests, typecheck/lint/build pasan. Sin despliegue nuevo ni semana de prueba. |
 
 **Límite de D1:** el MVP no garantiza avisos con el teléfono bloqueado o la app cerrada. `.ics` es fase 2 y depende del calendario/permisos; no es un takeover del sistema ni una alarma garantizada.
 
@@ -139,7 +139,7 @@ Para cada prueba registrar en su evidencia: versión/commit si existe, dispositi
 - [ ] **G01 · Instalación:** origen HTTPS estable autorizado, icono Runo y apertura standalone en el teléfono objetivo. (A0, A1)
 - [ ] **G02 · Entrada:** estado utilizable en <5 s tras preparación inicial, con objetivo de 2 s; registrar arranque en frío y reapertura/restauración por separado. (B1, B6)
 - [ ] **G03 · Offline/persistencia:** modo avión con arranque en frío, lectura/escritura local y sesión/saldo conservados; verificar en build de producción. (A2, A3)
-- [x] **G04 · Configuración:** semilla no duplicada, editor accesible cualquier día, proyectos por días y filtros de franja correctos; archivar no borra historial. (A4, A6, B8)
+- [x] **G04 · Configuración:** semilla no duplicada, editor accesible cualquier día, proyectos por días y filtros de franja correctos; archivar no borra historial. (A4, A6, B8) **Recuperado:** reconciliación de propuestas, lote atómico, rangos específicos y tira de días corregidos con tests y Chrome local.
 - [x] **G05 · Franjas y agencia:** franjas de hasta tres; no se pasa a la siguiente hasta resolver la actual; tres cambios totales por día; elegir dentro de la franja es libre; «Ya la hice», «No aplica», vida real y salida siguen disponibles. (B1, B2, B5, B7)
 - [x] **G06 · Timer/resultados:** iniciar con 3-2-1, terminar antes y llegar a cero funcionan; cero pide confirmación sin pagar ni completar; «No terminé» deja la tarjeta en foco y no inicia otra tarea. (B3, B4, B12)
 - [x] **G07 · Pausa/retorno:** vida real congela tiempo, volver no reanuda solo; una pausa sigue bloqueando otra tarea; cerrar sin pausar deja correr; medianoche no pierde la sesión ni duplica ocurrencias. (B6, B10, B12)
@@ -148,21 +148,23 @@ Para cada prueba registrar en su evidencia: versión/commit si existe, dispositi
 - [x] **G10 · Canje:** minutos enteros válidos, débito único y saldo no negativo; cancelar no descuenta. (C2)
 - [x] **G11 · Horario urgente:** presenta una vez con app visible, pausa/guarda antes de interrumpir, respeta franja y permite volver; ninguna cita se mueve sin decisión del usuario. (D1)
 - [x] **G12 · Silencio y soporte:** audio inicialmente apagado, mute persistente también para avisos y feedback visual cuando audio/vibración/wake lock no estén disponibles. (C5, D2)
-- [ ] **G13 · Accesibilidad:** contraste medido, tamaños/zoom/foco/etiquetas/una mano y movimiento reducido también en el timer; preferencias de tema respetadas y fuentes consultadas documentadas. (C3, C4, D3)
-- [x] **G14 · Acompañamiento y registro:** frases locales controlables sin IA ni culpa; eventos separan cambios, realizados fuera, no aplica y vida real; no se envían esos datos a un LLM. (A5, C6)
+- [ ] **G13 · Accesibilidad:** contraste medido, tamaños/zoom/foco/etiquetas/una mano y movimiento reducido también en el timer; preferencias de tema respetadas y fuentes consultadas documentadas. (C3, C4, D3) Local: tira de días sin solapamiento y documento sin scroll horizontal a 390/320/195; faltan zoom real, safe areas y una mano en teléfono.
+- [x] **G14 · Acompañamiento y registro:** frases locales controlables sin IA ni culpa; eventos separan cambios, realizados fuera, no aplica y vida real; no se envían esos datos a un LLM. (A5, C6) **Recuperado:** la carta visible emite `offered` una vez por franja/ocurrencia y `started` incluye `handId`; verificado en IndexedDB y tests.
 - [x] **G15 · Bloqueo y salidas:** con sesión activa no se inicia otra tarea; pausar no libera; «no aplica» y «terminar por hoy» funcionan; no se salta de franja con pendientes; el bloqueo no impide pausar ni cerrar el día. (B4, B5, B10, B12)
 - [x] **G16 · Descanso:** tras completar se ofrece 10 min gratis y saltable; no paga RC, no bloquea la siguiente tarea, no se autoinicia y termina si empieza otra. (B11)
 
 ### Resultado de D4 — 2026-10-30
 
-**Alcance:** commits `74a1cd1`/`6b54e7d` (código) + documentación D4; build de producción, local y **https://runo-mu.vercel.app**; Chrome **157.0.8103.26** headless en macOS; TZ `America/Mexico_City`; 195/195 tests. **No** hay teléfono, iOS, Android ni modo avión real. Las filas pendientes no se consideran superadas.
+**Alcance:** commits `74a1cd1`/`6b54e7d` (código) + documentación D4; build de producción local y **https://runo-mu.vercel.app**; Chrome **157.0.8103.26** headless en macOS; TZ `America/Mexico_City`. **Correcciones locales posteriores a `a8e061d`:** 202/202 tests, typecheck/lint/build y Chrome producción local. **No** hay teléfono, iOS, Android ni modo avión real. Las filas pendientes no se consideran superadas.
+
+**Actualización de esta tabla:** la inspección de `a8e061d` reabrió G04/G14; las correcciones de B8 los recuperan y dejan 12/16. G13 conserva la evidencia local corregida, pero sigue pendiente de teléfono/zoom real. La evidencia de producción de las otras filas se conserva como histórica, sin atribuirla a una nueva ejecución.
 
 | Criterio | Resultado | Evidencia D4 y límite |
 |---|---|---|
 | G01 Instalación | ⬜ Pendiente | URL estable **https://runo-mu.vercel.app**; manifest/iconos e instalabilidad sin errores en Chrome headless (A1). Falta apertura standalone en el teléfono. |
 | G02 Entrada | ⬜ Pendiente | Local: arranque en frío 299 ms, reapertura 297 ms y restauración de sesión 297 ms; offline 977 ms. Falta medir en el teléfono objetivo. |
 | G03 Offline/persistencia | ⬜ Pendiente | Local y **https://runo-mu.vercel.app** headless: SW activo, recarga offline; «Sí, terminé» offline acreditó 3 RC y sesión/ledger persistieron. Falta modo avión/arranque en frío en teléfono. |
-| G04 Configuración | ✅ | Semilla/editor/proyectos/filtros/archivo cubiertos por A4/A6/B8 y 195 tests; no se repitió el recorrido visual completo en D4. |
+| G04 Configuración | ✅ | Recuperado en B8: reconciliación de cartas pendientes/archivadas, lote atómico con rollback, rangos específicos como Personalizado y tira de días sin solapamiento. Tests de repositorio y Chrome producción local 390/320/195; sin teléfono. |
 | G05 Franjas y agencia | ✅ | Chrome 10:00: 3 cartas; «Otra» hasta no tener alternativa; «Ya la hice» y «No aplica» siguieron visibles sin consumir cambio; no abrieron sesión ni ledger; 1 cambio usado. B1/B2/B5 y 195 tests. |
 | G06 Timer/resultados | ✅ | Chrome: café terminado antes de tiempo (+5 RC); cepillo a cero mostró confirmación, no pagó y no abrió otra tarea; «No terminé» dejó reintentar/no aplica. 3-2-1 y bloqueo en B3/B4/B12. |
 | G07 Pausa/retorno | ✅ | B6/B10: pausa explícita, vida real, reanudación, recarga y cruce de medianoche cubiertos por tests y Chrome previo; no se repitió en D4. |
@@ -171,12 +173,12 @@ Para cada prueba registrar en su evidencia: versión/commit si existe, dispositi
 | G10 Canje | ✅ | C2 + D4: saldo 5 → canje 2 → 3; intento de 5 rechazado; cancelación cubierta por tests/C2. |
 | G11 Horario urgente | ✅ | D1: ancla una vez, pausa la sesión previa, no inicia sola ni mueve citas; Chrome y 195 tests. |
 | G12 Silencio y soporte | ✅ | C5/D2: audio apagado inicial, mute persistente y fallback visual sin audio/vibración/wakeLock; audio audible e iPhone quedan 🧪. |
-| G13 Accesibilidad | ⬜ Pendiente | C3/C4/D3: contraste, 44 px, 195 CSS px sin scroll horizontal, foco y tema local; falta zoom real, safe areas y una mano en teléfono. |
-| G14 Acompañamiento/registro | ✅ | A5/C6: frases locales, eventos separados (incluidos `already_done`/`not_applicable` con `source`), sin LLM; 195 tests. |
+| G13 Accesibilidad | ⬜ Pendiente | Se conserva la evidencia previa de contraste/foco/tema. B8 corrigió el solapamiento de días, el ancho del documento a 195 y los nombres a dos líneas con Chrome local; faltan zoom real, safe areas y una mano en teléfono. |
+| G14 Acompañamiento/registro | ✅ | Recuperado: la carta visible emite `offered` una vez por franja/ocurrencia (sin duplicar al volver) y `started`/sesión guardan `handId`; verificado en tests y en IndexedDB desde la UI. |
 | G15 Bloqueo y salidas | ✅ | B12: corriendo/pausada/esperando no permiten otra tarea; «No aplica» y «Terminar por hoy»; el ancla D1 es la excepción acotada; Chrome previo. |
 | G16 Descanso | ✅ | D4: oferta tras completar, 10:00, sin autoinicio, saltable; B11 cubre fin y terminación al empezar otra tarea; no pagó RC. |
 
-**Conteo:** 12/16. Pendientes: G01, G02, G03 y G13, todas requieren A0/teléfono o una medición real. D4 no se cierra hasta completarlas.
+**Conteo vigente: 12/16.** G04/G14 recuperados con las correcciones locales; G01/G02/G03/G13 conservan sus pendientes móviles. D4 no se cierra hasta resolverlos en el dispositivo.
 
 ### Prueba de uso posterior a la liberación
 
@@ -200,6 +202,7 @@ Una semana de observación, **no siete días perfectos como condición para no p
 | `TZ=America/Mexico_City npm test` | 195/195 |
 | `npm run typecheck` | Exit 0, tipos de Next y TypeScript |
 | `npm run lint` | Exit 0, sin errores ni warnings |
+| Inspección de Tareas / `a8e061d` | Se repitieron `npm test` (195/195), `npm run lint` y `npm run typecheck`, todos exit 0. Chrome 157.0.8103.26 headless sobre el dev existente en localhost:3000 reproduce cinco defectos y tres fricciones de UX. Contextos de prueba aislados, TZ Mexico_City, viewports 390/320/195 CSS px; sin datos del dueño ni cambios al código de app. [Informe](./docs/reviews/2026-10-30-tareas.md). Las filas de build/producción siguientes son evidencia previa, no reejecutada en esta inspección. |
 | `npm run build` | Exit 0, compilación y prerender de la página nueva |
 | Chrome headless / diseño | 390 px y 1280 px: franja y editor con Lexend, papel/tinta/bermellón, reglas finas y sin sombras; sin desbordes visibles. C3: ratios de `plan.md` §10 medidos con la fórmula WCAG; control 3.35:1. No es prueba en dispositivo ni auditoría formal. |
 | `git diff --check` | Exit 0 |
@@ -208,7 +211,7 @@ Una semana de observación, **no siete días perfectos como condición para no p
 | Vercel producción | **https://runo-mu.vercel.app** responde 200 por HTTPS; manifest 200, iconos 200, `installabilityErrors: []`, `manifest.errors: []`; service worker activo/ready, controla la página y sirve recarga offline; sin errores del SW. Proyecto conectado a GitHub. |
 | Navegador / dispositivo / instalación | Navegador headless sí; dispositivo, PWA e instalación no |
 
-Pruebas de DB con fake-indexeddb, no almacenamiento de un teléfono. Las protecciones de esquema/snapshots no equivalen a tener implementados el pago y canje de C1/C2. El servidor de producción se arrancó solo para la comprobación local y se detuvo después; no se publicó una URL.
+Las pruebas de DB en Node usan fake-indexeddb; las del navegador usan IndexedDB de contextos aislados. Ninguna equivale a almacenamiento de un teléfono. En esta inspección se reutilizó el servidor de desarrollo existente; no se recompiló ni se desplegó. La evidencia previa de C1/C2 y del origen público permanece registrada arriba.
 
 ## Bitácora
 
@@ -216,6 +219,8 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 | Fecha | ID | Qué pasó |
 |---|---|---|
+| 2026-10-30 | B8 · correcciones | Se aplicaron las cinco correcciones de la inspección y las tres mejoras de UX. `taskViewsForHand` reconcilia cartas pendientes con la tarea viva y oculta archivadas sin borrar acuerdos; `createTasks` guarda el lote completo en una transacción con IDs estables y prueba de rollback/reintento; `windowPreset` exige extremos exactos y muestra el horario efectivo; la tira de días hace scroll con objetivos de 55.8 px, sin solapamiento ni desborde a 390/320/195; los nombres usan dos líneas; el formulario conserva borrador y oculta la lista; `recordOffered` emite exposición por carta/franja visible y `started` recibe `handId`. 202/202 tests en local/UTC/Mexico_City, typecheck/lint/build pasan. Chrome 157 producción local: 0 solapamiento, `scrollWidth` exacto, gym Personalizado 18:00–18:30, borrador recuperado, `offered` y `handId` en IndexedDB. Sin teléfono ni despliegue; G04/G14 recuperados, D4 12/16. |
+| 2026-10-30 | B8 · inspección | Revisión solicitada, sin implementar cambios de app. En `a8e061d` se reprodujeron propuestas obsoletas tras edición/archivo parcial, lote de bloques parcial con duplicado al reintentar, rango específico oculto que se amplía al reseleccionar y días superpuestos en móvil; también faltan eventos `offered` y `handId` al iniciar. UX: pérdida silenciosa de borrador, nombres truncados y tabs sin navegación por flechas. 195/195 tests, lint y typecheck pasan. B8 reabierto; 21 IDs verificados y 10/16 criterios G (G04/G14 reabiertos). [Informe](./docs/reviews/2026-10-30-tareas.md). Siguiente: reconciliación de propuestas en B8. |
 | 2026-10-30 | Diseño | Aprobadas las referencias minimalistas del dueño y Lexend como fuente base. Copiadas a `docs/design/references/`; `plan.md` §10 y §16 actualizados; tokens de papel/tinta/bermellón, foco, selección y Lexend vía `next/font`; shell, franja, timer, descanso y editor aplanados a reglas finas, sin sombras ni radios y con acciones tipográficas. 174/174 tests en local, UTC y Mexico_City; typecheck/lint/build pasan. Chrome headless a 390/1280 px sin desbordes visibles; medición formal de contraste y prueba en dispositivo siguen en C3/D3. |
 | 2026-10-30 | A0/A2 | Desplegado en producción **https://runo-mu.vercel.app** (Vercel, HTTPS público, alias estable) y conectado al repositorio GitHub. Se encontró que el SW precacheaba manifiestos internos y rutas locales inexistentes en Vercel; el generador ahora descubre los assets reales desde el HTML y soporta `immutable/`. Verificado en local y Vercel: SW activo, instalabilidad sin errores y recarga offline. 195/195 tests. Falta teléfono. |
 | 2026-10-30 | UI feedback | Se movieron sonido y voz a **Ajustes**; Monedero queda oculto por defecto con toggle y acceso desde Ajustes. La sesión ya no muestra «Terminar por hoy»; `Paso cumplido` pasó a `Tiempo cumplido`; se añadió `Reintentar 5 min` directo y una frase de empuje con emoji al elegir «No lo hice». Se eliminó el botón `Empujón`. Los botones secundarios claros volvieron al vidrio original y solo cambiaron a un borde de 1 px ligeramente más oscuro; sin relleno tintado, sin sombra extra y sin contorno duro. El control de tema se movió del footer a **Ajustes**. El dock móvil ahora tiene un fondo de vidrio más opaco y un degradado sólido detrás para que el contenido no se lea a través al hacer scroll. La carta agrega **Editar tarea ✏️** en `⋯`, emojis en sus acciones y quita el footer de frase. El editor agrega un selector nativo de categorías existentes con opción «+ Nueva categoría», días on/off, bloques Mañana/Tarde/Noche/Sin bloque/Personalizado y botón Volver superior. El bloque Personalizado muestra correctamente sus horas. En una tarea nueva se pueden marcar varios bloques y se crean tareas separadas, una por bloque; al editar, «Duplicar en otro bloque» crea una copia sin hora exacta. 195/195 tests; typecheck/lint pasan. |
@@ -255,6 +260,12 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 ## Descubrimientos y decisiones pendientes
 
+### Inspección de Tareas — 2026-10-30
+
+[Informe con ubicaciones, pasos, impacto y propuestas de corrección](./docs/reviews/2026-10-30-tareas.md). Cinco defectos reproducidos, prioridad P2; tres mejoras de UX separadas. Las cinco correcciones y las tres mejoras se aplicaron en B8. La suite ya cubre el lote atómico, la reconciliación, el inicio con `handId` y la exposición; la interfaz se validó con Chrome local, aunque sigue sin pruebas React automatizadas.
+
+Las copias por bloques se mantienen como la decisión registrada en «UI feedback». La exposición se define una vez por carta y franja visible; volver a la misma carta en la misma franja no crea otro evento. La prueba en teléfono y el despliegue quedan pendientes de autorización.
+
 ### Decisiones de diseño (2026-10-30)
 
 - **Minimalismo editorial aprobado.** Tipografía grande, mucho aire, reglas finas, sin sombras ni tarjetas anidadas, un solo acento bermellón para un marcador/foco puntual. Referencias del dueño en `docs/design/references/`.
@@ -284,10 +295,10 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 ### Pendientes reales
 
-- **A0:** origen HTTPS autorizado y dispositivo/navegador objetivo. No se ha elegido proveedor ni se ha desplegado.
+- **A0:** origen estable ya desplegado en **https://runo-mu.vercel.app** (Vercel); falta apertura/instalación desde el dispositivo/navegador objetivo. La redacción anterior de este pendiente había quedado desactualizada respecto de la evidencia de despliegue.
 - **Correcciones directas:** G05 reveló que la franja no ofrecía «Ya la hice» ni «No aplica» antes de iniciar. Se corrigió con acciones sin sesión, tiempo ni RC retroactivo, disponibles aunque se agoten los cambios; los eventos llevan `source: "franja"`.
 - **C3:** contraste medido y fuentes de WCAG 2.2/WebAIM documentadas; D3 añade tema nocturno y layout para zoom 200 %, pero la prueba real en teléfono, la lectura con usuarios y la validación clínica siguen pendientes. No afirmar validación clínica.
-- **Plataformas/UI:** Todo el bucle B, A1/A2, C1–C6 y D1–D3 se verificaron en Chrome headless; D4 dejó 12/16. La URL **https://runo-mu.vercel.app** ya sirve HTTPS, manifest, iconos y offline headless. No es un teléfono: C5 necesita audio audible/campana real; D2 la ausencia de vibración en iPhone; D3/G13 zoom real, safe areas y una mano; G01/G02/G03 instalación y modo avión. Faltan pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
+- **Plataformas/UI:** La evidencia headless cubrió el bucle B, A1/A2, C1–C6 y D1–D3. La inspección de Tareas reabrió B8/G04/G14; las correcciones locales los recuperan y dejan **12/16 G**. La URL **https://runo-mu.vercel.app** conserva su evidencia previa de HTTPS, manifest, iconos y offline headless, pero no se redesplegó. No es un teléfono: C5 necesita audio audible/campana real; D2 la ausencia de vibración en iPhone; D3/G13 zoom real, safe areas y una mano; G01/G02/G03 instalación y modo avión. Faltan pruebas en iOS/Android. La persistencia se probó con fake-indexeddb y Chrome headless, no en el dispositivo objetivo. Tampoco hay prueba de uso iniciada.
 
 ### Contexto técnico consultado, no evidencia de implementación
 
@@ -316,6 +327,6 @@ Todos los comandos desde `/Users/hangtu/Documents/runo/runo` (raíz Git; el dire
 | Tests | `npm test` (Vitest run) · `npm run test:watch` (watch) |
 | Versiones observadas | Node v25.8.0 · Next 16.4.3 · React 19.3.0 |
 | Repo | `github.com/Hangtu/runo` |
-| Despliegue y dispositivo objetivo | Pendientes, no confirmados |
+| Despliegue y dispositivo objetivo | **https://runo-mu.vercel.app** desplegado; dispositivo y validación móvil pendientes |
 
 Los comandos anteriores describen el entorno, **no resultados de ejecución**. El agente debe registrar qué ejecutó y qué pasó en la fila correspondiente.

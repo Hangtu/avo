@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
-  archiveTask, claimAnchor, closeDay, completeSession, completeSessionWithCredit, createTask, ensureDay, ensureFranja,
+  archiveTask, claimAnchor, closeDay, completeSession, completeSessionWithCredit, createTask, createTasks, ensureDay, ensureFranja,
   ensureOccurrence, expireSession, getSettings, listTasks, markOccurrenceAlreadyDoneDirect,
-  markOccurrenceNotApplicable, markOccurrenceNotApplicableDirect, occurrenceIdFor, pauseSession, resumeSession,
+  markOccurrenceNotApplicable, markOccurrenceNotApplicableDirect, occurrenceIdFor, pauseSession, recordOffered, resumeSession,
   retrySession, saveSettings, startSession,
   swapFranjaTask, updateTask,
 } from "./repository";
@@ -987,5 +987,149 @@ describe("atomicidad y concurrencia", () => {
     await db.ledger.add(fixture);
     await expect(db.ledger.add({ ...fixture, id: "l2" })).rejects.toMatchObject({ name: "ConstraintError" });
     expect(await db.ledger.count()).toBe(1);
+  });
+});
+
+
+describe("reconciliación de propuestas, lote y exposición", () => {
+  async function readyHand() {
+    const db = await testDb();
+    for (const [id, title, priority] of [["a", "A", 3], ["b", "B", 2], ["c", "C", 2], ["d", "D", 1]] as const) {
+      await createTask(db, id, taskInput({ title, priority }), NOW);
+      await ensureOccurrence(db, id, MONDAY, NOW);
+    }
+    await ensureDay(db, MONDAY, NOW);
+    const tasks = await listTasks(db);
+    const occurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
+    const hand = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+    return { db, hand, tasks, occurrences };
+  }
+
+  it("oculta una propuesta pendiente que dejó de ser elegible sin rellenar el hueco", async () => {
+    const { db, hand } = await readyHand();
+    expect(hand.tasks).toHaveLength(3);
+    const removed = hand.tasks[0];
+
+    await updateTask(
+      db, removed.task.id,
+      taskInput({ title: removed.task.title, days: [2], shortStep: undefined }),
+      NOW + 1000, "mover-a-martes",
+    );
+    const after = await ensureFranja(db, {
+      date: MONDAY, now: NOW + 2000, seed: "s",
+      tasks: await listTasks(db),
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    });
+
+    expect(after.hand!.id).toBe(hand.hand!.id);
+    expect(after.tasks.map((view) => view.task.id)).not.toContain(removed.task.id);
+    expect(after.tasks).toHaveLength(2);
+  });
+
+  it("oculta y no reofrece una tarea parcial archivada; el inicio también la rechaza", async () => {
+    const db = await testDb();
+    await createTask(db, "ropa", taskInput(), NOW);
+    await ensureOccurrence(db, "ropa", MONDAY, NOW);
+    await ensureDay(db, MONDAY, NOW);
+    const tasks = await listTasks(db);
+    const occurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
+    const hand = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+    const task = hand.tasks[0];
+    expect(task).toBeDefined();
+
+    await startSession(db, {
+      sessionId: "short", taskId: task.task.id, date: MONDAY, variant: "short",
+      now: NOW, handId: hand.hand!.id,
+    });
+    await completeSession(db, "short", NOW + 60_000);
+    await archiveTask(db, task.task.id, NOW + 61_000);
+
+    const after = await ensureFranja(db, {
+      date: MONDAY, now: NOW + 62_000, seed: "s",
+      tasks: await listTasks(db),
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    });
+    expect(after.tasks).toEqual([]);
+    expect(after.hand).toBeNull();
+    await expect(startSession(db, {
+      sessionId: "after-archive", taskId: task.task.id, date: MONDAY,
+      variant: "full", now: NOW + 63_000,
+    })).rejects.toThrow("no está disponible");
+  });
+
+  it("registra una exposición por carta y franja, no por render", async () => {
+    const { db, hand } = await readyHand();
+    const [first, second] = hand.tasks;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+
+    await recordOffered(db, {
+      handId: hand.hand!.id, taskId: first.task.id,
+      occurrenceId: first.occurrenceId, now: NOW + 1000,
+    });
+    await recordOffered(db, {
+      handId: hand.hand!.id, taskId: first.task.id,
+      occurrenceId: first.occurrenceId, now: NOW + 2000,
+    });
+    expect(await db.events.where("type").equals("offered").count()).toBe(1);
+
+    await recordOffered(db, {
+      handId: hand.hand!.id, taskId: second.task.id,
+      occurrenceId: second.occurrenceId, now: NOW + 3000,
+    });
+    const events = await db.events.where("type").equals("offered").toArray();
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      handId: hand.hand!.id, taskId: first.task.id,
+      occurrenceId: first.occurrenceId, context: { source: "ahora" },
+    });
+  });
+
+  it("asocia el inicio normal a su franja y rechaza una franja ajena", async () => {
+    const { db, hand } = await readyHand();
+    const task = hand.tasks[0];
+    const session = await startSession(db, {
+      sessionId: "con-franja", taskId: task.task.id, date: MONDAY,
+      variant: "full", now: NOW, handId: hand.hand!.id,
+    });
+    expect(session.handId).toBe(hand.hand!.id);
+    const started = await db.events.where("type").equals("started").first();
+    expect(started).toMatchObject({
+      handId: hand.hand!.id, taskId: task.task.id, occurrenceId: task.occurrenceId,
+    });
+
+    await expect(startSession(db, {
+      sessionId: "franja-ajena", taskId: hand.tasks[1].task.id, date: MONDAY,
+      variant: "full", now: NOW + 1000, handId: "hand:otra",
+    })).rejects.toThrow("franja");
+  });
+
+  it("guarda un lote de tareas de forma atómica y reutiliza sus IDs al reintentar", async () => {
+    const db = await testDb();
+    const items = [
+      { id: "task:a", input: taskInput({ title: "A" }) },
+      { id: "task:b", input: taskInput({ title: "B" }) },
+    ];
+    const collision: RunoEvent = {
+      id: eventIdFor("task:create:task:b", "task_created"),
+      actionId: "otra-accion", type: "task_created", at: NOW, context: {},
+    };
+    await db.events.add(collision);
+
+    await expect(createTasks(db, items, NOW)).rejects.toThrow();
+    expect(await db.tasks.count()).toBe(0);
+    expect(await db.events.where("type").equals("task_created").count()).toBe(1);
+
+    await db.events.delete(collision.id);
+    const created = await createTasks(db, items, NOW + 1000);
+    expect(created.map((task) => task.id)).toEqual(["task:a", "task:b"]);
+    expect(await db.tasks.count()).toBe(2);
+    expect(await db.events.where("type").equals("task_created").count()).toBe(2);
+
+    // A successful batch retried with the same IDs is also idempotent.
+    const retried = await createTasks(db, items, NOW + 2000);
+    expect(retried.map((task) => task.id)).toEqual(["task:a", "task:b"]);
+    expect(await db.tasks.count()).toBe(2);
+    expect(await db.events.where("type").equals("task_created").count()).toBe(2);
   });
 });
