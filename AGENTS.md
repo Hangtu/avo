@@ -82,7 +82,7 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 | Tema | Regla |
 |---|---|
 | Stack | Next 16.4.3 / React 19.3 / TypeScript / Tailwind v4 ya existentes; Neon Postgres + Drizzle para la fase E; no migrar por memoria o conveniencia |
-| Datos | IndexedDB con Dexie sigue siendo la fuente actual; Neon + Drizzle están preparados en E1 como capa server-only, sin login ni sync activos |
+| Datos | IndexedDB con Dexie sigue siendo la fuente actual; Neon + Drizzle (E1/E2) tienen esquema aplicado y semilla, como capa server-only, sin login ni sync activos |
 | Dominio | Task, Occurrence, Day, Hand, Session, Event, Ledger y Settings; responsabilidades en `plan.md` §13 |
 | Unicidad | Una ocurrencia por tarea/fecha local en MVP; no repetir realizadas para llenar franjas. Una sola sesión activa (corriendo o pausada) |
 | Timer | Reloj de pared por tramos y restante persistente. Un intervalo refresca UI, no acumula el tiempo como fuente de verdad |
@@ -112,7 +112,7 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 - Probar instalación/offline también en **build de producción**, no solo en `next dev`. Registrar origen HTTPS estable porque los datos se aíslan por origen.
 - Aplicar `prefers-reduced-motion` también al timer/Vigía, foco visible, contraste medido, etiquetas, zoom y controles de una mano.
 - La investigación de accesibilidad sigue pendiente hasta C3. Fuentes/tamaños son decisiones a probar, no evidencia clínica sobre TDAH. No presentar hipótesis de memoria, motivación o crianza como diagnósticos.
-- No ampliar por iniciativa propia a LLM, Dossier, nivel 3, Jefe, Parte, ambientes, rachas, `.ics`/push, ventanas protegidas, temporizador de canje, múltiples ocurrencias diarias, cuentas/sync bidireccional, dashboards o motor 2D. Las fases E1/E2 de Neon están aprobadas; E3/E4 requieren una decisión explícita.
+- No ampliar por iniciativa propia a LLM, Dossier, nivel 3, Jefe, Parte, ambientes, rachas, `.ics`/push, ventanas protegidas, temporizador de canje, múltiples ocurrencias diarias, cuentas/sync bidireccional, dashboards o motor 2D. Las fases E1/E2 de Neon están aprobadas y aplicadas; E3/E4 requieren una decisión explícita.
 - **Nube server-only:** el cliente de Neon/Drizzle se importa solo en servidor, usa `DATABASE_URL` pooled y las migraciones usan `DATABASE_URL_UNPOOLED`. Nunca exponer credenciales, habilitar Data API para el navegador ni asumir RLS como autenticación.
 - **Migraciones:** generar SQL con Drizzle Kit, revisarlo y aplicarlo primero en una rama de desarrollo. No usar `drizzle-kit push` contra producción ni ejecutar migraciones destructivas sin backup y autorización.
 - La lista de aceptación vive **solo en `STATUS.md`**. La semana de prueba viene después de liberar, permite interrupciones y no exige una racha perfecta.

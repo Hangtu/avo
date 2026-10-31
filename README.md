@@ -5,7 +5,7 @@ El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PW
 C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla), D2
 (fallbacks de plataforma), D3 (una mano y tema cálido) y la validación local
 de D4 (12/16 criterios) están listos técnicamente, con **Liquid Focus** y la
-carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1** deja listo el esquema Neon/Drizzle, sin conectar todavía la app. El origen HTTPS es **https://runo-mu.vercel.app**.
+carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1/E2** dejó aplicado el esquema Neon/Drizzle y las diez plantillas iniciales, sin conectar todavía la app. El origen HTTPS es **https://runo-mu.vercel.app**.
 Falta la instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
 
 ## Antes de trabajar
@@ -45,6 +45,7 @@ npm run db:check      # revisa migraciones
 npm run db:migrate    # usa DATABASE_URL_UNPOOLED directa
 npm run db:seed       # dueño, preferencias y plantillas idempotentes
 npm run db:health     # confirma lectura contra Neon
+npm run db:verify     # tablas, migraciones, dueño, settings y conteos
 npm run db:studio     # inspección local
 ```
 
@@ -82,9 +83,9 @@ Cerrar una conexión no borra sus registros; borrar el almacenamiento del navega
 No hay backup ni sincronización entre dispositivos activos en el MVP.
 
 La preparación online está en [`docs/cloud/2026-10-31-neon-drizzle.md`](./docs/cloud/2026-10-31-neon-drizzle.md):
-Neon Postgres + Drizzle, cliente server-only y migración versionada. Aún no hay
-`DATABASE_URL`, tablas aplicadas ni API; no se debe asumir que los datos ya están
-en la nube. Ver también `STATUS.md` (E1/E2).
+Neon Postgres + Drizzle, cliente server-only y migración versionada. Las tablas
+ya están aplicadas y la semilla inicial está cargada; **la app todavía no escribe
+en Neon**, no hay API ni sync. Ver también `STATUS.md` (E1/E2).
 
 ## Mapa de implementación
 
@@ -92,6 +93,7 @@ en la nube. Ver también `STATUS.md` (E1/E2).
 - `messages/` y `lib/i18n/`: catálogos ES/EN, configuración de idioma y proveedor de `next-intl`.
 - `app/_components/`: interfaz cliente; `runo-home.tsx` es la apertura por franjas y `session-view.tsx` el timer.
 - `lib/db/`: esquema Dexie, repositorio, semilla transaccional y eventos append-only; `schema.ts` y `client.ts` preparan Neon/Drizzle del lado servidor.
+- `scripts/`: semilla, salud y verificación de la base; `drizzle/` guarda la migración aplicada.
 - `drizzle/`: migraciones SQL generadas para la fase online.
 - `tests/`: setup y fixtures; cada test usa una DB aleatoria con prefijo seguro.
 

@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-31  
 **Fase:** E1 · preparación de la capa de datos  
-**Estado:** esquema, cliente server-only, configuración y migración inicial generados. **No** hay proyecto Neon vinculado, migración aplicada, API ni sincronización. La app sigue leyendo y escribiendo IndexedDB.
+**Estado:** esquema, cliente server-only, configuración y migración inicial generados. **E2 aplicado:** proyecto Neon vinculado, migración aplicada, semilla cargada y lectura verificada. **No** hay API ni sincronización; la app sigue leyendo y escribiendo IndexedDB.
 
 ## 1. Decisión
 
@@ -55,22 +55,22 @@ Todas las tablas usan el prefijo `runo_` para poder convivir con otros proyectos
 - `lib/db/client.ts` server-only
 - `drizzle.config.ts`
 - migración `drizzle/0000_*.sql`
-- scripts `db:generate`, `db:migrate`, `db:check`, `db:seed`, `db:health`, `db:studio`
+- scripts `db:generate`, `db:migrate`, `db:check`, `db:seed`, `db:health`, `db:verify`, `db:studio`
 - `.env.example`
 - prueba estática del esquema
 
 **No incluye:** conexión real, tablas creadas, datos migrados ni cambios de comportamiento de la app.
 
-### E2 · Proyecto y migración (siguiente)
+### E2 · Proyecto y migración (aplicado 2026-10-31)
 
 1. Crear el proyecto `runo` en Neon, región `aws-us-east-1` (cerca de Vercel), Postgres 17.
 2. Guardar la URL **pooled** en `DATABASE_URL` y la **directa** en `DATABASE_URL_UNPOOLED`.
 3. Ejecutar `npm run db:migrate` contra la URL directa.
 4. Ejecutar `npm run db:seed` para crear `owner`, preferencias y las diez plantillas.
-5. Verificar con `npm run db:health` o una consulta de lectura.
-6. Probar la migración en la rama `development` antes de la rama de producción.
+5. Verificar con `npm run db:health` y `npm run db:verify`.
+6. Confirmar el nombre de la rama en Neon; esta sesión no pudo inferirlo desde la URL.
 
-**Criterio de cierre:** un `SELECT` de lectura confirma las 12 tablas, el usuario inicial y las plantillas; una segunda ejecución del seed no duplica filas.
+**Resultado:** migración aplicada, 12 tablas, 1 usuario `owner`, 1 fila de preferencias, 10 plantillas y 1 migración registrada. La segunda ejecución del seed mantuvo los conteos. No se pudo verificar el nombre de rama desde el connection string; no asumir que es producción o desarrollo sin mirar Neon.
 
 ### E3 · Acceso y respaldo
 
@@ -128,6 +128,7 @@ npm run db:check            # revisar migraciones
 npm run db:migrate          # aplicar con DATABASE_URL_UNPOOLED
 npm run db:seed             # dueño + preferencias + plantillas idempotentes
 npm run db:health           # confirma una lectura contra Neon
+npm run db:verify           # tablas, migraciones, dueño y conteos
 npm run db:studio           # inspección local
 ```
 

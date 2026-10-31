@@ -361,7 +361,7 @@ El MVP **no necesita un sistema de rachas ni un botón de Día blindado** para c
 
 ### Base local-first y preparación en la nube
 
-- IndexedDB mediante Dexie sigue siendo la fuente actual del bucle. En E1 se preparan Neon Postgres y Drizzle para una fase online; **todavía no hay API, migración aplicada ni sincronización**.
+- IndexedDB mediante Dexie sigue siendo la fuente actual del bucle. E1/E2 dejaron Neon Postgres + Drizzle con migración aplicada y semilla; **todavía no hay API ni sincronización**.
 - El esquema remoto vive en `lib/db/schema.ts`, se genera con Drizzle Kit y se usa **solo desde el servidor** (`pg` + `attachDatabasePool`). El navegador nunca recibe `DATABASE_URL`.
 - Shell prerenderizable y datos locales en cliente. No acceder a `window`, IndexedDB o fecha local del usuario desde un render de servidor que produzca diferencias de hidratación.
 - `cacheComponents` y `partialPrefetching` ya están habilitados. Leer su documentación antes de usar APIs de petición o cambiar esta configuración; no añadir dependencias o flags experimentales por inercia.
@@ -393,7 +393,7 @@ El MVP **no necesita un sistema de rachas ni un botón de Día blindado** para c
 
 Objetivo: estado utilizable en **2 s**; criterio de liberación: **menos de 5 s** en el teléfono objetivo, tras la primera carga y con assets preparados. Registrar por separado arranque en frío de la PWA, reapertura y restauración de sesión, con dispositivo/navegador y observación. No exigir red para el bucle ni prometer «cero latencia».
 
-Los datos sobreviven cierres normales, pero **no son un backup**: borrar almacenamiento, cambiar de origen o ciertas políticas del navegador pueden eliminarlos. Las actualizaciones no deben vaciar la DB. E1 deja listo el esquema remoto; el respaldo/sync se implementa en fases posteriores. No se promete recuperación que aún no existe.
+Los datos sobreviven cierres normales, pero **no son un backup**: borrar almacenamiento, cambiar de origen o ciertas políticas del navegador pueden eliminarlos. Las actualizaciones no deben vaciar la DB. E1/E2 dejan listo y sembrado el esquema remoto; el respaldo/sync se implementa en fases posteriores. No se promete recuperación que aún no existe.
 
 ## 13. Contrato de datos para el MVP
 
@@ -552,7 +552,7 @@ Proyecto A los lunes y Proyecto B los martes son **casos de prueba del editor y 
 2. **B · Bucle:** apertura por franjas, tres cambios, timer/3-2-1, bloqueo de tarea/franja, pausa, cierre de franja, descanso, editor, sesión rápida, pendientes de una vez e interfaz ES/EN. No cerrar el bloque sin cubrir todos sus IDs.
 3. **C · Economía y piel:** primero C1/C2 (segunda capa) y luego accesibilidad/El Reloj, Vigía, audio y banco local de frases. Coordinar B9 con C1 para probar el tope de recompensa.
 4. **D · Horario y pulido:** ancla con interrupción segura, fallbacks, una mano y validación de salida.
-5. **E · Nube:** E1 deja esquema, cliente server-only, migración y semilla listos; E2 crea/vincula el proyecto Neon, aplica la migración y verifica la semilla. La app sigue local-first y no se declara sync hasta que exista una fase explícita de importación/API.
+5. **E · Nube:** E1 dejó esquema, cliente server-only, migración y semilla listos; E2 vinculó el proyecto Neon, aplicó la migración y verificó la semilla. La app sigue local-first y no se declara sync hasta que exista una fase explícita de importación/API.
 
 Se trabaja un ID a la vez. Las pruebas técnicas pueden avanzar mientras una validación en teléfono está pendiente; no se declara hecha esa validación ni se oculta el pendiente. No desplegar ni escoger servicios de pago sin autorización.
 

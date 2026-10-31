@@ -5,16 +5,16 @@
 
 **Última actualización:** 2026-10-31
 **Alcance vigente:** `plan.md` v1.6 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez, interfaz ES/EN y preparación de Neon/Drizzle; Runo Coins pasa a la segunda capa.
-**Fase:** MVP / Fase 1 — primer corte por franjas. UI base **Liquid Focus** con **carta Ahora**, título «Recuerda lo que importa.» y **editor por día en bloques** integrados en `main`; producción en Vercel congelada. B8 corregido, **B13 (sesión rápida)** ampliado a Hoy, **B14 (pendientes de una vez)** implementado y **B15 (interfaz ES/EN)** con `next-intl`, selector en Ajustes y persistencia local. **E1 (Neon/Drizzle)** deja esquema y migración listos, sin aplicarlos ni activar sync. **12/16 criterios G vigentes** (G04/G14 recuperados). A0/A1/A2, C5, D2, D3 y D4 conservan sus pendientes de teléfono.
-**Bloque activo:** E — E1 listo; E2 espera el proyecto Neon y las URLs. **Ítem en curso:** ninguno; la app sigue local-first.
+**Fase:** MVP / Fase 1 — primer corte por franjas. UI base **Liquid Focus** con **carta Ahora**, título «Recuerda lo que importa.» y **editor por día en bloques** integrados en `main`; producción en Vercel congelada. B8 corregido, **B13 (sesión rápida)** ampliado a Hoy, **B14 (pendientes de una vez)** implementado y **B15 (interfaz ES/EN)** con `next-intl`, selector en Ajustes y persistencia local. **E1/E2 (Neon/Drizzle)** dejaron el esquema aplicado y la semilla cargada, pero la app sigue local-first y sin sync. **12/16 criterios G vigentes** (G04/G14 recuperados). A0/A1/A2, C5, D2, D3 y D4 conservan sus pendientes de teléfono.
+**Bloque activo:** E — E1/E2 completados; E3 pendiente de decidir el modo de acceso/backup. **Ítem en curso:** ninguno; la app sigue local-first.
 
 ## Siguiente acción
 
-**Crear o ligar el proyecto Neon `runo` y completar `DATABASE_URL` (pooled) y `DATABASE_URL_UNPOOLED` (directa) en `.env.local`.**
+**Decidir E3: aprobar el respaldo unidireccional desde IndexedDB hacia Neon, protegido por una compuerta de un solo usuario.**
 
-No pude crear ni aplicar la base desde esta sesión: el MCP de Neon está en solo lectura y no hay credenciales locales. Cuando estén las URLs, ejecuta `npm run db:migrate`, `npm run db:seed` y `npm run db:health`. La app sigue usando IndexedDB; E1 no cambia la fuente de verdad ni activa sync.
+La base ya está migrada y sembrada. Recomiendo no activar todavía una API de escritura ni sync bidireccional: primero un backup/importación unidireccional conserva la app local como fuente y evita conflictos de ledger/sesiones. E3/E4 requieren decisión explícita antes de implementarse.
 
-Antes de publicar una API que escriba, añadir la compuerta de acceso de un solo usuario. No exponer `DATABASE_URL` ni habilitar Data API/Postgres desde el navegador. La prueba móvil de G01/G02/G03/G13 y las pruebas de UI siguen pendientes.
+No exponer `DATABASE_URL` ni habilitar Data API/Postgres desde el navegador. La app todavía no lee ni escribe en Neon. La prueba móvil de G01/G02/G03/G13 y las pruebas de UI siguen pendientes.
 
 La prueba móvil sigue pendiente en **https://runo-mu.vercel.app**: instalar, abrir standalone, reabrir en modo avión y probar G01/G02/G03/G13 y C5/D2/D3. No hay despliegue nuevo; producción sigue congelada hasta que el dueño lo autorice. No afirmar instalación, offline, audio, vibración o zoom reales antes de que el dueño los pruebe.
 
@@ -26,7 +26,9 @@ La prueba móvil sigue pendiente en **https://runo-mu.vercel.app**: instalar, ab
 
 **Evidencia dock de escritorio (2026-10-31):** Chrome 157 sobre build de producción local a 1280/640/639/491/195 CSS px: el dock de cápsulas permanece visible y centrado en todos los anchos, mide 648 px como máximo y no hay enlaces de navegación duplicados en la cabecera. `Hoy` y `Tareas` cambian de vista y actualizan `aria-current`; el contenido conserva espacio inferior y no hay scroll horizontal. Sin errores de consola. Sin teléfono ni despliegue.
 
-**Evidencia E1 (2026-10-31):** 227/227 tests (17 archivos), `typecheck`, `lint`, `build` y `npm run db:check` pasan. `drizzle-kit generate` creó la migración `0000_yellow_zodiak.sql` con 12 tablas, enums, checks, FKs e índices únicos; el cliente es server-only y el seed está diseñado para ser idempotente. **No** hay proyecto Neon vinculado, migración aplicada, seed ejecutado ni `db:health`; no se usó ninguna credencial. La app sigue local-first y sin sync.
+**Evidencia E1 (2026-10-31):** 227/227 tests (17 archivos), `typecheck`, `lint`, `build` y `npm run db:check` pasan. `drizzle-kit generate` creó la migración `0000_yellow_zodiak.sql` con 12 tablas, enums, checks, FKs e índices únicos; el cliente es server-only y el seed está diseñado para ser idempotente. En ese corte todavía no había proyecto Neon; E2 posterior aplicó la migración y la semilla.
+
+**Evidencia E2 (2026-10-31):** el proyecto Neon respondió por la URL pooled; `npm run db:migrate` aplicó la migración por la URL directa. `npm run db:verify` confirmó **12 tablas**, **1 migración registrada**, `owner` en `America/Mexico_City`, preferencias iniciales y **10 tareas**. El seed se ejecutó dos veces sin cambiar los conteos. `npm run db:health` respondió `ok`. La app sigue leyendo y escribiendo IndexedDB; no hay API ni sync.
 
 **A0 desplegado:** producción en **https://runo-mu.vercel.app** (alias estable de Vercel, HTTPS, acceso público). El origen ya está fijado; lo que falta es la apertura/instalación en el teléfono del dueño. El proyecto Vercel quedó conectado al repositorio de GitHub. Los datos de Runo siguen siendo locales en IndexedDB; el servidor solo entrega la app.
 
@@ -42,7 +44,7 @@ La prueba móvil sigue pendiente en **https://runo-mu.vercel.app**: instalar, ab
 
 **Validación de salida:** 12 de 16 criterios; G04/G14 recuperados y G01/G02/G03/G13 pendientes móviles. **Prueba de uso:** no iniciada.
 
-**Fase E (nube):** E1 ✅ preparado; E2 ⬜ espera proyecto/credenciales. No suma al total de 33 del MVP.
+**Fase E (nube):** E1 ✅ generado; **E2 ✅ aplicado y sembrado**; E3/E4 pendientes. No suma al total de 33 del MVP.
 
 ## Reglas de seguimiento
 
@@ -149,8 +151,8 @@ Preguntas breves de uso, cuando corresponda: **¿abre rápido? ¿te ayudó a arr
 
 | ID | Qué | Terminado cuando… | Estado | Evidencia |
 |---|---|---|---|---|
-| **E1** | Esquema y herramientas Neon/Drizzle | Esquema versionado, cliente server-only, configuración, migración generada, semilla idempotente, scripts y pruebas estáticas; sin credenciales ni tablas aplicadas | ✅ | `lib/db/schema.ts` (12 tablas), `lib/db/client.ts`, `drizzle.config.ts`, `drizzle/0000_yellow_zodiak.sql`, `.env.example`, scripts `db:*` y 3 pruebas de esquema. `db:check` pasa; build y 227 tests pasan. Sin proyecto Neon ni migración aplicada. |
-| **E2** | Proyecto Neon y migración aplicada | Proyecto `runo` vinculado, URLs pooled/directa en `.env.local`, migración aplicada en `development`, seed sin duplicados y lectura de salud | ⬜ | Pendiente: el MCP está en solo lectura y no hay `DATABASE_URL` local. No afirmar tablas creadas ni seed ejecutado. |
+| **E1** | Esquema y herramientas Neon/Drizzle | Esquema versionado, cliente server-only, configuración, migración generada, semilla idempotente, scripts y pruebas estáticas | ✅ | `lib/db/schema.ts` (12 tablas), `lib/db/client.ts`, `drizzle.config.ts`, `drizzle/0000_yellow_zodiak.sql`, `.env.example`, scripts `db:*` y 3 pruebas de esquema. `db:check` pasa; build y 227 tests pasan. La aplicación real se registra en E2. |
+| **E2** | Proyecto Neon y migración aplicada | Proyecto Neon vinculado, URLs pooled/directa en `.env.local`, migración aplicada, seed sin duplicados y lectura de salud | ✅ | `db:migrate` exitoso por URL directa; `db:verify` mostró 12 tablas, 1 migración, owner, settings y 10 tareas; `db:health` respondió `ok`. El seed se repitió sin duplicar. No se verificó el nombre de rama desde el connection string. La app sigue local-first. |
 
 **Siguiente después de E2:** E3 (compuerta de acceso + importación/backup unidireccional) y E4 (sync real) requieren decisión explícita. Ver [`docs/cloud/2026-10-31-neon-drizzle.md`](./docs/cloud/2026-10-31-neon-drizzle.md).
 
@@ -229,6 +231,10 @@ Una semana de observación, **no siete días perfectos como condición para no p
 | `npm run typecheck` | Exit 0, tipos de Next y TypeScript |
 | `npm run lint` | Exit 0, sin errores ni warnings |
 | `npm run db:check` | Exit 0, migraciones consistentes |
+| `npm run db:migrate` | Migración aplicada en la base configurada |
+| `npm run db:seed` (2×) | 10 plantillas; conteos sin duplicados |
+| `npm run db:verify` | 12 tablas, 1 migración, 1 owner, 1 settings, 10 tasks |
+| `npm run db:health` | Neon respondió `ok` |
 | `npm audit --omit=dev` | 0 vulnerabilidades de producción |
 | Inspección histórica de Tareas / `a8e061d` | Se repitieron `npm test` (195/195), `npm run lint` y `npm run typecheck`, todos exit 0. Chrome 157.0.8103.26 headless sobre el dev existente en localhost:3000 reproduce cinco defectos y tres fricciones de UX. Contextos de prueba aislados, TZ Mexico_City, viewports 390/320/195 CSS px; sin datos del dueño ni cambios al código de app. [Informe](./docs/reviews/2026-10-30-tareas.md). Las filas de build/producción siguientes son evidencia previa, no reejecutada en esta inspección. |
 | `npm run build` | Exit 0, compilación y prerender de la página nueva, con `sw.js` regenerado |
@@ -249,7 +255,8 @@ Más reciente arriba. Registrar cambios comprobables y decisiones, sin inventar 
 
 | Fecha | ID | Qué pasó |
 |---|---|---|
-| 2026-10-31 | E1 · Neon/Drizzle | Se añadió el esquema server-only de 12 tablas, la migración inicial, el cliente `pg` + Drizzle, `.env.example`, scripts de generación/migración/check/seed/health y una prueba estática. `drizzle-kit generate` produjo `0000_yellow_zodiak.sql`; `db:check` pasa. No hay proyecto Neon vinculado, migración aplicada, seed ni lectura real; la app sigue local-first y sin sync. 227/227 tests, typecheck/lint/build pasan. Sin despliegue. |
+| 2026-10-31 | E2 · migración aplicada | Se normalizó `.env.local` (comillas accidentales y URL directa sin `-pooler`; no se imprimieron credenciales), `db:health` conectó, `db:migrate` aplicó la migración y `db:seed` cargó 1 owner, preferencias y 10 tareas. La segunda semilla no duplicó. `db:verify` confirmó 12 tablas y 1 migración. La app sigue local-first, sin API ni sync. |
+| 2026-10-31 | E1 · Neon/Drizzle | Se añadió el esquema server-only de 12 tablas, la migración inicial, el cliente `pg` + Drizzle, `.env.example`, scripts de generación/migración/check/seed/health y una prueba estática. `drizzle-kit generate` produjo `0000_yellow_zodiak.sql`; `db:check` pasa. En ese momento no había proyecto Neon vinculado, migración aplicada, seed ni lectura real; E2 los aplicó después. 227/227 tests, typecheck/lint/build pasan. Sin despliegue. |
 | 2026-10-31 | UI · días y tooltips | Se cambió la tira de días de scroll horizontal a una cuadrícula adaptable: 7 columnas en 491, 4 en 390/320 y 2 en 195, con todos los días visibles y botones de 49–70 × 63 px. `HelpTip` ahora oculta el panel al salir el cursor, perder el foco, hacer scroll, con Escape o toque fuera; no usa `aria-expanded`; el clic de ratón no deja el tooltip fijo y el toque alterna abrir/cerrar. Chrome 157 sobre build de producción local 491/390/320/195: sin scroll horizontal, siete días dentro de la tarjeta, hover/leave/click/Escape/keyboard/touch/scroll y sin errores de consola. 227/227 tests, typecheck/lint/build pasan. Sin teléfono ni despliegue. |
 | 2026-10-31 | UI · dock de escritorio | Se unificó la navegación: el dock de cápsulas del pie ya no se oculta a partir de 640 px y se retiraron los enlaces de navegación de la cabecera. El dock se centra con ancho máximo de 36rem, conserva los estilos de vidrio y `aria-current`, y el contenido reserva espacio inferior. Chrome 157 producción local 1280/640/639/491/195: dock visible, centrado y sin solapamiento; `Hoy`/`Tareas` funcionan; sin enlaces duplicados ni scroll horizontal. 227/227 tests, typecheck/lint/build pasan. Sin teléfono ni despliegue. |
 | 2026-10-31 | UI · bloques plegables | Mañana, Tarde, Noche, Sin hora, Sin día y Guardadas aparte usan `<details>/<summary>` nativos, con contador y chevron; inician abiertos y conservan el estado al cambiar de día o abrir/cerrar el formulario. Chrome 157 producción local 491/195: abrir/cerrar con clic y Enter, bloque cerrado de 200→50 px, Tarde cerrada tras el formulario, resúmenes de 50 px y sin scroll horizontal. 227/227 tests, typecheck/lint/build pasan. Sin teléfono ni despliegue. |
@@ -327,7 +334,7 @@ Las copias por bloques se mantienen como la decisión registrada en «UI feedbac
 - **Idioma v1.5.** Español inicial, inglés opcional; selector en Ajustes, preferencia local, sin `/es`/`/en`, catálogos estáticos y `next-intl`; datos del usuario no se traducen.
 - **Sesión rápida v1.3.** Desde Hoy o el día cerrado, incluso con una tarea asignada, nombre + minutos, timer one-off sin Task/franja/RC y sin alterar el día; una sola sesión activa. Es una salida para trabajo inmediato, no una segunda economía.
 - **Pendientes v1.4.** Lista persistente de to-dos de una sola vez, en pestaña propia y con captura desde Hoy; 25 min iniciales, timer directo, completar antes o con «Ya lo hice», sin RC, sin franja ni día. Completados desaparecen; el siguiente queda visible sin autoinicio.
-- **Nube v1.6.** Neon Postgres + Drizzle server-only; E1 deja esquema y migración listos, sin aplicarlos; E2 crea el proyecto, migra y siembra. La app sigue local-first y no hay sync hasta E3/E4.
+- **Nube v1.6.** Neon Postgres + Drizzle server-only; E1 dejó esquema/migración y E2 aplicó ambos + semilla. La app sigue local-first y no hay sync hasta E3/E4.
 
 ### Resueltos en la revisión v1.1
 
