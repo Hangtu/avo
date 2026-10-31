@@ -25,7 +25,6 @@ import { TaskEditor } from "./task-editor";
 import { useVoicePreference } from "./use-voice-preference";
 import { WalletView } from "./wallet-view";
 import { SettingsView } from "./settings-view";
-import { ThemeControl } from "./theme-control";
 import { useThemePreference } from "./use-theme-preference";
 
 interface FranjaTask {
@@ -506,6 +505,11 @@ export function RunoHome() {
               onTone={voice.setTone}
               onWalletVisibilityChange={setShowWalletLink}
               onOpenWallet={openWallet}
+              theme={theme.mode}
+              themeReady={theme.ready}
+              themeBusy={theme.busy}
+              themeError={theme.error}
+              onThemeChange={(next) => void theme.setTheme(next)}
             />
           ) : null}
           {showWallet ? <WalletView /> : null}
@@ -573,16 +577,7 @@ export function RunoHome() {
         </div>
 
         <footer className="mt-auto border-t border-line pt-5 text-sm leading-6 text-muted">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <p>Una cosa a la vez. Eliges el orden dentro de la franja.</p>
-            <ThemeControl
-              mode={theme.mode}
-              ready={theme.ready}
-              busy={theme.busy}
-              error={theme.error}
-              onChange={(next) => void theme.setTheme(next)}
-            />
-          </div>
+          <p>Una cosa a la vez. Eliges el orden dentro de la franja.</p>
         </footer>
 
         <nav className="runo-dock" aria-label="Navegación principal">

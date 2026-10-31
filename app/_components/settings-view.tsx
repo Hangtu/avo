@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { openDatabase } from "@/lib/db/database";
 import { getSettings, saveSettings } from "@/lib/db/repository";
 import type { Settings } from "@/lib/domain/types";
+import type { ThemeMode } from "@/lib/domain/theme";
 import type { VoiceTone } from "@/lib/domain/voice";
+import { ThemeControl } from "./theme-control";
 import { VoiceControl } from "./voice-control";
 
 export function SettingsView({
@@ -13,12 +15,22 @@ export function SettingsView({
   onTone,
   onWalletVisibilityChange,
   onOpenWallet,
+  theme,
+  themeReady,
+  themeBusy,
+  themeError,
+  onThemeChange,
 }: {
   tone: VoiceTone;
   voiceReady: boolean;
   onTone: (tone: VoiceTone) => void;
   onWalletVisibilityChange: (visible: boolean) => void;
   onOpenWallet: () => void;
+  theme: ThemeMode;
+  themeReady: boolean;
+  themeBusy: boolean;
+  themeError: string | null;
+  onThemeChange: (mode: ThemeMode) => void;
 }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +134,22 @@ export function SettingsView({
         </p>
         <div className="mt-3">
           <VoiceControl tone={tone} ready={voiceReady} onTone={onTone} />
+        </div>
+      </div>
+
+      <div className="mt-7 border-t border-line pt-5">
+        <h3 className="text-lg font-semibold">Apariencia</h3>
+        <p className="mt-1 text-sm leading-6 text-muted">
+          El tema automático cambia a noche cálida de 20:00 a 07:00.
+        </p>
+        <div className="mt-3">
+          <ThemeControl
+            mode={theme}
+            ready={themeReady}
+            busy={themeBusy}
+            error={themeError}
+            onChange={onThemeChange}
+          />
         </div>
       </div>
 
