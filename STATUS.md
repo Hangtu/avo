@@ -5,7 +5,7 @@
 
 **Última actualización:** 2026-10-30
 **Alcance vigente:** `plan.md` v1.2 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas y descanso gratuito; Runo Coins pasa a la segunda capa.
-**Fase:** MVP / Fase 1 — primer corte por franjas. UI base **Liquid Focus** con **carta Ahora** integrada en `main`; origen HTTPS desplegado en Vercel; Bloque B cerrado; C1–C4/C6 y D1 verificados; A0/A1/A2, C5, D2, D3 y D4 esperan la prueba en teléfono. 12/16 criterios G con evidencia local/remota. Siguiente prueba móvil del dueño.
+**Fase:** MVP / Fase 1 — primer corte por franjas. UI base **Liquid Focus** con **carta Ahora** y título «Recuerda lo que importa.» integrados en `main`; origen HTTPS desplegado en Vercel; Bloque B cerrado; C1–C4/C6 y D1 verificados; A0/A1/A2, C5, D2, D3 y D4 esperan la prueba en teléfono. 12/16 criterios G con evidencia local/remota. Siguiente prueba móvil del dueño.
 **Bloque activo:** D — Validación de salida y UI base; URL desplegada, cierre móvil pendiente. **Ítem en curso:** ninguno; siguiente prueba en teléfono.
 
 ## Siguiente acción

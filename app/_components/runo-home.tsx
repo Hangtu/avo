@@ -446,7 +446,7 @@ export function RunoHome() {
               <span aria-hidden className="ml-2 inline-block h-2 w-2 bg-accent align-middle" />
             </p>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
-              Tu día, por franjas.
+              Recuerda lo que importa.
             </h1>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3 pb-1">
