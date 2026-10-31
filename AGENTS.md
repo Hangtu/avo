@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 App personal de hábitos, organización y timer, con presión configurable y recompensas en minutos de ocio. Un solo usuario, español de México. El objetivo es ayudar a actuar y volver a la vida, no maximizar adicción o tiempo dentro de la app.
 
-**Alcance vigente:** `plan.md` v1.5, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
+**Alcance vigente:** `plan.md` v1.6, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
 
 ## 1. Lectura y fuentes de verdad
 
@@ -20,6 +20,7 @@ Al iniciar una sesión:
 1. **`STATUS.md`**: siguiente acción, IDs, evidencia y pendientes.
 2. **`plan.md`**: al menos §2 (principios), §16 (decisiones), §17 (alcance/IDs) y las secciones de comportamiento/datos relevantes al ID.
 3. **`node_modules/next/dist/docs/`**: guía pertinente antes de usar o cambiar una API de Next. La documentación debe coincidir con la versión instalada.
+4. **`docs/cloud/`** y la documentación oficial de Neon: decisiones de la capa remota, conexión y migraciones. No inventar endpoints ni conexiones.
 
 Si la petición es análisis o documentación, hacer eso; no interpretar automáticamente una conversación como permiso para implementar, desplegar o ampliar el alcance.
 
@@ -80,8 +81,8 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 
 | Tema | Regla |
 |---|---|
-| Stack | Next 16.4.3 / React 19.3 / TypeScript / Tailwind v4 ya existentes; no migrar por memoria o conveniencia |
-| Datos | IndexedDB con Dexie, esquema versionado, local-first; sin login, backend de datos ni sync en MVP |
+| Stack | Next 16.4.3 / React 19.3 / TypeScript / Tailwind v4 ya existentes; Neon Postgres + Drizzle para la fase E; no migrar por memoria o conveniencia |
+| Datos | IndexedDB con Dexie sigue siendo la fuente actual; Neon + Drizzle están preparados en E1 como capa server-only, sin login ni sync activos |
 | Dominio | Task, Occurrence, Day, Hand, Session, Event, Ledger y Settings; responsabilidades en `plan.md` §13 |
 | Unicidad | Una ocurrencia por tarea/fecha local en MVP; no repetir realizadas para llenar franjas. Una sola sesión activa (corriendo o pausada) |
 | Timer | Reloj de pared por tramos y restante persistente. Un intervalo refresca UI, no acumula el tiempo como fuente de verdad |
@@ -91,7 +92,8 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 | Offline | Service worker + assets cacheados para arranque en frío; IndexedDB/manifest/`useOffline` solos no bastan |
 | Plataforma | Wake lock y vibración con detección y fallback visual. No garantizar avisos cuando la app está cerrada |
 | Calendario | `.ics` fuera del MVP y sujeto a importación/permisos; nunca prometer takeover o alarma infalible |
-| Privacidad | No enviar eventos/metas personales a LLM o analítica de terceros en MVP. Datos locales no equivalen a backup |
+| Privacidad | No enviar eventos/metas personales a LLM o analítica de terceros en MVP. Datos locales no equivalen a backup; la compuerta de acceso antecede a cualquier API remota |
+| Nube | `DATABASE_URL` solo en servidor; runtime pooled, migraciones directas, SQL versionado; no Data API ni Postgres desde el navegador |
 
 ### Next y organización
 
@@ -105,12 +107,14 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 ## 6. Verificación y límites de evidencia
 
 - Probar dominio/DB/motor/economía con casos normales, límites, reintentos, sesiones pausadas, fecha local, doble confirmación, bloqueo de tarea/franja y descanso.
-- Verificación disponible desde A7: `npm test` (Vitest run), `npm run test:watch`, `npm run typecheck` (Next typegen + TypeScript), `npm run lint` y `npm run build`; producción con `npm run start`. El setup de tests usa fake-indexeddb únicamente en Node, nunca en producción.
+- Verificación disponible desde A7: `npm test` (Vitest run), `npm run test:watch`, `npm run typecheck` (Next typegen + TypeScript), `npm run lint` y `npm run build`; producción con `npm run start`. El setup de tests usa fake-indexeddb únicamente en Node, nunca en producción. La capa E1 se valida con `npm run db:generate` y `npm run db:check` sin credenciales; `db:migrate`, `db:seed` y `db:health` requieren un proyecto Neon y no se declaran ejecutados sin URL.
 - Verificar UI en navegador cuando exista; usar el servidor de desarrollo ya activo si lo hay, no matar procesos sin motivo. El bloqueo es de Runo, no del teléfono: no prometer que impide usar otras apps.
 - Probar instalación/offline también en **build de producción**, no solo en `next dev`. Registrar origen HTTPS estable porque los datos se aíslan por origen.
 - Aplicar `prefers-reduced-motion` también al timer/Vigía, foco visible, contraste medido, etiquetas, zoom y controles de una mano.
 - La investigación de accesibilidad sigue pendiente hasta C3. Fuentes/tamaños son decisiones a probar, no evidencia clínica sobre TDAH. No presentar hipótesis de memoria, motivación o crianza como diagnósticos.
-- No ampliar por iniciativa propia a LLM, Dossier, nivel 3, Jefe, Parte, ambientes, rachas, `.ics`/push, ventanas protegidas, temporizador de canje, múltiples ocurrencias diarias, cuentas/sync, dashboards o motor 2D.
+- No ampliar por iniciativa propia a LLM, Dossier, nivel 3, Jefe, Parte, ambientes, rachas, `.ics`/push, ventanas protegidas, temporizador de canje, múltiples ocurrencias diarias, cuentas/sync bidireccional, dashboards o motor 2D. Las fases E1/E2 de Neon están aprobadas; E3/E4 requieren una decisión explícita.
+- **Nube server-only:** el cliente de Neon/Drizzle se importa solo en servidor, usa `DATABASE_URL` pooled y las migraciones usan `DATABASE_URL_UNPOOLED`. Nunca exponer credenciales, habilitar Data API para el navegador ni asumir RLS como autenticación.
+- **Migraciones:** generar SQL con Drizzle Kit, revisarlo y aplicarlo primero en una rama de desarrollo. No usar `drizzle-kit push` contra producción ni ejecutar migraciones destructivas sin backup y autorización.
 - La lista de aceptación vive **solo en `STATUS.md`**. La semana de prueba viene después de liberar, permite interrupciones y no exige una racha perfecta.
 
 <!-- BEGIN:nextjs-agent-feedback -->

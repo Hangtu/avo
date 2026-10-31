@@ -5,7 +5,7 @@ El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PW
 C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla), D2
 (fallbacks de plataforma), D3 (una mano y tema cálido) y la validación local
 de D4 (12/16 criterios) están listos técnicamente, con **Liquid Focus** y la
-carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. El origen HTTPS es **https://runo-mu.vercel.app**.
+carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1** deja listo el esquema Neon/Drizzle, sin conectar todavía la app. El origen HTTPS es **https://runo-mu.vercel.app**.
 Falta la instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
 
 ## Antes de trabajar
@@ -13,6 +13,7 @@ Falta la instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
 - [AGENTS.md](./AGENTS.md): instrucciones para agentes.
 - [STATUS.md](./STATUS.md): estado real, siguiente ID y evidencia.
 - [plan.md](./plan.md): contrato de producto y alcance.
+- [docs/cloud/2026-10-31-neon-drizzle.md](./docs/cloud/2026-10-31-neon-drizzle.md): preparación de Neon/Drizzle.
 
 ## Desarrollo
 
@@ -36,6 +37,17 @@ npm run lint
 npm run build
 ```
 
+Para la capa Neon/Drizzle, después de completar `.env.local`:
+
+```bash
+npm run db:generate   # genera SQL sin conectar
+npm run db:check      # revisa migraciones
+npm run db:migrate    # usa DATABASE_URL_UNPOOLED directa
+npm run db:seed       # dueño, preferencias y plantillas idempotentes
+npm run db:health     # confirma lectura contra Neon
+npm run db:studio     # inspección local
+```
+
 Vitest ejecuta pruebas de dominio y persistencia en Node. `fake-indexeddb`
 solo se carga desde el setup de tests: sus resultados no certifican soporte móvil.
 Las pruebas no requieren red, cuentas ni claves de API.
@@ -54,7 +66,7 @@ Origen estable: **https://runo-mu.vercel.app**
 3. Cierra la app, activa modo avión y vuelve a abrirla.
 4. Comprueba que aparecen tus tareas y que una sesión o saldo ya guardados siguen ahí.
 
-No hay datos de uso en el servidor: IndexedDB vive en el teléfono.
+Por ahora no hay datos de uso en el servidor: IndexedDB vive en el teléfono. La fase E1 prepara la conexión, pero no la activa.
 
 ## Diseño
 
@@ -65,16 +77,22 @@ tinta oscura, un acento bermellón y reglas finas sin sombras. Referencias y reg
 
 ## Datos
 
-La capa de datos usa IndexedDB por origen mediante Dexie, con esquema versionado.
+La app sigue usando IndexedDB por origen mediante Dexie, con esquema versionado.
 Cerrar una conexión no borra sus registros; borrar el almacenamiento del navegador sí.
-No hay backup ni sincronización entre dispositivos en el MVP.
+No hay backup ni sincronización entre dispositivos activos en el MVP.
+
+La preparación online está en [`docs/cloud/2026-10-31-neon-drizzle.md`](./docs/cloud/2026-10-31-neon-drizzle.md):
+Neon Postgres + Drizzle, cliente server-only y migración versionada. Aún no hay
+`DATABASE_URL`, tablas aplicadas ni API; no se debe asumir que los datos ya están
+en la nube. Ver también `STATUS.md` (E1/E2).
 
 ## Mapa de implementación
 
 - `lib/domain/`: contratos, validaciones, calendario local, selección pura de cartas y armado de la franja.
 - `messages/` y `lib/i18n/`: catálogos ES/EN, configuración de idioma y proveedor de `next-intl`.
 - `app/_components/`: interfaz cliente; `runo-home.tsx` es la apertura por franjas y `session-view.tsx` el timer.
-- `lib/db/`: esquema Dexie, repositorio, semilla transaccional y eventos append-only.
+- `lib/db/`: esquema Dexie, repositorio, semilla transaccional y eventos append-only; `schema.ts` y `client.ts` preparan Neon/Drizzle del lado servidor.
+- `drizzle/`: migraciones SQL generadas para la fase online.
 - `tests/`: setup y fixtures; cada test usa una DB aleatoria con prefijo seguro.
 
 El dominio no depende de React. Reloj y semilla se pasan explícitamente al motor.

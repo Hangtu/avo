@@ -2,11 +2,11 @@
 
 > **Runo te ayuda a recordar, elegir con menos esfuerzo y empezar una tarea adecuada al momento. Te acompaña con tiempo visible, presión configurable y recompensas, sin castigarte por atender tu vida.**
 
-**Versión del alcance:** 1.5 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez e interfaz bilingüe español/inglés; Runo Coins pasa a la segunda capa.
+**Versión del alcance:** 1.6 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez, interfaz bilingüe español/inglés y preparación de datos en Neon/Drizzle; Runo Coins pasa a la segunda capa.
 **Estado de ejecución y siguiente acción:** [`STATUS.md`](./STATUS.md). Este plan describe el producto; no certifica funcionalidades construidas.
 **Instrucciones para agentes:** [`AGENTS.md`](./AGENTS.md).
 
-**Resumen:** una carta visible · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · sesión rápida fuera de la lista · pendientes de una sola vez · interfaz ES/EN · El Reloj · sin LLM en el MVP.
+**Resumen:** una carta visible · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · sesión rápida fuera de la lista · pendientes de una sola vez · interfaz ES/EN · preparación de datos en Neon/Drizzle · El Reloj · sin LLM en el MVP.
 
 ---
 
@@ -359,13 +359,14 @@ El MVP **no necesita un sistema de rachas ni un botón de Día blindado** para c
 
 **Stack existente:** Next.js 16.4.3, App Router, React 19.3, TypeScript y Tailwind v4. La documentación de la versión instalada en `node_modules/next/dist/docs/` tiene prioridad sobre ejemplos recordados.
 
-### Base local-first
+### Base local-first y preparación en la nube
 
-- IndexedDB mediante Dexie, sin cuentas, login, nube de datos ni backend para el bucle del MVP.
+- IndexedDB mediante Dexie sigue siendo la fuente actual del bucle. En E1 se preparan Neon Postgres y Drizzle para una fase online; **todavía no hay API, migración aplicada ni sincronización**.
+- El esquema remoto vive en `lib/db/schema.ts`, se genera con Drizzle Kit y se usa **solo desde el servidor** (`pg` + `attachDatabasePool`). El navegador nunca recibe `DATABASE_URL`.
 - Shell prerenderizable y datos locales en cliente. No acceder a `window`, IndexedDB o fecha local del usuario desde un render de servidor que produzca diferencias de hidratación.
 - `cacheComponents` y `partialPrefetching` ya están habilitados. Leer su documentación antes de usar APIs de petición o cambiar esta configuración; no añadir dependencias o flags experimentales por inercia.
 - Motor de selección puro, con reloj y semilla como argumentos, testeable sin React ni IndexedDB.
-- Esquema de DB versionado, semilla idempotente y escrituras de resultados/ledger atómicas. Reintentos y React Strict Mode no deben duplicar tareas o pagos. Solo una sesión puede estar activa a la vez: corriendo o pausada. Una pausa no libera el bloqueo de tarea.
+- Esquema de DB versionado, semilla idempotente y escrituras de resultados/ledger atómicas. Reintentos y React Strict Mode no deben duplicar tareas o pagos. Solo una sesión puede estar activa a la vez: corriendo o pausada. Una pausa no libera el bloqueo de tarea. La misma identidad de `actionId`/`sourceKey` se conserva en el esquema remoto.
 - El **descanso** es una cuenta regresiva visual de 10 min: no es una sesión, no se persiste como ocurrencia, no paga RC y no bloquea la siguiente tarea.
 - `first-app-context.md` se conserva como fuente histórica. Los datos de uso y metas personales no se envían a un LLM ni a analítica de terceros en el MVP.
 
@@ -392,7 +393,7 @@ El MVP **no necesita un sistema de rachas ni un botón de Día blindado** para c
 
 Objetivo: estado utilizable en **2 s**; criterio de liberación: **menos de 5 s** en el teléfono objetivo, tras la primera carga y con assets preparados. Registrar por separado arranque en frío de la PWA, reapertura y restauración de sesión, con dispositivo/navegador y observación. No exigir red para el bucle ni prometer «cero latencia».
 
-Los datos sobreviven cierres normales, pero **no son un backup**: borrar almacenamiento, cambiar de origen o ciertas políticas del navegador pueden eliminarlos. Las actualizaciones no deben vaciar la DB. Exportación/backup y sync se valoran después; no se promete recuperación que aún no existe.
+Los datos sobreviven cierres normales, pero **no son un backup**: borrar almacenamiento, cambiar de origen o ciertas políticas del navegador pueden eliminarlos. Las actualizaciones no deben vaciar la DB. E1 deja listo el esquema remoto; el respaldo/sync se implementa en fases posteriores. No se promete recuperación que aún no existe.
 
 ## 13. Contrato de datos para el MVP
 
@@ -404,6 +405,8 @@ Los tipos viven en `lib/domain/types.ts`, las validaciones en `lib/domain/valida
 | **Occurrence** | Identidad única por tarea + fecha local, estado, progreso, tope de recompensa, RC ya acreditados y marca de presentación de ancla. En MVP hay una ocurrencia por tarea/fecha; más de una diaria queda fuera |
 | **Day** | Fecha local, contador persistente de cambios voluntarios (0–3) y `closedAt` para «Terminar por hoy». El valor inicial de cambios es 3; el ajuste en Ajustes queda para después del primer corte |
 | **Hand** | ID, fecha, número de franja, hasta tres IDs de ocurrencia y estado abierto/cerrado. Solo una franja puede estar abierta a la vez; la siguiente se crea al cerrar la actual |
+
+**Espejo remoto (E1):** `lib/db/schema.ts` replica estas entidades en Postgres para la fase online. La app sigue usando IndexedDB; el espejo no es todavía la fuente de verdad ni se sincroniza.
 | **Session** | Ocurrencia, franja si aplica, variante, snapshot de tarea/duración/recompensa, estado, restante del tramo, inicio del tramo y tiempo acumulado. Una sola sesión activa (corriendo o pausada); una pausada bloquea iniciar otra tarea; una anterior puede quedar pausada por un ancla. La sesión rápida usa un snapshot sintético sin Task, no tiene franja y fija recompensa 0; la sesión de un pendiente añade `pendingId` y usa una ocurrencia sintética por sesión |
 | **Pending** | ID, título, minutos enteros, creación, actualización, completado y borrado lógico. No tiene días, franja, ocurrencia diaria, prioridad ni recompensa; se lista aparte y se completa con o sin timer |
 | **Event** | ID y acción idempotente, tipo canónico (§9), timestamp, referencias pertinentes y contexto/motivo explícito |
@@ -444,7 +447,7 @@ Más identidades del mismo bucle, pruebas de novedad y progresión acumulativa s
 
 Parte, sugerencias de fricción, Dossier y LLM con consentimiento, privacidad y respaldo local. No hace falta para configurar proyectos, leer una carta o usar el timer.
 
-**Fuera del MVP:** LLM, Dossier, nivel 3, múltiples ambientes, Jefe, rachas/desbloqueos, Parte, `.ics`, push, ventanas protegidas por categoría, temporizador de ocio, múltiples ocurrencias diarias de una misma tarea, cuentas, sync, dashboards y motor 2D.
+**Fuera del MVP:** LLM, Dossier, nivel 3, múltiples ambientes, Jefe, rachas/desbloqueos, Parte, `.ics`, push, ventanas protegidas por categoría, temporizador de ocio, múltiples ocurrencias diarias de una misma tarea, cuentas, sync bidireccional, dashboards y motor 2D. La fase E prepara la base remota sin convertirla todavía en fuente de verdad.
 
 ## 15. Cómo evaluaremos si ayuda
 
@@ -487,7 +490,8 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Elian / nivel 3 | Reservados para una fase posterior, con habilitación explícita y sin descalificación personal |
 | Dirección visual | Minimalismo editorial evolucionado a **Liquid Focus**: Lexend, fondo ambiental, vidrio con fallback, índigo, una acción principal y dock de vidrio; referencias en `docs/design/references/` |
 | Variación del MVP | El Reloj y 5–10 frases locales; audio apagado inicialmente |
-| Datos | Local-first, sin login ni envío de datos personales a un LLM en MVP |
+| Datos | Local-first con Dexie en el MVP; Neon + Drizzle preparados en E1, sin login ni sync activos; no se envían datos a un LLM |
+| Nube | Neon Postgres server-only, migraciones Drizzle con URL directa y runtime pooled; E1 no cambia la fuente de verdad local |
 | Recordatorios externos | `.ics` después, sin promesa de alarma o takeover garantizados |
 | Rendimiento | Objetivo 2 s; liberación <5 s en las condiciones y mediciones de §12 |
 | Investigación | C3 midió contraste y consultó WCAG 2.2/WebAIM; D3 implementa zoom, una mano y tema; validación móvil en D4; no validación clínica |
@@ -517,6 +521,7 @@ Los IDs y el estado viven en `STATUS.md`. Esta tabla asegura que cada requisito 
 | Identidad y acompañamiento | C3, C4, C5, C6 | El Reloj accesible, Vigía, audio opt-in y voz local |
 | Horario y plataforma | D1, D2, D3 | Ancla visible con pausa segura, fallback visual y uso de una mano |
 | Validación de salida | B7, D4 | Flujo mínimo completo y criterios de liberación verificados |
+| Nube (fase E) | E1, E2 | Esquema Drizzle/Neon y migración validada; sin sync todavía |
 
 ### 17.2 Semilla del Mazo
 
@@ -547,6 +552,7 @@ Proyecto A los lunes y Proyecto B los martes son **casos de prueba del editor y 
 2. **B · Bucle:** apertura por franjas, tres cambios, timer/3-2-1, bloqueo de tarea/franja, pausa, cierre de franja, descanso, editor, sesión rápida, pendientes de una vez e interfaz ES/EN. No cerrar el bloque sin cubrir todos sus IDs.
 3. **C · Economía y piel:** primero C1/C2 (segunda capa) y luego accesibilidad/El Reloj, Vigía, audio y banco local de frases. Coordinar B9 con C1 para probar el tope de recompensa.
 4. **D · Horario y pulido:** ancla con interrupción segura, fallbacks, una mano y validación de salida.
+5. **E · Nube:** E1 deja esquema, cliente server-only, migración y semilla listos; E2 crea/vincula el proyecto Neon, aplica la migración y verifica la semilla. La app sigue local-first y no se declara sync hasta que exista una fase explícita de importación/API.
 
 Se trabaja un ID a la vez. Las pruebas técnicas pueden avanzar mientras una validación en teléfono está pendiente; no se declara hecha esa validación ni se oculta el pendiente. No desplegar ni escoger servicios de pago sin autorización.
 
