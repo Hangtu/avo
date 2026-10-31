@@ -59,7 +59,7 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 10. **Presión con control:** techo inicial 2, tono efectivo normal 1. En MVP, 5–10 frases locales sin LLM; duro solo solicitado o con motivo explícito. No escalar por cambios, ausencias o vida real. Nivel 3/Elian reservados para después, sin descalificaciones personales o familiares.
 11. **Sin rachas punitivas.** No implementar castigos y después construir una función para perdonarlos. Progreso posterior acumulativo; el MVP no necesita desbloqueos.
 12. **Rendimiento:** objetivo 2 s, aceptación <5 s en condiciones de `plan.md` §12. Registrar arranque/reapertura, no prometer cero latencia o medir solo en dev.
-13. **Sesión rápida acotada:** nombre + minutos desde día cerrado; no es una Task del Mazo, no entra a franja ni altera el día, no paga RC y solo hay una sesión activa. Su sesión/ocurrencia se conserva para sobrevivir una recarga; al terminar vuelve al día cerrado. Es una salida para trabajo inmediato, no una segunda economía.
+13. **Sesión rápida acotada:** nombre + minutos desde Hoy o el día cerrado, visible incluso con una tarea asignada; no es una Task del Mazo, no entra a franja ni altera el día, no paga RC y solo hay una sesión activa. Su sesión/ocurrencia se conserva para sobrevivir una recarga; al terminar vuelve a donde empezó. Es una salida para trabajo inmediato, no una segunda economía.
 
 ## 4. Economía: una sola interpretación
 

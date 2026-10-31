@@ -47,7 +47,7 @@ Los cuatro trabajos de Runo son: **recordar y orientar · facilitar el arranque 
 | **Franja (Hand)** | Bloque de hasta tres cartas; varias por día, ordenadas; no es un máximo de tareas del día | MVP |
 | **Tirada** | Propuesta de una sola carta elegible | MVP |
 | **Asalto** | Sesión de una tarea o de un escalón, con timer y pausa | MVP |
-| **Sesión rápida** | Timer one-off con nombre y minutos, fuera del Mazo y sin RC; no altera el día | MVP (B13) |
+| **Sesión rápida** | Timer one-off con nombre y minutos desde Hoy o el día cerrado, fuera del Mazo y sin RC; no altera el día | MVP (B13) |
 | **Escalón** | Primer paso corto opcional; no equivale automáticamente a terminar la tarea | MVP |
 | **Descanso** | Pausa gratuita de 10 min tras completar; saltable, no paga RC y no bloquea la siguiente tarea | MVP |
 | **Ancla ligera** | Tarea con hora fija que recibe prioridad con la app visible | MVP |
@@ -128,12 +128,12 @@ El progreso registrado es **tiempo del timer y resultados declarados**, no una m
 
 ### 4.5 Sesión rápida
 
-Después de cerrar el día, la pantalla ofrece **Tarea rápida**: un timer one-off para algo que no estaba en la lista, como pagar cuentas o resolver un pendiente inmediato.
+En **Hoy** o después de cerrar el día, la pantalla ofrece **Tarea rápida**: un timer one-off para algo que no estaba en la lista, como pagar cuentas o resolver un pendiente inmediato. También está disponible cuando hay una tarea asignada; no la reemplaza ni la marca como hecha, solo permite resolver algo fuera de la lista y volver.
 
 - Pide un nombre y minutos enteros; no usa categoría, prioridad, días, franja ni escalón.
 - **No es una tarea del Mazo** y no entra a ninguna franja, ocurrencia diaria o cola de propuestas. Internamente conserva su sesión/ocurrencia para sobrevivir una recarga, pero no aparece en Tareas.
 - **No paga RC** ni genera ledger. Es tiempo de foco, no una recompensa económica; así no se puede usar para producir minutos de ocio sin límite.
-- No cambia el estado del día cerrado. Al terminar o abandonar, vuelve a la pantalla de día cerrado y permite otra sesión rápida.
+- No cambia el estado del día abierto ni cerrado. Al terminar o abandonar, vuelve a la pantalla desde donde empezó (Hoy o día cerrado) y permite otra sesión rápida.
 - Solo puede haber una sesión activa a la vez, igual que con las tareas. Pausa, «El bebé», «No aplica» y la confirmación de término funcionan con el mismo timer.
 - Arranca directo al confirmar el formulario, sin la cuenta 3-2-1 de las tareas; el formulario ya es la confirmación.
 
@@ -457,7 +457,7 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Moneda (segunda capa) | 1 RC = 1 min; recompensa fija por variante, con tope por ocurrencia (§6) |
 | Economía | RC en segunda capa; descanso gratuito en el primer corte; sin multiplicadores, deuda o préstamos |
 | Descanso | 10 min gratis tras completar, saltable, sin RC y sin bloquear la siguiente tarea |
-| Sesión rápida | Nombre + minutos desde día cerrado; no es tarea, no entra a franja, no paga RC, no altera el día; una a la vez y persiste para recargar |
+| Sesión rápida | Nombre + minutos desde Hoy o el día cerrado, incluso con una tarea asignada; no es tarea, no entra a franja, no paga RC, no altera el día; una a la vez y persiste para recargar |
 | Tono inicial | Techo 2, tono efectivo normal 1; modo duro solicitado o con motivo explícito; no por usar cambios |
 | Elian / nivel 3 | Reservados para una fase posterior, con habilitación explícita y sin descalificación personal |
 | Dirección visual | Minimalismo editorial evolucionado a **Liquid Focus**: Lexend, fondo ambiental, vidrio con fallback, índigo, una acción principal y dock móvil; referencias en `docs/design/references/` |
@@ -485,7 +485,7 @@ Los IDs y el estado viven en `STATUS.md`. Esta tabla asegura que cada requisito 
 | Asalto y recuperación | B3, B4, B6, B10 | Timer con 3-2-1, confirmación, pausa/reanudación y restauración |
 | Bloqueo y descanso | B11, B12 | Bloqueo de tarea/franja con salidas explícitas y descanso gratuito |
 | Escalones | B9 | Paso corto opcional, progreso parcial y sin falsear la tarea completa |
-| Sesión rápida | B13 | Timer one-off desde día cerrado, fuera del Mazo/franja y sin RC |
+| Sesión rápida | B13 | Timer one-off desde Hoy o el día cerrado, fuera del Mazo/franja y sin RC |
 | Economía | C1, C2 | Segunda capa: recompensas fijas e idempotentes, saldo durable y canje manual |
 | Identidad y acompañamiento | C3, C4, C5, C6 | El Reloj accesible, Vigía, audio opt-in y voz local |
 | Horario y plataforma | D1, D2, D3 | Ancla visible con pausa segura, fallback visual y uso de una mano |

@@ -1168,6 +1168,28 @@ describe("sesiones rápidas", () => {
     expect((await db.days.get(MONDAY))!.closedAt).toBe(NOW + 1);
   });
 
+  it("puede empezar con el día abierto y no altera el día ni la franja", async () => {
+    const db = await testDb();
+    await ensureDay(db, MONDAY, NOW);
+
+    const session = await startQuickSession(db, {
+      sessionId: "quick-open",
+      taskId: "quick:open",
+      title: "Pagar las cuentas",
+      durationMin: 25,
+      now: NOW + 1,
+    });
+
+    expect(session).toMatchObject({ quick: true, status: "running", rewardTargetRc: 0 });
+    expect((await db.days.get(MONDAY))!.closedAt).toBeNull();
+    expect(await db.hands.count()).toBe(0);
+    expect(await db.tasks.count()).toBe(0);
+
+    await completeSessionWithCredit(db, "quick-open", NOW + 2);
+    expect((await db.days.get(MONDAY))!.closedAt).toBeNull();
+    expect(await db.ledger.count()).toBe(0);
+  });
+
   it("es idempotente, bloquea otra sesión y permite otra después de cerrar", async () => {
     const db = await testDb();
     const input = {

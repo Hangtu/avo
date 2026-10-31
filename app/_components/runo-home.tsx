@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
   closeDay,
@@ -20,6 +20,7 @@ import { seedDatabase } from "@/lib/db/seed";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
 import type { Occurrence, Session, Task } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
+import { QuickTaskForm } from "./quick-task-form";
 import { SessionView } from "./session-view";
 import { AnchorView } from "./anchor-view";
 import { useAnchorWatcher } from "./use-anchor-watcher";
@@ -652,6 +653,13 @@ export function RunoHome() {
                   onStartQuick={beginQuickSession}
                 />
               ) : null}
+              {view.kind === "ready" || view.kind === "empty" ? (
+                <QuickTaskLauncher
+                  key={`${view.kind}:${view.dateLabel}`}
+                  busy={quickBusy}
+                  onStart={beginQuickSession}
+                />
+              ) : null}
             </>
           ) : null}
         </div>
@@ -931,6 +939,47 @@ function EmptyState({ onEndDay }: { onEndDay: () => void }) {
   );
 }
 
+function QuickTaskLauncher({
+  busy,
+  onStart,
+}: {
+  busy: boolean;
+  onStart: (title: string, durationMin: number) => void | Promise<void>;
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+
+  return (
+    <section className="mt-7 border-t border-line pt-5" aria-label="Tarea rápida">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">¿Algo fuera de la lista?</p>
+          <p className="text-xs leading-5 text-muted">
+            Un timer para algo que no está en tus tareas. No suma minutos.
+          </p>
+        </div>
+        {!formOpen ? (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            disabled={busy}
+            className="min-h-11 rounded-none border border-control px-4 text-sm font-semibold disabled:opacity-60"
+          >
+            Tarea rápida ⏱️
+          </button>
+        ) : null}
+      </div>
+      {formOpen ? (
+        <QuickTaskForm
+          busy={busy}
+          autoFocus
+          onStart={onStart}
+          onCancel={() => setFormOpen(false)}
+        />
+      ) : null}
+    </section>
+  );
+}
+
 function DayClosed({
   view,
   busy,
@@ -941,25 +990,6 @@ function DayClosed({
   onStartQuick: (title: string, durationMin: number) => void | Promise<void>;
 }) {
   const [formOpen, setFormOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [minutes, setMinutes] = useState("25");
-  const [formError, setFormError] = useState<string | null>(null);
-
-  function submitQuick(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const cleanTitle = title.trim();
-    const value = Number(minutes);
-    if (!cleanTitle) {
-      setFormError("Escribe qué vas a hacer.");
-      return;
-    }
-    if (!Number.isSafeInteger(value) || value < 1) {
-      setFormError("Usa un número entero de minutos mayor que cero.");
-      return;
-    }
-    setFormError(null);
-    void onStartQuick(cleanTitle, value);
-  }
 
   return (
     <section
@@ -998,71 +1028,12 @@ function DayClosed({
         </div>
 
         {formOpen ? (
-          <form onSubmit={submitQuick} className="mt-3 space-y-3">
-            <label className="block">
-              <span className="text-sm font-medium">¿Qué vas a hacer?</span>
-              <input
-                required
-                autoFocus
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                placeholder="Ej. Pagar las cuentas del banco"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Minutos</span>
-              <input
-                required
-                type="number"
-                min={1}
-                step={1}
-                inputMode="numeric"
-                value={minutes}
-                onChange={(event) => setMinutes(event.target.value)}
-                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-              />
-            </label>
-            <div className="flex flex-wrap gap-2" aria-label="Duraciones rápidas">
-              {[5, 15, 25, 30].map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  data-on={Number(minutes) === value}
-                  aria-pressed={Number(minutes) === value}
-                  onClick={() => setMinutes(String(value))}
-                  className="day-toggle justify-center"
-                >
-                  {value} min
-                </button>
-              ))}
-            </div>
-            {formError ? (
-              <p className="border-l-2 border-accent pl-4 text-sm" role="alert">
-                {formError}
-              </p>
-            ) : null}
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="submit"
-                disabled={busy}
-                className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
-              >
-                {busy ? "Empezando…" : "Empezar"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFormOpen(false);
-                  setFormError(null);
-                }}
-                disabled={busy}
-                className="min-h-11 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
+          <QuickTaskForm
+            busy={busy}
+            autoFocus
+            onStart={onStartQuick}
+            onCancel={() => setFormOpen(false)}
+          />
         ) : null}
       </div>
     </section>
