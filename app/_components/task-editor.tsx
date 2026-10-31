@@ -138,6 +138,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [notice, setNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  const [categoryMode, setCategoryMode] = useState<"existing" | "new">("existing");
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -161,6 +162,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             const target = list.find((task) => task.id === initialTaskId);
             if (target) {
               openedInitialTask.current = true;
+              setCategoryMode("existing");
               setForm(formFromTask(target));
             }
           }
@@ -187,12 +189,14 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     setNotice(null);
     const next = emptyForm();
     next.days = [selectedDay];
+    setCategoryMode("existing");
     setForm(next);
   }
 
   function startEdit(task: Task) {
     setFormError(null);
     setNotice(null);
+    setCategoryMode("existing");
     setForm(formFromTask(task));
   }
 
@@ -403,22 +407,51 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 placeholder="Ej. Tomar creatina"
               />
             </label>
-            <label className="block">
-              <span className="text-sm font-medium">Categoría</span>
-              <input
-                required
-                list="task-categories"
-                value={form.category}
-                onChange={(event) => patch({ category: event.target.value })}
-                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                placeholder="personal"
-              />
-              <datalist id="task-categories">
-                {categories.map((category) => (
-                  <option key={category} value={category} />
-                ))}
-              </datalist>
-            </label>
+            <div className="block">
+              <label className="block">
+                <span className="text-sm font-medium">Categoría</span>
+                {categoryMode === "existing" ? (
+                  <select
+                    value={form.category}
+                    onChange={(event) => {
+                      if (event.target.value === "__new__") {
+                        setCategoryMode("new");
+                        patch({ category: "" });
+                      } else {
+                        patch({ category: event.target.value });
+                      }
+                    }}
+                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                  >
+                    {categories.map((category) => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                    <option value="__new__">+ Nueva categoría…</option>
+                  </select>
+                ) : (
+                  <input
+                    required
+                    autoFocus
+                    value={form.category}
+                    onChange={(event) => patch({ category: event.target.value })}
+                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                    placeholder="Ej. casa, salud, trabajo"
+                  />
+                )}
+              </label>
+              {categoryMode === "new" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryMode("existing");
+                    patch({ category: categories[0] ?? "personal" });
+                  }}
+                  className="mt-2 min-h-11 text-sm font-semibold text-muted underline underline-offset-4"
+                >
+                  Elegir una categoría existente
+                </button>
+              ) : null}
+            </div>
             <label className="block">
               <span className="text-sm font-medium">Duración (min)</span>
               <input
