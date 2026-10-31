@@ -1,6 +1,7 @@
 "use client";
 
 import type { Task } from "@/lib/domain/types";
+import { HelpTip } from "./help-tip";
 
 export function AnchorView({
   task,
@@ -20,18 +21,18 @@ export function AnchorView({
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         Hora fija · {task.fixedTime}
       </p>
-      <h2 id="anchor-title" className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
-        {task.title}
-      </h2>
-      <p className="mt-4 text-base leading-7 text-muted">
-        Es la hora de esta tarea. No se inicia sola: tú decides si empiezas,
-        la dejas pendiente o marcas que hoy no aplica.
-      </p>
+      <div className="mt-2 flex items-start gap-2">
+        <h2 id="anchor-title" className="text-4xl font-semibold tracking-tight sm:text-5xl">
+          {task.title}
+        </h2>
+        <HelpTip label="Información sobre el ancla">
+          Es la hora de esta tarea. No se inicia sola: tú decides si empiezas,
+          la dejas pendiente o marcas que hoy no aplica. Solo aparece con la app
+          abierta; no hay aviso con la app cerrada.
+        </HelpTip>
+      </div>
       <p className="mt-3 text-sm leading-6 text-muted">
         {task.durationMin} min
-      </p>
-      <p className="mt-2 text-xs leading-5 text-muted">
-        Solo aparece con la app abierta; no hay aviso con la app cerrada.
       </p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <button

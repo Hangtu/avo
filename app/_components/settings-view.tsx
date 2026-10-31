@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+import { HelpTip } from "./help-tip";
 import { openDatabase } from "@/lib/db/database";
 import { getSettings, saveSettings } from "@/lib/db/repository";
 import type { Settings } from "@/lib/domain/types";
@@ -96,10 +98,12 @@ export function SettingsView({
       </h2>
 
       <div className="mt-7 border-t border-line pt-5">
-        <h3 className="text-lg font-semibold">Sonido</h3>
-        <p className="mt-1 text-sm leading-6 text-muted">
-          Apagado por defecto. Solo se activa si tú lo pides.
-        </p>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold">Sonido</h3>
+          <HelpTip label="Información sobre el sonido">
+            Apagado por defecto. Solo se activa si tú lo pides.
+          </HelpTip>
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -128,20 +132,24 @@ export function SettingsView({
       </div>
 
       <div className="mt-7 border-t border-line pt-5">
-        <h3 className="text-lg font-semibold">Voz</h3>
-        <p className="mt-1 text-sm leading-6 text-muted">
-          La voz normal está disponible; el modo duro solo cuando lo pides.
-        </p>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold">Voz</h3>
+          <HelpTip label="Información sobre la voz">
+            La voz normal está disponible; el modo duro solo cuando lo pides.
+          </HelpTip>
+        </div>
         <div className="mt-3">
           <VoiceControl tone={tone} ready={voiceReady} onTone={onTone} />
         </div>
       </div>
 
       <div className="mt-7 border-t border-line pt-5">
-        <h3 className="text-lg font-semibold">Apariencia</h3>
-        <p className="mt-1 text-sm leading-6 text-muted">
-          El tema automático cambia a noche cálida de 20:00 a 07:00.
-        </p>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold">Apariencia</h3>
+          <HelpTip label="Información sobre el tema">
+            El tema automático cambia a noche cálida de 20:00 a 07:00.
+          </HelpTip>
+        </div>
         <div className="mt-3">
           <ThemeControl
             mode={theme}

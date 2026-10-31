@@ -129,7 +129,7 @@ El progreso registrado es **tiempo del timer y resultados declarados**, no una m
 
 ### 4.5 Sesión rápida
 
-En **Hoy** o después de cerrar el día, la pantalla ofrece **Tarea rápida**: un timer one-off para algo que no estaba en la lista, como pagar cuentas o resolver un pendiente inmediato. También está disponible cuando hay una tarea asignada; no la reemplaza ni la marca como hecha, solo permite resolver algo fuera de la lista y volver.
+En **Hoy** o después de cerrar el día, la cabecera ofrece **Tarea rápida** junto a **＋ Pendiente**: un timer one-off para algo que no estaba en la lista, como pagar cuentas o resolver un pendiente inmediato. Se abre en un panel sobre la vista actual. También está disponible cuando hay una tarea asignada; no la reemplaza ni la marca como hecha, solo permite resolver algo fuera de la lista y volver.
 
 - Pide un nombre y minutos enteros; no usa categoría, prioridad, días, franja ni escalón.
 - **No es una tarea del Mazo** y no entra a ninguna franja, ocurrencia diaria o cola de propuestas. Internamente conserva su sesión/ocurrencia para sobrevivir una recarga, pero no aparece en Tareas.
@@ -304,6 +304,8 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 **Correcciones del editor (2026-10-30):** un preset de bloque solo se marca cuando coinciden sus dos extremos; un rango específico como 18:00–18:30 se muestra como Personalizado, con Desde/Hasta y el horario efectivo visibles. La tira de días conserva objetivos de toque y hace scroll horizontal en anchos estrechos; las filas permiten dos líneas para el nombre. El formulario conserva un borrador de sesión al cambiar de vista y oculta la lista mientras se edita. Las altas de varios bloques se guardan en una sola transacción, con IDs estables para reintentos. Una carta pendiente que deja de ser elegible se oculta sin rellenar el hueco; un acuerdo ya iniciado conserva su snapshot, salvo que la tarea se archive.
 
 **Carta Ahora (2026-10-30):** la franja se presenta de una tarjeta a la vez: título, duración, `Empezar`, `Ver otra` y `⋯`. Las otras cartas de la misma franja se recorren con `Ver otra`; el paso corto, el cambio por otra tarea y las correcciones viven en `⋯`. No se muestran RC, categorías, pendientes ni contadores de cambios en la primera vista. Sonido, voz y tema viven en **Ajustes**; el Monedero está oculto de la navegación por defecto y se puede habilitar allí. Tras «No lo hice», una frase de empuje con emoji aparece sin un botón adicional.
+
+**Ayuda contextual (2026-10-30):** las instrucciones secundarias no ocupan un párrafo permanente. Viven en un icono `i` junto al texto relevante, con tooltip al pasar el cursor, enfocar o tocar. El tooltip se cierra con Escape o al tocar fuera, se coloca dentro del viewport y no depende solo de hover. Los estados, validaciones, acciones y límites esenciales siguen siendo texto visible; la ayuda no reemplaza información necesaria para decidir. `Tarea rápida` y `＋ Pendiente` comparten la cabecera de Hoy.
 
 **Paleta de noche (D3):** fondo `#1B1815`, tinta `#F3EEE5`, superficie `#24201B`, gris `#C4BBAD`, línea `#463F35` (decorativa), control `#9A8F80` y acento `#E0705F`. La tinta, el gris y el control miden 15.30:1, 9.31:1 y 5.57:1 sobre el fondo; la línea y la superficie son decorativas. La selección usa tinta oscura sobre el acento (5.77:1).
 

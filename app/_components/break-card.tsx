@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HelpTip } from "./help-tip";
 
 const BREAK_MS = 10 * 60 * 1000;
 
@@ -55,16 +56,19 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
       aria-label="Descanso"
       className="mb-5 border-y border-line py-5"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        Descanso
-      </p>
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+          Descanso
+        </p>
+        <HelpTip label="Información sobre el descanso">
+          Es gratis y no paga RC. No bloquea la siguiente tarea; puedes empezar otra
+          cuando quieras y el descanso termina solo.
+        </HelpTip>
+      </div>
 
       {phase === "offer" ? (
         <>
           <h2 className="mt-2 text-xl font-semibold">¿Quieres 10 min de descanso?</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">
-            Es gratis y no bloquea la siguiente tarea. Puedes empezar otra cuando quieras.
-          </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
@@ -92,9 +96,6 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
             className="mt-3 break-words text-[clamp(2.25rem,18vw,3rem)] font-semibold tabular-nums text-foreground"
           >
             {formatRemaining(remainingMs)}
-          </p>
-          <p className="mt-3 text-sm leading-6 text-muted">
-            Puedes empezar la siguiente tarea cuando quieras; el descanso termina solo.
           </p>
           <button
             type="button"

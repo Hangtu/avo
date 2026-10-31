@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+
+import { HelpTip } from "./help-tip";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
   archiveTask,
@@ -542,12 +544,14 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
             Configuración
           </p>
-          <h2 id="tasks-title" className="mt-1 text-3xl font-semibold tracking-tight">
-            Tus tareas
-          </h2>
-          <p className="mt-1 max-w-xl text-sm leading-6 text-muted">
-            Elige un día y toca una tarea para editarla.
-          </p>
+          <div className="mt-1 flex items-start gap-2">
+            <h2 id="tasks-title" className="text-3xl font-semibold tracking-tight">
+              Tus tareas
+            </h2>
+            <HelpTip label="Información sobre tus tareas">
+              Elige un día y toca una tarea para editarla.
+            </HelpTip>
+          </div>
         </div>
         {!form ? (
           <button
@@ -672,7 +676,12 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           </div>
 
           <fieldset className="mt-5">
-            <legend className="text-sm font-medium">Días</legend>
+            <legend className="flex items-center gap-2 text-sm font-medium">
+              Días
+              <HelpTip label="Información sobre los días">
+                Sin días, la tarea queda en el Mazo y no se propone automáticamente.
+              </HelpTip>
+            </legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {WEEKDAYS.map((day) => {
                 const selected = form.days.includes(day.value);
@@ -693,16 +702,18 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 );
               })}
             </div>
-            {form.days.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">
-                Sin días: queda en el Mazo y no se propone automáticamente.
-              </p>
-            ) : null}
           </fieldset>
 
           <div className="mt-5 space-y-4">
             <fieldset>
-              <legend className="text-sm font-medium">¿Cuándo?</legend>
+              <legend className="flex items-center gap-2 text-sm font-medium">
+                ¿Cuándo?
+                <HelpTip label="Información sobre los bloques">
+                  {form.id
+                    ? "El bloque es opcional; si necesitas una hora exacta, actívala abajo."
+                    : "Puedes elegir varios bloques. Se crearán tareas separadas, una por bloque."}
+                </HelpTip>
+              </legend>
               {form.id ? (
                 <>
                   <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -752,11 +763,13 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       Horario: {form.windowStart}–{form.windowEnd}
                     </p>
                   ) : null}
-                  <p className="mt-2 text-sm leading-6 text-muted">
-                    El bloque es opcional; si necesitas una hora exacta, actívala abajo.
-                  </p>
                   <div className="mt-4 border-t border-line pt-4">
-                    <p className="text-sm font-medium">Duplicar en otro bloque</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">Duplicar en otro bloque</p>
+                      <HelpTip label="Información sobre duplicar">
+                        Crea una copia separada; no copia la hora exacta.
+                      </HelpTip>
+                    </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {BLOCKS.map((block) => (
                         <button
@@ -774,9 +787,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                         </button>
                       ))}
                     </div>
-                    <p className="mt-2 text-xs leading-5 text-muted">
-                      Crea una copia separada; no copia la hora exacta.
-                    </p>
                   </div>
                 </>
               ) : (
@@ -840,9 +850,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       Horario: {form.windowStart}–{form.windowEnd}
                     </p>
                   ) : null}
-                  <p className="mt-2 text-sm leading-6 text-muted">
-                    Puedes elegir varios bloques. Se crearán tareas separadas, una por bloque.
-                  </p>
                 </>
               )}
             </fieldset>

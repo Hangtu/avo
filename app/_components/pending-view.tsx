@@ -9,6 +9,7 @@ import {
   listPendings,
 } from "@/lib/db/repository";
 import type { Pending } from "@/lib/domain/types";
+import { HelpTip } from "./help-tip";
 
 function newPendingId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -192,13 +193,15 @@ export function PendingView({
       <p className="pending-eyebrow text-xs font-semibold uppercase tracking-[0.12em] text-muted">
         Pendientes
       </p>
-      <h2 id="pending-title" className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-        Cosas que haces una vez.
-      </h2>
-      <p className="mt-3 max-w-prose text-base leading-7 text-muted">
-        No se repiten y no entran a tus tres cartas. Se quedan aquí hasta que las termines.
-        No suman minutos.
-      </p>
+      <div className="mt-3 flex items-start gap-2">
+        <h2 id="pending-title" className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Cosas que haces una vez.
+        </h2>
+        <HelpTip label="Información sobre los pendientes">
+          No se repiten ni entran a tus tres cartas. Se quedan aquí hasta que las termines.
+          No suman minutos.
+        </HelpTip>
+      </div>
 
       {message && !status ? (
         <p role="status" className="mt-4 border-l-2 border-accent pl-4 text-sm leading-6">

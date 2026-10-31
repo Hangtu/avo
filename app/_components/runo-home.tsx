@@ -21,6 +21,7 @@ import { seedDatabase } from "@/lib/db/seed";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
 import type { Occurrence, Pending, Session, Task } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
+import { HelpTip } from "./help-tip";
 import { PendingView } from "./pending-view";
 import { QuickTaskForm } from "./quick-task-form";
 import { SessionView } from "./session-view";
@@ -95,6 +96,7 @@ export function RunoHome() {
   const [showWallet, setShowWallet] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showPending, setShowPending] = useState(false);
+  const [quickFormOpen, setQuickFormOpen] = useState(false);
   const [editorTaskId, setEditorTaskId] = useState<string | null>(null);
   const [pendingComposerFocus, setPendingComposerFocus] = useState(0);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
@@ -222,6 +224,7 @@ export function RunoHome() {
 
   const finishSession = useCallback((offerBreak = false, message?: string) => {
     const fromPending = view.kind === "session" && view.session.pendingId !== undefined;
+    setQuickFormOpen(false);
     setShowBreak(offerBreak);
     if (fromPending) {
       setShowPending(true);
@@ -235,6 +238,7 @@ export function RunoHome() {
   const openAnchor = useCallback((task: Task, occurrence: Occurrence) => {
     setShowBreak(false);
     setShowPending(false);
+    setQuickFormOpen(false);
     setNotice(null);
     setView({
       kind: "anchor",
@@ -310,6 +314,7 @@ export function RunoHome() {
   const openEditor = useCallback(() => {
     setShowBreak(false);
     setShowPending(false);
+    setQuickFormOpen(false);
     setShowWallet(false);
     setShowSettings(false);
     setEditorTaskId(null);
@@ -319,6 +324,7 @@ export function RunoHome() {
   const openEditorForTask = useCallback((taskId: string) => {
     setShowBreak(false);
     setShowPending(false);
+    setQuickFormOpen(false);
     setShowWallet(false);
     setShowSettings(false);
     setEditorTaskId(taskId);
@@ -330,6 +336,7 @@ export function RunoHome() {
     setShowEditor(false);
     setShowSettings(false);
     setShowPending(false);
+    setQuickFormOpen(false);
     setEditorTaskId(null);
     setShowWallet(true);
   }, []);
@@ -339,6 +346,7 @@ export function RunoHome() {
     setShowEditor(false);
     setShowWallet(false);
     setShowPending(false);
+    setQuickFormOpen(false);
     setShowSettings(true);
   }, []);
 
@@ -347,6 +355,7 @@ export function RunoHome() {
     setShowEditor(false);
     setShowWallet(false);
     setShowSettings(false);
+    setQuickFormOpen(false);
     setEditorTaskId(null);
     setNotice(null);
     setPendingMessage(null);
@@ -359,6 +368,7 @@ export function RunoHome() {
     setShowWallet(false);
     setShowSettings(false);
     setShowPending(false);
+    setQuickFormOpen(false);
     setEditorTaskId(null);
     setNotice(null);
     setPendingMessage(null);
@@ -368,6 +378,7 @@ export function RunoHome() {
 
   const endDay = useCallback(async () => {
     setShowBreak(false);
+    setQuickFormOpen(false);
     setNotice(null);
     try {
       const db = await openDatabase();
@@ -493,6 +504,7 @@ export function RunoHome() {
         });
         setShowBreak(false);
         setShowPending(false);
+        setQuickFormOpen(false);
         setView({ kind: "session", dateLabel: formatDate(now), session });
       } finally {
         db.close();
@@ -523,6 +535,7 @@ export function RunoHome() {
         });
         setShowBreak(false);
         setShowPending(false);
+        setQuickFormOpen(false);
         setView({ kind: "session", dateLabel: formatDate(now), session });
       } finally {
         db.close();
@@ -554,6 +567,7 @@ export function RunoHome() {
           now,
           handId,
         });
+        setQuickFormOpen(false);
         setView({ kind: "session", dateLabel: formatDate(now), session });
       } finally {
         db.close();
@@ -583,15 +597,27 @@ export function RunoHome() {
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3 pb-1">
             {!showEditor && !showWallet && !showSettings && !showPending && view.kind !== "session" && view.kind !== "anchor" ? (
-              <button
-                type="button"
-                onClick={() => openPendings(true)}
-                disabled={pendingStart !== null}
-                className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
-                aria-label="Agregar un pendiente"
-              >
-                ＋ Pendiente
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openPendings(true)}
+                  disabled={pendingStart !== null}
+                  className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
+                  aria-label="Agregar un pendiente"
+                >
+                  ＋ Pendiente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuickFormOpen((value) => !value)}
+                  disabled={quickBusy || pendingStart !== null}
+                  aria-expanded={quickFormOpen}
+                  aria-controls="quick-task-panel"
+                  className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
+                >
+                  Tarea rápida ⏱️
+                </button>
+              </div>
             ) : null}
             {view.kind !== "loading" && view.kind !== "error" ? (
               <p className="text-sm text-muted">{view.dateLabel}</p>
@@ -671,6 +697,31 @@ export function RunoHome() {
             />
           ) : null}
           {showWallet ? <WalletView /> : null}
+          {!showEditor && !showWallet && !showSettings && !showPending && quickFormOpen ? (
+            <section
+              id="quick-task-panel"
+              aria-labelledby="quick-task-title"
+              className="mb-6 border-y border-line py-5"
+            >
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                  Tarea rápida
+                </p>
+                <HelpTip label="Información sobre la tarea rápida">
+                  No se guarda como tarea ni suma minutos. Al terminar vuelves a donde estabas.
+                </HelpTip>
+              </div>
+              <h2 id="quick-task-title" className="mt-2 text-xl font-semibold tracking-tight">
+                Algo fuera de la lista
+              </h2>
+              <QuickTaskForm
+                busy={quickBusy}
+                autoFocus
+                onStart={beginQuickSession}
+                onCancel={() => setQuickFormOpen(false)}
+              />
+            </section>
+          ) : null}
           {!showEditor && !showWallet && !showSettings && !showPending && notice ? (
             <p
               role="alert"
@@ -718,9 +769,10 @@ export function RunoHome() {
               {view.kind === "ready" ? (
                 <Franja
                   view={view}
-                  onStart={(task, variant) =>
-                    setPendingStart({ task, variant, handId: view.handId })
-                  }
+                  onStart={(task, variant) => {
+                    setQuickFormOpen(false);
+                    setPendingStart({ task, variant, handId: view.handId });
+                  }}
                   onOffer={offerTask}
                   onSwap={swapTask}
                   onAlreadyDone={(task) => void correctTask(task, "already_done")}
@@ -733,20 +785,7 @@ export function RunoHome() {
               {view.kind === "empty" ? (
                 <EmptyState onEndDay={endDay} />
               ) : null}
-              {view.kind === "closed" ? (
-                <DayClosed
-                  view={view}
-                  busy={quickBusy}
-                  onStartQuick={beginQuickSession}
-                />
-              ) : null}
-              {view.kind === "ready" || view.kind === "empty" ? (
-                <QuickTaskLauncher
-                  key={`${view.kind}:${view.dateLabel}`}
-                  busy={quickBusy}
-                  onStart={beginQuickSession}
-                />
-              ) : null}
+              {view.kind === "closed" ? <DayClosed view={view} /> : null}
             </>
           ) : null}
         </div>
@@ -1019,12 +1058,14 @@ function EmptyState({ onEndDay }: { onEndDay: () => void }) {
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         Franja actual
       </p>
-      <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-        No hay tareas elegibles ahora.
-      </h2>
-      <p className="mt-2 text-base leading-7 text-muted">
-        Puedes volver más tarde o revisar tus tareas.
-      </p>
+      <div className="mt-3 flex items-start gap-2">
+        <h2 className="text-2xl font-semibold tracking-tight">
+          No hay tareas elegibles ahora.
+        </h2>
+        <HelpTip label="Información sobre este estado">
+          Puedes volver más tarde o revisar tus tareas.
+        </HelpTip>
+      </div>
       <button
         type="button"
         onClick={onEndDay}
@@ -1036,58 +1077,7 @@ function EmptyState({ onEndDay }: { onEndDay: () => void }) {
   );
 }
 
-function QuickTaskLauncher({
-  busy,
-  onStart,
-}: {
-  busy: boolean;
-  onStart: (title: string, durationMin: number) => void | Promise<void>;
-}) {
-  const [formOpen, setFormOpen] = useState(false);
-
-  return (
-    <section className="mt-7 border-t border-line pt-5" aria-label="Tarea rápida">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">¿Algo fuera de la lista?</p>
-          <p className="text-xs leading-5 text-muted">
-            Un timer para algo que no está en tus tareas. No suma minutos.
-          </p>
-        </div>
-        {!formOpen ? (
-          <button
-            type="button"
-            onClick={() => setFormOpen(true)}
-            disabled={busy}
-            className="min-h-11 rounded-none border border-control px-4 text-sm font-semibold disabled:opacity-60"
-          >
-            Tarea rápida ⏱️
-          </button>
-        ) : null}
-      </div>
-      {formOpen ? (
-        <QuickTaskForm
-          busy={busy}
-          autoFocus
-          onStart={onStart}
-          onCancel={() => setFormOpen(false)}
-        />
-      ) : null}
-    </section>
-  );
-}
-
-function DayClosed({
-  view,
-  busy,
-  onStartQuick,
-}: {
-  view: Extract<View, { kind: "closed" }>;
-  busy: boolean;
-  onStartQuick: (title: string, durationMin: number) => void | Promise<void>;
-}) {
-  const [formOpen, setFormOpen] = useState(false);
-
+function DayClosed({ view }: { view: Extract<View, { kind: "closed" }> }) {
   return (
     <section
       aria-label={`Día cerrado, ${view.dateLabel}`}
@@ -1103,36 +1093,6 @@ function DayClosed({
         Lo hecho queda guardado. No se pagó lo pendiente.
       </p>
       <p className="mt-2 text-sm leading-6 text-muted">Mañana seguimos.</p>
-
-      <div className="mt-5 border-t border-line pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">¿Algo para ahora?</p>
-            <p className="text-xs leading-5 text-muted">
-              No se guarda en Tareas ni suma minutos.
-            </p>
-          </div>
-          {!formOpen ? (
-            <button
-              type="button"
-              onClick={() => setFormOpen(true)}
-              disabled={busy}
-              className="min-h-11 rounded-none bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
-            >
-              Tarea rápida ⏱️
-            </button>
-          ) : null}
-        </div>
-
-        {formOpen ? (
-          <QuickTaskForm
-            busy={busy}
-            autoFocus
-            onStart={onStartQuick}
-            onCancel={() => setFormOpen(false)}
-          />
-        ) : null}
-      </div>
     </section>
   );
 }

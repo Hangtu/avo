@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+import { HelpTip } from "./help-tip";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import { getBalance, redeemRc } from "@/lib/db/wallet";
 
@@ -107,13 +109,15 @@ export function WalletView() {
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         Monedero
       </p>
-      <h2 id="wallet-title" className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
-        Tu saldo
-      </h2>
-      <p className="mt-4 text-base leading-7 text-muted">
-        1 RC equivale a 1 minuto de ocio. El descanso de Runo es gratis; este saldo
-        solo se gasta cuando tú decides canjearlo.
-      </p>
+      <div className="mt-2 flex items-start gap-2">
+        <h2 id="wallet-title" className="text-4xl font-semibold tracking-tight sm:text-5xl">
+          Tu saldo
+        </h2>
+        <HelpTip label="Información sobre el saldo">
+          1 RC equivale a 1 minuto de ocio. El descanso de Runo es gratis; este saldo
+          solo se gasta cuando tú decides canjearlo.
+        </HelpTip>
+      </div>
 
       {loadError ? (
         <div className="mt-6 border-l-2 border-accent pl-4" role="alert">

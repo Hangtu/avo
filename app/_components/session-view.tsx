@@ -14,6 +14,7 @@ import { dateFromOccurrenceId } from "@/lib/domain/occurrence";
 import { toLocalDate } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
 import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
+import { HelpTip } from "./help-tip";
 import { pulse } from "@/lib/platform/haptics";
 import { useSessionAudio } from "./use-session-audio";
 import { useWakeLock } from "./use-wake-lock";
@@ -251,9 +252,18 @@ export function SessionView({
               ? isShort ? "Paso pausado" : isPending ? "Pendiente pausado" : "Pausada"
               : "Sesión cerrada"}
       </p>
-      <h2 className="mt-3 text-2xl font-semibold leading-tight sm:text-3xl">
-        {displayTitle}
-      </h2>
+      <div className="mt-3 flex items-start gap-2">
+        <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">
+          {displayTitle}
+        </h2>
+        {current.status === "running" || current.status === "paused" ? (
+          <HelpTip label="Información sobre esta sesión">
+            {current.status === "paused"
+              ? "La pausa no cuenta como fallo. Al continuar retomas exactamente donde ibas. No se inicia otra tarea hasta resolver esta."
+              : "El reloj sigue aunque cambies de pantalla. Al volver, retomas donde ibas. No se inicia otra tarea hasta resolver esta."}
+          </HelpTip>
+        ) : null}
+      </div>
       {phrase ? <p className="mt-2 text-sm leading-6 text-muted">{phrase}</p> : null}
       {isPending ? (
         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
@@ -283,10 +293,6 @@ export function SessionView({
             Termina a las {formatEndTime(current.startedAt, current.remainingSecAtStart)}
           </p>
           <Vigia progress={progress} isShort={isShort} />
-          <p className="mt-6 text-center text-sm leading-6 text-muted">
-            El reloj sigue aunque cambies de pantalla. Al volver, retomas donde ibas.
-            No se inicia otra tarea hasta resolver esta.
-          </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <button
               type="button"
@@ -417,10 +423,6 @@ export function SessionView({
             </span>.
           </p>
           <Vigia progress={progress} isShort={isShort} />
-          <p className="text-sm leading-6 text-muted">
-            Al continuar, retomas exactamente ahí. La pausa no cuenta como fallo.
-            No se inicia otra tarea hasta resolver esta.
-          </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"

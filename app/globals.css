@@ -343,6 +343,64 @@ select {
   }
 }
 
+
+/* Small contextual help: tooltip on hover/focus, pinned on tap. */
+.help-tip-button {
+  position: relative;
+  display: inline-flex;
+  width: 1.5rem;
+  height: 1.5rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--control);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.help-tip-button::before {
+  content: "";
+  position: absolute;
+  inset: -0.7rem;
+}
+
+.help-tip-button:hover,
+.help-tip-button[aria-expanded="true"] {
+  border-color: var(--foreground);
+  color: var(--foreground);
+}
+
+.help-tip-panel {
+  position: fixed;
+  z-index: 60;
+  width: min(18rem, calc(100vw - 2rem));
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 1rem;
+  background: var(--surface-solid, var(--background));
+  box-shadow: 0 18px 40px -24px rgba(23, 37, 42, 0.45);
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .help-tip-button {
+    transition: none;
+  }
+}
+
 :root[data-ui="liquid"] .runo-dock {
   position: fixed;
   left: 0.5rem;
