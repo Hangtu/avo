@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
   archiveTask,
@@ -120,7 +120,7 @@ function daysLabel(days: Weekday[]): string {
     .join(" · ");
 }
 
-export function TaskEditor() {
+export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null }) {
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -130,6 +130,7 @@ export function TaskEditor() {
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [archiveId, setArchiveId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const openedInitialTask = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +143,13 @@ export function TaskEditor() {
         if (!cancelled) {
           setTasks(list);
           setLoadError(null);
+          if (initialTaskId && !openedInitialTask.current) {
+            const target = list.find((task) => task.id === initialTaskId);
+            if (target) {
+              openedInitialTask.current = true;
+              setForm(formFromTask(target));
+            }
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -158,7 +166,7 @@ export function TaskEditor() {
       cancelled = true;
       db?.close();
     };
-  }, [reloadKey]);
+  }, [initialTaskId, reloadKey]);
 
   function startNew() {
     setFormError(null);

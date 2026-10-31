@@ -88,6 +88,7 @@ export function RunoHome() {
   const [showEditor, setShowEditor] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [editorTaskId, setEditorTaskId] = useState<string | null>(null);
   const [showWalletLink, setShowWalletLink] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
@@ -289,6 +290,15 @@ export function RunoHome() {
     setShowBreak(false);
     setShowWallet(false);
     setShowSettings(false);
+    setEditorTaskId(null);
+    setShowEditor(true);
+  }, []);
+
+  const openEditorForTask = useCallback((taskId: string) => {
+    setShowBreak(false);
+    setShowWallet(false);
+    setShowSettings(false);
+    setEditorTaskId(taskId);
     setShowEditor(true);
   }, []);
 
@@ -296,6 +306,7 @@ export function RunoHome() {
     setShowBreak(false);
     setShowEditor(false);
     setShowSettings(false);
+    setEditorTaskId(null);
     setShowWallet(true);
   }, []);
 
@@ -310,6 +321,7 @@ export function RunoHome() {
     setShowEditor(false);
     setShowWallet(false);
     setShowSettings(false);
+    setEditorTaskId(null);
     setNotice(null);
     setView({ kind: "loading" });
     setRefreshKey((key) => key + 1);
@@ -497,7 +509,7 @@ export function RunoHome() {
         </header>
 
         <div className="flex flex-1 flex-col justify-center py-8">
-          {showEditor ? <TaskEditor /> : null}
+          {showEditor ? <TaskEditor initialTaskId={editorTaskId} /> : null}
           {showSettings ? (
             <SettingsView
               tone={voice.tone ?? 0}
@@ -563,6 +575,7 @@ export function RunoHome() {
                   onSwap={swapTask}
                   onAlreadyDone={(task) => void correctTask(task, "already_done")}
                   onNotApplicable={(task) => void correctTask(task, "not_applicable")}
+                  onEdit={(task) => openEditorForTask(task.id)}
                   onEndDay={endDay}
                   swapping={swapping}
                   correctingId={correctingId}
@@ -575,10 +588,6 @@ export function RunoHome() {
             </>
           ) : null}
         </div>
-
-        <footer className="mt-auto border-t border-line pt-5 text-sm leading-6 text-muted">
-          <p>Una cosa a la vez. Eliges el orden dentro de la franja.</p>
-        </footer>
 
         <div aria-hidden className="runo-dock-scrim" />
         <nav className="runo-dock" aria-label="Navegación principal">
@@ -721,6 +730,7 @@ function Franja({
   onSwap,
   onAlreadyDone,
   onNotApplicable,
+  onEdit,
   onEndDay,
   swapping,
   correctingId,
@@ -730,6 +740,7 @@ function Franja({
   onSwap: (task: FranjaTask) => void | Promise<void>;
   onAlreadyDone: (task: FranjaTask) => void;
   onNotApplicable: (task: FranjaTask) => void;
+  onEdit: (task: FranjaTask) => void;
   onEndDay: () => void;
   swapping: boolean;
   correctingId: string | null;
@@ -760,7 +771,7 @@ function Franja({
           disabled={busy}
           onClick={() => onStart(task, "full")}
         >
-          {primaryLabel}
+          {primaryLabel} ▶️
         </button>
         {tasks.length > 1 ? (
           <button
@@ -796,7 +807,7 @@ function Franja({
               disabled={busy}
               onClick={() => onStart(task, "short")}
             >
-              Solo tengo {task.shortStepMin} min
+              Solo tengo {task.shortStepMin} min ⏱️
             </button>
           ) : null}
           {view.canSwap ? (
@@ -805,17 +816,20 @@ function Franja({
               disabled={busy}
               onClick={() => void onSwap(task)}
             >
-              Cambiar por otra tarea
+              Cambiar por otra tarea 🔄
             </button>
           ) : null}
+          <button type="button" disabled={busy} onClick={() => onEdit(task)}>
+            Editar tarea ✏️
+          </button>
           <button type="button" disabled={busy} onClick={() => onAlreadyDone(task)}>
-            Ya está hecho
+            Ya está hecho ✅
           </button>
           <button type="button" disabled={busy} onClick={() => onNotApplicable(task)}>
-            Hoy no
+            Hoy no 🌙
           </button>
           <button type="button" disabled={busy} onClick={onEndDay}>
-            Terminar por hoy
+            Terminar por hoy 🌅
           </button>
         </div>
       ) : null}
