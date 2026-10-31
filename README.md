@@ -5,7 +5,7 @@ El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PW
 C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla), D2
 (fallbacks de plataforma), D3 (una mano y tema cálido) y la validación local
 de D4 (12/16 criterios) están listos técnicamente, con **Liquid Focus** y la
-carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1–E3** dejó aplicado el esquema Neon/Drizzle, las diez plantillas y una copia manual protegida desde Ajustes; la app sigue local-first y sin sync. El origen HTTPS es **https://runo-mu.vercel.app**.
+carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1–E3** dejó aplicado el esquema Neon/Drizzle, las diez plantillas y una copia manual protegida desde Ajustes; la app sigue local-first y sin sync. El origen HTTPS es **https://runo-mu.vercel.app**, actualizado con E1–E3 el 2026-10-31.
 Falta la instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
 
 ## Antes de trabajar
@@ -85,6 +85,8 @@ tinta oscura, un acento bermellón y reglas finas sin sombras. Referencias y reg
 La app sigue usando IndexedDB por origen mediante Dexie, con esquema versionado.
 Cerrar una conexión no borra sus registros; borrar el almacenamiento del navegador sí.
 Hay una copia manual en Neon protegida por passcode; no hay restauración ni sincronización entre dispositivos todavía.
+
+La producción actualizada está en **https://runo-mu.vercel.app**. El deploy no migra IndexedDB entre `localhost` y Vercel; son orígenes distintos.
 
 La preparación online está en [`docs/cloud/2026-10-31-neon-drizzle.md`](./docs/cloud/2026-10-31-neon-drizzle.md):
 Neon Postgres + Drizzle, cliente server-only y migración versionada. Las tablas
