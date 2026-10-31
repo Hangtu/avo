@@ -12,14 +12,16 @@ import {
   markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicableDirect,
   recordOffered,
+  startPendingSession,
   startQuickSession,
   startSession,
   swapFranjaTask,
 } from "@/lib/db/repository";
 import { seedDatabase } from "@/lib/db/seed";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
-import type { Occurrence, Session, Task } from "@/lib/domain/types";
+import type { Occurrence, Pending, Session, Task } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
+import { PendingView } from "./pending-view";
 import { QuickTaskForm } from "./quick-task-form";
 import { SessionView } from "./session-view";
 import { AnchorView } from "./anchor-view";
@@ -92,13 +94,17 @@ export function RunoHome() {
   const [showEditor, setShowEditor] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPending, setShowPending] = useState(false);
   const [editorTaskId, setEditorTaskId] = useState<string | null>(null);
+  const [pendingComposerFocus, setPendingComposerFocus] = useState(0);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [showWalletLink, setShowWalletLink] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
   const [correctingId, setCorrectingId] = useState<string | null>(null);
   const [quickBusy, setQuickBusy] = useState(false);
   const quickBusyRef = useRef(false);
+  const pendingBusyRef = useRef(false);
   const voice = useVoicePreference();
   const theme = useThemePreference();
   const swapBusy = useRef(false);
@@ -215,12 +221,20 @@ export function RunoHome() {
   }, []);
 
   const finishSession = useCallback((offerBreak = false, message?: string) => {
+    const fromPending = view.kind === "session" && view.session.pendingId !== undefined;
     setShowBreak(offerBreak);
+    if (fromPending) {
+      setShowPending(true);
+      setPendingMessage(message ?? (offerBreak ? "Hecho." : "Listo."));
+    } else {
+      setShowPending(false);
+    }
     refreshView(message ?? (offerBreak ? "Hecho." : "Listo."));
-  }, [refreshView]);
+  }, [refreshView, view]);
 
   const openAnchor = useCallback((task: Task, occurrence: Occurrence) => {
     setShowBreak(false);
+    setShowPending(false);
     setNotice(null);
     setView({
       kind: "anchor",
@@ -286,6 +300,7 @@ export function RunoHome() {
     !showEditor &&
     !showWallet &&
     !showSettings &&
+    !showPending &&
     pendingStart === null &&
     correctingId === null &&
     (view.kind === "ready" || view.kind === "empty" || view.kind === "session");
@@ -294,6 +309,7 @@ export function RunoHome() {
 
   const openEditor = useCallback(() => {
     setShowBreak(false);
+    setShowPending(false);
     setShowWallet(false);
     setShowSettings(false);
     setEditorTaskId(null);
@@ -302,6 +318,7 @@ export function RunoHome() {
 
   const openEditorForTask = useCallback((taskId: string) => {
     setShowBreak(false);
+    setShowPending(false);
     setShowWallet(false);
     setShowSettings(false);
     setEditorTaskId(taskId);
@@ -312,6 +329,7 @@ export function RunoHome() {
     setShowBreak(false);
     setShowEditor(false);
     setShowSettings(false);
+    setShowPending(false);
     setEditorTaskId(null);
     setShowWallet(true);
   }, []);
@@ -320,15 +338,30 @@ export function RunoHome() {
     setShowBreak(false);
     setShowEditor(false);
     setShowWallet(false);
+    setShowPending(false);
     setShowSettings(true);
+  }, []);
+
+  const openPendings = useCallback((focusComposer = false) => {
+    setShowBreak(false);
+    setShowEditor(false);
+    setShowWallet(false);
+    setShowSettings(false);
+    setEditorTaskId(null);
+    setNotice(null);
+    setPendingMessage(null);
+    setShowPending(true);
+    if (focusComposer) setPendingComposerFocus((value) => value + 1);
   }, []);
 
   const closeSecondary = useCallback(() => {
     setShowEditor(false);
     setShowWallet(false);
     setShowSettings(false);
+    setShowPending(false);
     setEditorTaskId(null);
     setNotice(null);
+    setPendingMessage(null);
     setView({ kind: "loading" });
     setRefreshKey((key) => key + 1);
   }, []);
@@ -459,6 +492,7 @@ export function RunoHome() {
           now,
         });
         setShowBreak(false);
+        setShowPending(false);
         setView({ kind: "session", dateLabel: formatDate(now), session });
       } finally {
         db.close();
@@ -471,6 +505,33 @@ export function RunoHome() {
     } finally {
       quickBusyRef.current = false;
       setQuickBusy(false);
+    }
+  }, []);
+
+  const beginPendingSession = useCallback(async (pending: Pending) => {
+    if (pendingBusyRef.current) return;
+    pendingBusyRef.current = true;
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      try {
+        const now = Date.now();
+        const session = await startPendingSession(db, {
+          sessionId: newSessionId(),
+          pendingId: pending.id,
+          now,
+        });
+        setShowBreak(false);
+        setShowPending(false);
+        setView({ kind: "session", dateLabel: formatDate(now), session });
+      } finally {
+        db.close();
+      }
+    } catch (error) {
+      console.error("No se pudo empezar el pendiente", error);
+      throw error instanceof Error ? error : new Error("No se pudo empezar el pendiente.");
+    } finally {
+      pendingBusyRef.current = false;
     }
   }, []);
 
@@ -516,16 +577,27 @@ export function RunoHome() {
               Runo
               <span aria-hidden className="ml-2 inline-block h-2 w-2 bg-accent align-middle" />
             </p>
-            <h1 className={`mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet ? "hidden" : ""}`}>
+            <h1 className={`mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet || showPending ? "hidden" : ""}`}>
               Recuerda lo que importa.
             </h1>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3 pb-1">
+            {!showEditor && !showWallet && !showSettings && !showPending && view.kind !== "session" && view.kind !== "anchor" ? (
+              <button
+                type="button"
+                onClick={() => openPendings(true)}
+                disabled={pendingStart !== null}
+                className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
+                aria-label="Agregar un pendiente"
+              >
+                ＋ Pendiente
+              </button>
+            ) : null}
             {view.kind !== "loading" && view.kind !== "error" ? (
               <p className="text-sm text-muted">{view.dateLabel}</p>
             ) : null}
             <div className="hidden items-center justify-end gap-3 sm:flex">
-              {showEditor || showWallet || showSettings ? (
+              {showEditor || showWallet || showSettings || showPending ? (
                 <button
                   type="button"
                   onClick={closeSecondary}
@@ -555,6 +627,14 @@ export function RunoHome() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => openPendings(false)}
+                    disabled={pendingStart !== null}
+                    className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+                  >
+                    Pendientes
+                  </button>
+                  <button
+                    type="button"
                     onClick={openSettings}
                     disabled={pendingStart !== null}
                     className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
@@ -568,6 +648,13 @@ export function RunoHome() {
         </header>
 
         <div className="flex flex-1 flex-col justify-center py-8">
+          {showPending ? (
+            <PendingView
+              focusComposer={pendingComposerFocus}
+              message={pendingMessage}
+              onStart={beginPendingSession}
+            />
+          ) : null}
           {showEditor ? <TaskEditor initialTaskId={editorTaskId} /> : null}
           {showSettings ? (
             <SettingsView
@@ -584,7 +671,7 @@ export function RunoHome() {
             />
           ) : null}
           {showWallet ? <WalletView /> : null}
-          {!showEditor && !showWallet && !showSettings && notice ? (
+          {!showEditor && !showWallet && !showSettings && !showPending && notice ? (
             <p
               role="alert"
               className="mb-4 border-l-2 border-line pl-4 text-sm leading-6"
@@ -593,7 +680,7 @@ export function RunoHome() {
             </p>
           ) : null}
 
-          {!showEditor && !showWallet && !showSettings && pendingStart ? (
+          {!showEditor && !showWallet && !showSettings && !showPending && pendingStart ? (
             <Countdown
               task={pendingStart.task}
               variant={pendingStart.variant}
@@ -602,7 +689,7 @@ export function RunoHome() {
               onCancel={() => setPendingStart(null)}
             />
           ) : null}
-          {!showEditor && !showWallet && !showSettings && !pendingStart ? (
+          {!showEditor && !showWallet && !showSettings && !showPending && !pendingStart ? (
             <>
               {view.kind === "loading" ? <LoadingState /> : null}
               {view.kind === "error" ? (
@@ -669,10 +756,10 @@ export function RunoHome() {
           <button
             type="button"
             onClick={() => {
-              if (showEditor || showWallet || showSettings) closeSecondary();
+              if (showEditor || showWallet || showSettings || showPending) closeSecondary();
             }}
             disabled={pendingStart !== null}
-            aria-current={!showEditor && !showWallet && !showSettings ? "page" : undefined}
+            aria-current={!showEditor && !showWallet && !showSettings && !showPending ? "page" : undefined}
           >
             Hoy
           </button>
@@ -683,6 +770,16 @@ export function RunoHome() {
             aria-current={showEditor ? "page" : undefined}
           >
             Tareas
+          </button>
+          <button
+            type="button"
+            onClick={() => openPendings(false)}
+            disabled={pendingStart !== null}
+            aria-current={showPending ? "page" : undefined}
+            aria-label="Pendientes"
+          >
+            <span className="dock-label-full">Pendientes</span>
+            <span className="dock-label-short" aria-hidden>Pend.</span>
           </button>
           <button
             type="button"

@@ -18,6 +18,20 @@ export interface Task extends TaskInput {
   archivedAt: number | null;
 }
 
+export interface PendingInput {
+  title: string;
+  durationMin: number;
+}
+
+/** A one-off to-do that never becomes a recurring task or enters a franja. */
+export interface Pending extends PendingInput {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  completedAt: number | null;
+  deletedAt: number | null;
+}
+
 export type OccurrenceStatus =
   | "pending"
   | "in_progress"
@@ -82,6 +96,8 @@ interface SessionBase {
   variant: SessionVariant;
   /** One-off timer outside the daily task/franja system; never earns RC. */
   quick?: boolean;
+  /** Set when the one-off session came from the pending list. */
+  pendingId?: string;
   taskSnapshot: Task;
   durationSec: number;
   rewardTargetRc: number;

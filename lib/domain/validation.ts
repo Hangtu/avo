@@ -1,5 +1,5 @@
 import { assertTimestamp, clockMinutes, parseClockTime } from "./time";
-import type { Settings, TaskInput } from "./types";
+import type { PendingInput, Settings, TaskInput } from "./types";
 
 export class DomainError extends Error {
   constructor(
@@ -81,6 +81,15 @@ export function validateTaskInput(input: TaskInput): TaskInput {
     };
   }
   return normalized;
+}
+
+/** Title and integer minutes are the whole input for a one-off pending item. */
+export function validatePendingInput(input: PendingInput): PendingInput {
+  if (typeof input.title !== "string" || !input.title.trim()) {
+    throw new DomainError("validation", "Escribe el nombre del pendiente.");
+  }
+  positiveMinutes(input.durationMin, "La duración");
+  return { title: input.title.trim(), durationMin: input.durationMin };
 }
 
 export function defaultSettings(now: number): Settings {

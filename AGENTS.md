@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 App personal de hábitos, organización y timer, con presión configurable y recompensas en minutos de ocio. Un solo usuario, español de México. El objetivo es ayudar a actuar y volver a la vida, no maximizar adicción o tiempo dentro de la app.
 
-**Alcance vigente:** `plan.md` v1.3, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
+**Alcance vigente:** `plan.md` v1.4, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
 
 ## 1. Lectura y fuentes de verdad
 
@@ -50,9 +50,9 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 1. **Una carta en foco**, no un dashboard durante el timer. Pausa, salida y mute siguen accesibles; configuración y monedero son vistas secundarias permitidas.
 2. **Franjas de hasta tres cartas, no tres tareas por día.** Varias franjas por día; solo una abierta. No se pasa a la siguiente hasta resolver la actual (completada, ya la hice, no aplica o cambiada). Menos de tres si no hay elegibles; no rellenar con duplicados.
 3. **Tres «Otra» por fecha local**, compartidos entre franjas. Elegir entre las cartas visibles es libre y no consume cambios. «Otra» reemplaza una carta por otra que no está en la franja. Al agotarse, desaparece; no hay consumo si no existe alternativa.
-4. **Correcciones neutrales:** «Ya la hice», «Hoy no aplica», vida real, pausa y edición no consumen cambios ni prueban procrastinación. Nunca bloquear toda salida por agotar cambios. En una sesión activa no hay «dejar pendiente»: pausa, no aplica o terminar por hoy.
+4. **Correcciones neutrales:** «Ya la hice», «Hoy no aplica», vida real, pausa y edición no consumen cambios ni prueban procrastinación. Nunca bloquear toda salida por agotar cambios. En una tarea diaria en sesión activa no hay «dejar pendiente»: pausa, no aplica o terminar por hoy. En un pendiente de una vez, cerrar y dejarlo en la lista es una salida válida.
 5. **Editor cualquier día:** agregar, editar y archivar con duración, días, franja/hora opcionales, prioridad y escalón. No depende del Parte ni de llegar al domingo.
-6. **Pausa explícita persistente:** congela el restante; volver no reanuda solo. Cerrar sin pausar deja transcurrir el reloj. Una pausa sigue bloqueando el inicio de otra tarea. Cero no completa ni paga: pide confirmación. No hay «Casi» ni «Dejar pendiente» en sesión activa.
+6. **Pausa explícita persistente:** congela el restante; volver no reanuda solo. Cerrar sin pausar deja transcurrir el reloj. Una pausa sigue bloqueando el inicio de otra tarea. Cero no completa ni paga: pide confirmación. No hay «Casi» ni «Dejar pendiente» en una sesión activa de una tarea diaria; un pendiente de una vez puede cerrarse y quedarse en su lista.
 7. **Escalón opcional, no universal:** primer paso concreto y parcial. Preparar materiales no completa higiene, suplementación o cuidados. No inventar dosis ni frecuencias médicas.
 8. **Horarios pertinentes:** filtrar por días/franjas antes de ordenar por prioridad. Una ancla visible pausa y guarda la sesión anterior, se presenta una vez y no inicia un timer ni mueve citas automáticamente.
 9. **Audio apagado al inicio**, mute persistente también para campanas/anclas; siempre feedback visual. Vibración es mejora opcional, no requisito universal.
@@ -60,6 +60,7 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 11. **Sin rachas punitivas.** No implementar castigos y después construir una función para perdonarlos. Progreso posterior acumulativo; el MVP no necesita desbloqueos.
 12. **Rendimiento:** objetivo 2 s, aceptación <5 s en condiciones de `plan.md` §12. Registrar arranque/reapertura, no prometer cero latencia o medir solo en dev.
 13. **Sesión rápida acotada:** nombre + minutos desde Hoy o el día cerrado, visible incluso con una tarea asignada; no es una Task del Mazo, no entra a franja ni altera el día, no paga RC y solo hay una sesión activa. Su sesión/ocurrencia se conserva para sobrevivir una recarga; al terminar vuelve a donde empezó. Es una salida para trabajo inmediato, no una segunda economía.
+14. **Pendientes de una vez:** lista persistente separada de las tareas recurrentes, con pestaña propia y captura desde Hoy. No tiene días, franja, prioridad ni escalón; no paga RC ni entra a franjas; completados desaparecen. Timer directo, 25 min iniciales, una sola sesión activa y el siguiente pendiente no arranca solo.
 
 ## 4. Economía: una sola interpretación
 

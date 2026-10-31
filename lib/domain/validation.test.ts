@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TaskInput } from "./types";
-import { defaultSettings, validateSettings, validateTaskInput } from "./validation";
+import { defaultSettings, validatePendingInput, validateSettings, validateTaskInput } from "./validation";
 import { NOW, taskInput } from "@/tests/fixtures";
 
 describe("validación de tareas", () => {
@@ -42,6 +42,22 @@ describe("validación de tareas", () => {
       window: { start: "18:00", end: "18:30" },
     });
     expect(validateTaskInput(task).fixedTime).toBe("18:00");
+  });
+});
+
+describe("validación de pendientes", () => {
+  it("recorta el nombre y conserva los minutos enteros", () => {
+    const input = { title: "  Pagar las cuentas  ", durationMin: 25 };
+    const result = validatePendingInput(input);
+    expect(result).toEqual({ title: "Pagar las cuentas", durationMin: 25 });
+    expect(input.title).toBe("  Pagar las cuentas  ");
+  });
+
+  it.each([
+    { title: "" }, { title: "  " }, { durationMin: 0 }, { durationMin: -1 },
+    { durationMin: 1.5 }, { durationMin: Number.NaN }, { durationMin: Number.MAX_SAFE_INTEGER },
+  ])("rechaza un pendiente inválido: %j", (patch) => {
+    expect(() => validatePendingInput({ title: "Algo", durationMin: 25, ...patch })).toThrow();
   });
 });
 

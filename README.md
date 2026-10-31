@@ -5,7 +5,7 @@ El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PW
 C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla), D2
 (fallbacks de plataforma), D3 (una mano y tema cálido) y la validación local
 de D4 (12/16 criterios) están listos técnicamente, con **Liquid Focus** y la
-carta **Ahora** como base; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. El origen HTTPS es **https://runo-mu.vercel.app**.
+carta **Ahora** como base, más sesión rápida y pendientes de una vez; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. El origen HTTPS es **https://runo-mu.vercel.app**.
 Falta la instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
 
 ## Antes de trabajar
@@ -81,7 +81,7 @@ El repositorio fija snapshots al iniciar y exige un `actionId` estable para rein
 una edición sin sobrescribir cambios posteriores. La semilla se ejecuta explícitamente,
 no al importar módulos ni durante un render de servidor.
 
-El bucle B está completo, A1/A2 cubren PWA/offline, C1/C2 acreditan y canjean RC, C3
+El bucle B está completo, con sesión rápida y pendientes de una vez; A1/A2 cubren PWA/offline, C1/C2 acreditan y canjean RC, C3
 documenta contraste real con WCAG/WebAIM, C4 añade el Vigía, C5 el audio opt-in, C6
 la voz local, D1 el ancla visible, D2 los fallbacks de plataforma, D3 la
 accesibilidad de una mano/tema y D4 la validación local. El origen HTTPS

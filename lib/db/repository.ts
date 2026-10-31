@@ -5,12 +5,12 @@ import { occurrenceIdFor } from "@/lib/domain/occurrence";
 import { availabilityOf, eligibleCandidates, proposeHand } from "@/lib/domain/selection";
 import { assertTimestamp, parseLocalDate, toLocalDate, weekdayOf, type LocalDate } from "@/lib/domain/time";
 import {
-  assertId, defaultSettings, DomainError, validateSettings, validateTaskInput,
+  assertId, defaultSettings, DomainError, validatePendingInput, validateSettings, validateTaskInput,
 } from "@/lib/domain/validation";
 import {
   TERMINAL_OCCURRENCE_STATUSES,
-  type Day, type Hand, type Occurrence, type Session, type SessionVariant, type Settings,
-  type Task, type TaskInput,
+  type Day, type Hand, type Occurrence, type Pending, type PendingInput, type Session,
+  type SessionVariant, type Settings, type Task, type TaskInput,
 } from "@/lib/domain/types";
 
 export { occurrenceIdFor } from "@/lib/domain/occurrence";
@@ -112,6 +112,91 @@ export async function archiveTask(db: RunoDatabase, id: string, now: number): Pr
 
 export async function listTasks(db: RunoDatabase, includeArchived = false): Promise<Task[]> {
   return db.tasks.filter((task) => includeArchived || task.archivedAt === null).sortBy("createdAt");
+}
+
+/** Creates one one-off pending. The ID makes a retry safe without duplicating it. */
+export async function createPending(
+  db: RunoDatabase, id: string, input: PendingInput, now: number,
+): Promise<Pending> {
+  assertId(id);
+  assertTimestamp(now);
+  const values = validatePendingInput(input);
+  return db.transaction("rw", db.pendings, async () => {
+    const previous = await db.pendings.get(id);
+    if (previous) {
+      if (previous.title !== values.title || previous.durationMin !== values.durationMin) {
+        throw new DomainError("conflict", "Ese identificador pertenece a otro pendiente.");
+      }
+      return previous;
+    }
+    const pending: Pending = {
+      ...values, id, createdAt: now, updatedAt: now,
+      completedAt: null, deletedAt: null,
+    };
+    await db.pendings.add(pending);
+    return pending;
+  });
+}
+
+/** Active pending items, newest first. Completed and removed items stay out of the list. */
+export async function listPendings(
+  db: RunoDatabase, includeHidden = false,
+): Promise<Pending[]> {
+  const items = await db.pendings
+    .filter((pending) => includeHidden ||
+      (pending.completedAt === null && pending.deletedAt === null))
+    .sortBy("createdAt");
+  return items.reverse();
+}
+
+/** Marks a pending as done without a timer, work time, occurrence or RC. */
+export async function completePendingDirect(
+  db: RunoDatabase, pendingId: string, now: number, source = "pending",
+): Promise<Pending> {
+  assertId(pendingId);
+  assertTimestamp(now);
+  return db.transaction("rw", db.pendings, db.sessions, db.events, async () => {
+    const pending = await db.pendings.get(pendingId);
+    if (!pending || pending.deletedAt !== null) {
+      throw new DomainError("not_found", "Ese pendiente ya no existe.");
+    }
+    if (pending.completedAt !== null) return pending;
+    const active = await db.sessions
+      .filter((session) => session.pendingId === pendingId &&
+        ["running", "paused", "awaiting_confirmation"].includes(session.status))
+      .first();
+    if (active) {
+      throw new DomainError("conflict", "Termina la sesión abierta de este pendiente primero.");
+    }
+    await appendEvent(db, {
+      actionId: `pending-done:${pendingId}`, type: "already_done", at: now,
+      taskId: `pending:${pendingId}`, context: { source },
+    });
+    const updated: Pending = { ...pending, completedAt: now, updatedAt: now };
+    await db.pendings.put(updated);
+    return updated;
+  });
+}
+
+/** Hides a pending that is no longer relevant; it never deletes a running session. */
+export async function deletePending(
+  db: RunoDatabase, pendingId: string, now: number,
+): Promise<void> {
+  assertId(pendingId);
+  assertTimestamp(now);
+  await db.transaction("rw", db.pendings, db.sessions, async () => {
+    const pending = await db.pendings.get(pendingId);
+    if (!pending) throw new DomainError("not_found", "Ese pendiente ya no existe.");
+    if (pending.deletedAt !== null) return;
+    const active = await db.sessions
+      .filter((session) => session.pendingId === pendingId &&
+        ["running", "paused", "awaiting_confirmation"].includes(session.status))
+      .first();
+    if (active) {
+      throw new DomainError("conflict", "Primero resuelve la sesión abierta de este pendiente.");
+    }
+    await db.pendings.update(pendingId, { deletedAt: now, updatedAt: now });
+  });
 }
 
 export async function getSettings(db: RunoDatabase, now: number): Promise<Settings> {
@@ -498,6 +583,106 @@ export async function startQuickSession(
   });
 }
 
+export interface StartPendingSessionInput {
+  sessionId: string;
+  pendingId: string;
+  now: number;
+}
+
+/**
+ * Starts a timer for a saved pending. It uses a synthetic occurrence/session
+ * so the pending never becomes a recurring Task or enters a franja; it earns 0 RC.
+ */
+export async function startPendingSession(
+  db: RunoDatabase, input: StartPendingSessionInput,
+): Promise<Session> {
+  const { sessionId, pendingId, now } = input;
+  assertId(sessionId);
+  assertId(pendingId);
+  assertTimestamp(now);
+
+  return db.transaction("rw", db.pendings, db.occurrences, db.sessions, db.events, async () => {
+    const previous = await db.sessions.get(sessionId);
+    if (previous) {
+      if (previous.pendingId !== pendingId || previous.quick !== true) {
+        throw new DomainError("conflict", "Ese identificador pertenece a otra sesión.");
+      }
+      return previous;
+    }
+    const active = await db.sessions
+      .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
+      .first();
+    if (active) {
+      throw new DomainError("conflict", "Primero continúa o cierra la sesión que ya está abierta.");
+    }
+    const pending = await db.pendings.get(pendingId);
+    if (!pending || pending.deletedAt !== null) {
+      throw new DomainError("not_found", "Ese pendiente ya no existe.");
+    }
+    if (pending.completedAt !== null) {
+      throw new DomainError("invalid_transition", "Ese pendiente ya está terminado.");
+    }
+
+    const values = validatePendingInput({
+      title: pending.title, durationMin: pending.durationMin,
+    });
+    const date = toLocalDate(now);
+    const taskId = `pending:${pendingId}:${sessionId}`;
+    const occurrenceId = occurrenceIdFor(taskId, date);
+    const task: Task = {
+      ...values, id: taskId, days: [], priority: 2, category: "pendiente",
+      createdAt: now, updatedAt: now, archivedAt: null,
+    };
+    const durationSec = values.durationMin * 60;
+    const agreement = {
+      task: structuredClone(task),
+      rewardCapRc: 0,
+      shortStepRc: null,
+      lockedAt: now,
+    };
+    const occurrence: Occurrence = {
+      id: occurrenceId,
+      taskId,
+      date,
+      status: "in_progress",
+      timerElapsedSec: 0,
+      creditedRc: 0,
+      shortStepCompleted: false,
+      agreement,
+      anchorPresentedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const session: Session = {
+      id: sessionId,
+      occurrenceId,
+      handId: null,
+      variant: "full",
+      quick: true,
+      pendingId,
+      taskSnapshot: structuredClone(task),
+      durationSec,
+      rewardTargetRc: 0,
+      rewardCapRc: 0,
+      remainingSecAtStart: durationSec,
+      elapsedSec: 0,
+      status: "running",
+      startedAt: now,
+      runningSlot: "running",
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.occurrences.add(occurrence);
+    await db.sessions.add(session);
+    await appendEvent(db, {
+      actionId: `start:${sessionId}`, type: "started", at: now,
+      taskId, occurrenceId, sessionId,
+      context: { variant: "full", quick: true, pending: true },
+    });
+    return session;
+  });
+}
+
 /**
  * Moves a running session to confirmation at or after its wall-clock deadline.
  * Idempotent: retries return the already-expired session without another event.
@@ -585,10 +770,20 @@ export async function completeSessionWithCredit(
 ): Promise<CompletionResult> {
   assertId(sessionId);
   assertTimestamp(now);
-  return db.transaction("rw", db.sessions, db.occurrences, db.events, db.ledger, async () => {
+  return db.transaction(
+    "rw", db.sessions, db.occurrences, db.events, db.ledger, db.pendings,
+    async () => {
     const session = await db.sessions.get(sessionId);
     if (!session) throw new DomainError("not_found", "La sesión ya no existe.");
     if (session.status === "completed") {
+      if (session.pendingId) {
+        const pending = await db.pendings.get(session.pendingId);
+        if (pending && pending.completedAt === null) {
+          await db.pendings.update(session.pendingId, {
+            completedAt: now, updatedAt: now,
+          });
+        }
+      }
       const occurrence = await db.occurrences.get(session.occurrenceId);
       return { session, creditedRc: 0, totalCreditedRc: occurrence?.creditedRc ?? 0 };
     }
@@ -599,6 +794,12 @@ export async function completeSessionWithCredit(
     if (!occurrence) throw new DomainError("not_found", "La tarea de la sesión ya no existe.");
     if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status) && occurrence.status !== "completed") {
       throw new DomainError("invalid_transition", "Esta tarea ya se cerró de otra forma.");
+    }
+    if (session.pendingId) {
+      const pending = await db.pendings.get(session.pendingId);
+      if (!pending || pending.deletedAt !== null) {
+        throw new DomainError("not_found", "Ese pendiente ya no existe.");
+      }
     }
 
     const elapsedSec = elapsedSecondsFor(session, now);
@@ -619,6 +820,8 @@ export async function completeSessionWithCredit(
         shortStep: isShort,
         creditedRc,
         totalCreditedRc,
+        ...(session.quick ? { quick: true } : {}),
+        ...(session.pendingId ? { pending: true } : {}),
       },
     });
     if (creditedRc > 0) {
@@ -640,6 +843,9 @@ export async function completeSessionWithCredit(
     });
     const completed = closedSession(session, "completed", elapsedSec, now);
     await db.sessions.put(completed);
+    if (session.pendingId) {
+      await db.pendings.update(session.pendingId, { completedAt: now, updatedAt: now });
+    }
     return { session: completed, creditedRc, totalCreditedRc };
   });
 }

@@ -65,6 +65,7 @@ export function SessionView({
   const busyRef = useRef(false);
   const isShort = current.variant === "short";
   const isQuick = current.quick === true;
+  const isPending = current.pendingId !== undefined;
   const sessionDate = dateFromOccurrenceId(current.occurrenceId);
   const isTodaySession = today === null || sessionDate === today;
   const segmentRemainingSec = current.status === "running"
@@ -176,11 +177,13 @@ export function SessionView({
         const closing = chooseVoicePhrase(
           tone, "close", `${current.id}:${current.startedAt ?? current.updatedAt}`,
         );
-        const credit = isQuick
-          ? "Sesión rápida terminada."
-          : result.creditedRc > 0
-            ? `Ganaste ${result.creditedRc} min para ti`
-            : "Sin minutos nuevos.";
+        const credit = isPending
+          ? "Pendiente terminado."
+          : isQuick
+            ? "Sesión rápida terminada."
+            : result.creditedRc > 0
+              ? `Ganaste ${result.creditedRc} min para ti`
+              : "Sin minutos nuevos.";
         onFinished(!isQuick && !isShort, [credit, closing].filter(Boolean).join(" "));
       } finally {
         db.close();
@@ -193,7 +196,7 @@ export function SessionView({
       const db = await openDatabase();
       try {
         await markOccurrenceNotApplicable(db, current.id, Date.now());
-        onFinished(false);
+        onFinished(false, isPending ? "El pendiente sigue en tu lista." : undefined);
       } finally {
         db.close();
       }
@@ -241,23 +244,27 @@ export function SessionView({
     <section className="border-y border-line py-8 sm:py-10">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {current.status === "running"
-          ? isShort ? "Primer paso" : "En curso"
+          ? isShort ? "Primer paso" : isPending ? "Pendiente" : "En curso"
           : current.status === "awaiting_confirmation"
             ? "Tiempo cumplido"
             : current.status === "paused"
-              ? isShort ? "Paso pausado" : "Pausada"
+              ? isShort ? "Paso pausado" : isPending ? "Pendiente pausado" : "Pausada"
               : "Sesión cerrada"}
       </p>
       <h2 className="mt-3 text-2xl font-semibold leading-tight sm:text-3xl">
         {displayTitle}
       </h2>
       {phrase ? <p className="mt-2 text-sm leading-6 text-muted">{phrase}</p> : null}
-      {isQuick ? (
+      {isPending ? (
+        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+          Pendiente · no suma minutos
+        </p>
+      ) : isQuick ? (
         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">
           Fuera de tus tareas · no suma minutos
         </p>
       ) : null}
-      {!isTodaySession ? (
+      {!isQuick && !isPending && !isTodaySession ? (
         <p className="mt-2 text-sm leading-6 text-muted">
           Sesión de un día anterior; conserva su tarea original.
         </p>
@@ -312,11 +319,13 @@ export function SessionView({
       {current.status === "awaiting_confirmation" ? (
         <div className="mt-6 space-y-4">
           <p role="status" className="text-base leading-7 text-muted">
-            {isQuick
-              ? "Se acabó el tiempo de la sesión rápida. No se inicia otra hasta confirmar."
-              : isShort
-                ? "Se acabó el tiempo del paso. La tarea sigue pendiente."
-                : "Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar."}
+            {isPending
+              ? "Se acabó el tiempo del pendiente. Puedes terminarlo o dejarlo para después."
+              : isQuick
+                ? "Se acabó el tiempo de la sesión rápida. No se inicia otra hasta confirmar."
+                : isShort
+                  ? "Se acabó el tiempo del paso. La tarea sigue pendiente."
+                  : "Se acabó el tiempo de esta tarea. No se inicia otra hasta confirmar."}
           </p>
           <Vigia progress={progress} isShort={isShort} />
           {!showNoOptions ? (
@@ -354,7 +363,9 @@ export function SessionView({
           ) : (
             <>
               <p className="text-lg font-semibold">
-                {isShort ? "¿Qué pasó con el paso?" : "¿Qué pasó con la tarea?"}
+                {isShort
+                  ? "¿Qué pasó con el paso?"
+                  : isPending ? "¿Qué pasó con el pendiente?" : "¿Qué pasó con la tarea?"}
               </p>
               {noPhrase ? (
                 <p className="border-l-2 border-accent pl-4 text-base leading-7">
@@ -362,7 +373,9 @@ export function SessionView({
                 </p>
               ) : null}
               <p className="text-sm leading-6 text-muted">
-                Puedes reintentar cinco minutos o marcarla como no aplica.
+                {isPending
+                  ? "Puedes reintentar cinco minutos o dejarlo para después."
+                  : "Puedes reintentar cinco minutos o marcarla como no aplica."}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
@@ -379,7 +392,7 @@ export function SessionView({
                   disabled={busy}
                   className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
                 >
-                  No aplica
+                  {isPending ? "Dejarlo para después" : "No aplica"}
                 </button>
               </div>
               <button
@@ -423,7 +436,7 @@ export function SessionView({
               disabled={busy}
               className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
             >
-              No aplica
+              {isPending ? "Dejarlo para después" : "No aplica"}
             </button>
           </div>
         </div>

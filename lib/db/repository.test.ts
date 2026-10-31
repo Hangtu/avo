@@ -1,11 +1,13 @@
+import Dexie from "dexie";
 import { describe, expect, it, vi } from "vitest";
 import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
-  archiveTask, claimAnchor, closeDay, completeSession, completeSessionWithCredit, createTask, createTasks, ensureDay, ensureFranja,
-  ensureOccurrence, expireSession, getSettings, listTasks, markOccurrenceAlreadyDoneDirect,
+  archiveTask, claimAnchor, closeDay, completePendingDirect, completeSession, completeSessionWithCredit,
+  createPending, createTask, createTasks, deletePending, ensureDay, ensureFranja,
+  ensureOccurrence, expireSession, getSettings, listPendings, listTasks, markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicable, markOccurrenceNotApplicableDirect, occurrenceIdFor, pauseSession, recordOffered, resumeSession,
-  retrySession, saveSettings, startQuickSession, startSession,
+  retrySession, saveSettings, startPendingSession, startQuickSession, startSession,
   swapFranjaTask, updateTask,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
@@ -22,12 +24,44 @@ describe("schema versionado y almacenamiento local", () => {
     db.close();
   });
 
-  it("crea las ocho entidades y un marcador interno de migración", async () => {
+  it("crea las diez entidades y un marcador interno de migración", async () => {
     const db = await testDb();
-    expect(db.verno).toBe(2);
+    expect(db.verno).toBe(3);
     expect(db.tables.map((table) => table.name).sort()).toEqual([
-      "days", "events", "hands", "ledger", "metadata", "occurrences", "sessions", "settings", "tasks",
+      "days", "events", "hands", "ledger", "metadata", "occurrences", "pendings", "sessions", "settings", "tasks",
     ]);
+  });
+
+  it("migra una base v2 a v3 sin perder tareas, días ni preferencias", async () => {
+    const name = `runo-migrate-${crypto.randomUUID()}`;
+    const old = new Dexie(name);
+    old.version(2).stores({
+      tasks: "id, archivedAt, *days",
+      occurrences: "id, &[taskId+date], taskId, date, status",
+      days: "date",
+      hands: "id, date, &[date+ordinal], status",
+      sessions: "id, occurrenceId, status, &runningSlot, updatedAt",
+      events: "id, actionId, &[actionId+type], occurrenceId, sessionId, at, type",
+      ledger: "id, &sourceKey, occurrenceId, at",
+      settings: "id",
+      metadata: "key",
+    });
+    await old.open();
+    await old.table("tasks").add({
+      ...taskInput(), id: "ropa", createdAt: NOW, updatedAt: NOW, archivedAt: null,
+    });
+    await old.table("days").add({
+      date: MONDAY, swapsUsed: 2, closedAt: NOW, createdAt: NOW,
+    });
+    old.close();
+
+    const db = await openDatabase(name);
+    expect(db.verno).toBe(3);
+    expect(await db.tasks.count()).toBe(1);
+    expect((await db.days.get(MONDAY))!.swapsUsed).toBe(2);
+    expect(await db.pendings.count()).toBe(0);
+    db.close();
+    await Dexie.delete(name);
   });
 
   it("conserva tareas, ocurrencias, sesión y preferencias al cerrar/reabrir", async () => {
@@ -1244,5 +1278,126 @@ describe("sesiones rápidas", () => {
     })).rejects.toThrow("duración");
     expect(await db.sessions.count()).toBe(0);
     expect(await db.occurrences.count()).toBe(0);
+  });
+});
+
+
+describe("pendientes de una sola vez", () => {
+  it("los guarda aparte, ordena por reciente y no crea tarea, ocurrencia ni ledger", async () => {
+    const db = await testDb();
+    await ensureDay(db, MONDAY, NOW);
+    const first = await createPending(db, "p1", {
+      title: "Pagar las cuentas", durationMin: 25,
+    }, NOW);
+    const second = await createPending(db, "p2", {
+      title: "Comprar pilas", durationMin: 5,
+    }, NOW + 1);
+
+    expect(await listPendings(db)).toEqual([second, first]);
+    expect(await createPending(db, "p1", {
+      title: "Pagar las cuentas", durationMin: 25,
+    }, NOW + 2)).toEqual(first);
+    await expect(createPending(db, "p1", {
+      title: "Otra cosa", durationMin: 25,
+    }, NOW + 3)).rejects.toThrow("otro pendiente");
+    expect(await listPendings(db)).toHaveLength(2);
+    expect(await db.tasks.count()).toBe(0);
+    expect(await db.occurrences.count()).toBe(0);
+    expect(await db.ledger.count()).toBe(0);
+    expect((await db.days.get(MONDAY))!.closedAt).toBeNull();
+  });
+
+  it("corre con el día cerrado, bloquea otra sesión y al completar quita el pendiente sin RC", async () => {
+    const db = await testDb();
+    await ensureDay(db, MONDAY, NOW);
+    await closeDay(db, MONDAY, NOW + 1);
+    await createPending(db, "p1", { title: "Pagar las cuentas", durationMin: 25 }, NOW + 2);
+    await createPending(db, "p2", { title: "Comprar pilas", durationMin: 5 }, NOW + 3);
+
+    const session = await startPendingSession(db, {
+      sessionId: "ps1", pendingId: "p1", now: NOW + 4,
+    });
+    expect(session).toMatchObject({
+      quick: true, pendingId: "p1", handId: null, status: "running",
+      durationSec: 25 * 60, rewardTargetRc: 0, rewardCapRc: 0,
+      taskSnapshot: { title: "Pagar las cuentas", durationMin: 25, days: [] },
+    });
+    expect(await startPendingSession(db, {
+      sessionId: "ps1", pendingId: "p1", now: NOW + 5,
+    })).toEqual(session);
+    expect(await db.tasks.count()).toBe(0);
+    expect(await db.hands.count()).toBe(0);
+
+    await expect(startPendingSession(db, {
+      sessionId: "ps2", pendingId: "p2", now: NOW + 6,
+    })).rejects.toThrow("continúa o cierra");
+
+    const result = await completeSessionWithCredit(db, "ps1", NOW + 7);
+    expect(result).toMatchObject({ creditedRc: 0, totalCreditedRc: 0 });
+    expect((await db.pendings.get("p1"))!.completedAt).not.toBeNull();
+    expect(await listPendings(db)).toHaveLength(1);
+    expect(await db.ledger.count()).toBe(0);
+    expect((await db.days.get(MONDAY))!.closedAt).toBe(NOW + 1);
+    expect((await db.occurrences.get(session.occurrenceId))!.status).toBe("completed");
+
+    await startPendingSession(db, {
+      sessionId: "ps2", pendingId: "p2", now: NOW + 8,
+    });
+  });
+
+  it("permite marcarlo hecho sin timer y quitarlo de la lista", async () => {
+    const db = await testDb();
+    await createPending(db, "p1", { title: "Pagar las cuentas", durationMin: 25 }, NOW);
+    const done = await completePendingDirect(db, "p1", NOW + 1);
+    expect(done.completedAt).toBe(NOW + 1);
+    expect(await listPendings(db)).toEqual([]);
+    expect(await listPendings(db, true)).toHaveLength(1);
+    expect(await db.ledger.count()).toBe(0);
+    expect(await db.tasks.count()).toBe(0);
+    expect(await db.occurrences.count()).toBe(0);
+    const event = await db.events.where("type").equals("already_done").first();
+    expect(event).toMatchObject({ taskId: "pending:p1", context: { source: "pending" } });
+    expect(await completePendingDirect(db, "p1", NOW + 2)).toEqual(done);
+
+    await createPending(db, "p2", { title: "Comprar pilas", durationMin: 5 }, NOW + 3);
+    await deletePending(db, "p2", NOW + 4);
+    expect(await listPendings(db)).toEqual([]);
+    expect((await db.pendings.get("p2"))!.deletedAt).toBe(NOW + 4);
+  });
+
+  it("dejarlo para después conserva el pendiente y permite empezar otra sesión", async () => {
+    const db = await testDb();
+    await createPending(db, "p1", { title: "Pagar las cuentas", durationMin: 25 }, NOW);
+    const first = await startPendingSession(db, {
+      sessionId: "ps1", pendingId: "p1", now: NOW + 1,
+    });
+    await markOccurrenceNotApplicable(db, "ps1", NOW + 2);
+
+    expect((await db.pendings.get("p1"))!.completedAt).toBeNull();
+    expect(await listPendings(db)).toHaveLength(1);
+    expect((await db.occurrences.get(first.occurrenceId))!.status).toBe("not_applicable");
+    expect(await db.ledger.count()).toBe(0);
+
+    const second = await startPendingSession(db, {
+      sessionId: "ps2", pendingId: "p1", now: NOW + 3,
+    });
+    expect(second.occurrenceId).not.toBe(first.occurrenceId);
+    expect(second.status).toBe("running");
+  });
+
+  it("rechaza un pendiente inválido y no permite quitarlo mientras corre", async () => {
+    const db = await testDb();
+    await expect(createPending(db, "p1", {
+      title: "  ", durationMin: 25,
+    }, NOW)).rejects.toThrow("nombre");
+    await expect(createPending(db, "p2", {
+      title: "Algo", durationMin: 0,
+    }, NOW)).rejects.toThrow("duración");
+    expect(await db.pendings.count()).toBe(0);
+
+    await createPending(db, "p3", { title: "Algo", durationMin: 5 }, NOW);
+    await startPendingSession(db, { sessionId: "ps3", pendingId: "p3", now: NOW + 1 });
+    await expect(deletePending(db, "p3", NOW + 2)).rejects.toThrow("sesión abierta");
+    await expect(completePendingDirect(db, "p3", NOW + 3)).rejects.toThrow("sesión abierta");
   });
 });
