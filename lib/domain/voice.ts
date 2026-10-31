@@ -17,8 +17,8 @@ export const VOICE_PHRASES: Readonly<Record<VoiceContext, readonly string[]>> = 
     "Lo hecho queda. Ahora puedes parar.",
   ],
   push: [
-    "Deja el scroll y haz lo que dijiste.",
-    "No necesitas ganas para empezar; necesitas empezar.",
+    "Deja el scroll y haz lo que dijiste. 👀",
+    "No necesitas ganas para empezar; necesitas empezar. ⚡",
   ],
 };
 

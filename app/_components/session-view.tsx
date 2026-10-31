@@ -60,7 +60,6 @@ export function SessionView({
   const [retryId, setRetryId] = useState(() => newActionId());
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<string | null>(null);
-  const [pushPhrase, setPushPhrase] = useState<string | null>(null);
   const [pushCount, setPushCount] = useState(0);
   const [noPhrase, setNoPhrase] = useState<string | null>(null);
   const busyRef = useRef(false);
@@ -348,7 +347,7 @@ export function SessionView({
                 {isShort ? "¿Qué pasó con el paso?" : "¿Qué pasó con la tarea?"}
               </p>
               {noPhrase ? (
-                <p className="border-l-2 border-accent pl-4 text-sm leading-6">
+                <p className="border-l-2 border-accent pl-4 text-base leading-7">
                   {noPhrase}
                 </p>
               ) : null}
@@ -419,34 +418,6 @@ export function SessionView({
           </div>
         </div>
       ) : null}
-
-      {tone > 0 &&
-      (current.status === "running" ||
-        current.status === "paused" ||
-        current.status === "awaiting_confirmation") ? (
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-          <button
-            type="button"
-            onClick={() => {
-              const next = chooseVoicePhrase(
-                2, "push", `${current.id}:${pushCount}`, pushPhrase ?? undefined,
-              );
-              setPushPhrase(next);
-              setPushCount((count) => count + 1);
-            }}
-            className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline"
-          >
-            Empujón
-          </button>
-        </div>
-      ) : null}
-
-      {tone > 0 && pushPhrase ? (
-        <p className="mt-2 border-l-2 border-control pl-4 text-sm leading-6">
-          {pushPhrase}
-        </p>
-      ) : null}
-
 
       {actionError ? (
         <p className="mt-5 border-l-2 border-accent pl-4 text-sm leading-6" role="alert">

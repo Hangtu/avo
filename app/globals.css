@@ -239,12 +239,18 @@ select {
 }
 
 :root[data-ui="liquid"] button.border-control {
-  background: var(--surface-2);
-  border-color: var(--surface-border);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1.5px solid rgba(68, 101, 104, 0.7);
   color: var(--foreground);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 24px -20px rgba(15, 40, 60, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
+
+:root[data-ui="liquid"][data-theme="dark"] button.border-control {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(214, 238, 236, 0.3);
+  box-shadow: 0 10px 24px -20px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
 
 :root[data-ui="liquid"] select,
 :root[data-ui="liquid"] input:not([type="checkbox"]) {
