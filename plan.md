@@ -143,7 +143,7 @@ En **Hoy** o después de cerrar el día, la cabecera ofrece **Tarea rápida** ju
 
 Además de las tareas recurrentes, Runo mantiene una **lista de pendientes** para cosas que no se repiten: pagar las cuentas del banco, cancelar una suscripción, comprar pilas o mandar un correo. No son tareas del Mazo y no tienen día, franja, prioridad ni escalón.
 
-- **Pestaña propia «Pendientes»**, separada de Hoy y Tareas. Se puede abrir desde el dock y desde el enlace de escritorio. Un botón **＋ Pendiente** en Hoy permite agregar sin perder el hilo.
+- **Pestaña propia «Pendientes»**, separada de Hoy y Tareas. Se puede abrir desde el dock en móvil y escritorio. Un botón **＋ Pendiente** en Hoy permite agregar sin perder el hilo.
 - El formulario pide **título y minutos enteros**; el valor inicial es 25 y hay atajos 5/15/25/30. No se guarda como tarea.
 - Cada pendiente se muestra como tarjeta con **Empezar**, **Ya lo hice** y **Quitar**. «Quitar» pide confirmación; «Ya lo hice» cierra sin timer, sin trabajo registrado y sin RC.
 - El timer se abre directo, sin 3-2-1. Se puede pausar, usar «El bebé» y terminar antes con **Terminé**. Al llegar a cero no se completa solo: pregunta si terminaste; si no, el pendiente sigue en la lista. «Reintentar 5 min» añade un tramo; «Dejarlo para después» cierra la sesión sin borrar el pendiente.
@@ -485,7 +485,7 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 | Pendientes | To-dos de una sola vez con pestaña propia, captura desde Hoy, 25 min iniciales, timer y sin RC; no son tareas recurrentes ni entran a franjas; completados desaparecen |
 | Tono inicial | Techo 2, tono efectivo normal 1; modo duro solicitado o con motivo explícito; no por usar cambios |
 | Elian / nivel 3 | Reservados para una fase posterior, con habilitación explícita y sin descalificación personal |
-| Dirección visual | Minimalismo editorial evolucionado a **Liquid Focus**: Lexend, fondo ambiental, vidrio con fallback, índigo, una acción principal y dock móvil; referencias en `docs/design/references/` |
+| Dirección visual | Minimalismo editorial evolucionado a **Liquid Focus**: Lexend, fondo ambiental, vidrio con fallback, índigo, una acción principal y dock de vidrio; referencias en `docs/design/references/` |
 | Variación del MVP | El Reloj y 5–10 frases locales; audio apagado inicialmente |
 | Datos | Local-first, sin login ni envío de datos personales a un LLM en MVP |
 | Recordatorios externos | `.ics` después, sin promesa de alarma o takeover garantizados |

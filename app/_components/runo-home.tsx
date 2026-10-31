@@ -626,54 +626,6 @@ export function RunoHome() {
             {view.kind !== "loading" && view.kind !== "error" ? (
               <p className="text-sm text-muted">{view.dateLabel}</p>
             ) : null}
-            <div className="hidden items-center justify-end gap-3 sm:flex">
-              {showEditor || showWallet || showSettings || showPending ? (
-                <button
-                  type="button"
-                  onClick={closeSecondary}
-                  className="min-h-11 text-sm font-semibold underline underline-offset-4"
-                >
-                  {t("nav.backToToday")}
-                </button>
-              ) : (
-                <>
-                  {showWalletLink ? (
-                    <button
-                      type="button"
-                      onClick={openWallet}
-                      disabled={pendingStart !== null}
-                      className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
-                    >
-                      {t("nav.wallet")}
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={openEditor}
-                    disabled={pendingStart !== null}
-                    className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
-                  >
-                    {t("nav.tasks")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openPendings(false)}
-                    disabled={pendingStart !== null}
-                    className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
-                  >
-                    {t("nav.pending")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openSettings}
-                    disabled={pendingStart !== null}
-                    className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
-                  >
-                    {t("nav.settings")}
-                  </button>
-                </>
-              )}
-            </div>
           </div>
         </header>
 
