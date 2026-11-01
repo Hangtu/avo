@@ -2,11 +2,11 @@
 
 > **Runo te ayuda a recordar, elegir con menos esfuerzo y empezar una tarea adecuada al momento. Te acompaña con tiempo visible, presión configurable y recompensas, sin castigarte por atender tu vida.**
 
-**Versión del alcance:** 1.7 — franjas de hasta tres, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez, interfaz bilingüe español/inglés, Neon/Drizzle y copia manual protegida en la nube; Runo Coins pasa a la segunda capa.
+**Versión del alcance:** 1.8 — franjas de hasta tres, carta principal con la siguiente opción asomada, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez, interfaz bilingüe español/inglés, Neon/Drizzle y copia manual protegida en la nube; Runo Coins pasa a la segunda capa.
 **Estado de ejecución y siguiente acción:** [`STATUS.md`](./STATUS.md). Este plan describe el producto; no certifica funcionalidades construidas.
 **Instrucciones para agentes:** [`AGENTS.md`](./AGENTS.md).
 
-**Resumen:** una carta visible · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · sesión rápida fuera de la lista · pendientes de una sola vez · interfaz ES/EN · copia manual en Neon/Drizzle · El Reloj · sin LLM en el MVP.
+**Resumen:** una carta principal con la siguiente asomada · franjas de hasta tres · tres cambios voluntarios al día · bloqueo de foco con salidas explícitas · descanso gratuito · pausas persistentes · sesión rápida fuera de la lista · pendientes de una sola vez · interfaz ES/EN · copia manual en Neon/Drizzle · El Reloj · sin LLM en el MVP.
 
 ---
 
@@ -31,7 +31,7 @@ Los cuatro trabajos de Runo son: **recordar y orientar · facilitar el arranque 
 ## 2. Los siete principios
 
 1. **Entrada rápida.** Objetivo de 2 s y umbral de aceptación menor de 5 s hasta un estado utilizable, medidos según §12. Sin login ni onboarding obligatorio repetido. Un asalto existente se restaura primero.
-2. **Una tarea en foco.** Durante el asalto no hay listas ni dashboards. Mientras hay una sesión activa no se puede iniciar otra tarea; pausa, no aplica, terminar por hoy y silencio siguen accesibles.
+2. **Una tarea en foco, con una alternativa visible antes de empezar.** Durante el asalto no hay listas ni dashboards. La carta principal puede tener una segunda opción compacta asomada; al elegirla se vuelve principal. Mientras hay una sesión activa no se puede iniciar otra tarea; pausa, no aplica, terminar por hoy y silencio siguen accesibles.
 3. **La app propone; tú conservas el control.** Menos decisiones por defecto, con salidas explícitas: pausa, no aplica y terminar por hoy. El bloqueo no convierte la app en una trampa.
 4. **La realidad tiene prioridad.** El bebé, una interrupción o un cambio de planes permiten pausar y cerrar sin descuentos, deuda ni mensajes de culpa.
 5. **Audio opt-in.** Silencio inicial, preferencia persistente y ningún aviso que ignore el mute. La vibración es opcional donde exista soporte.
@@ -72,7 +72,7 @@ Lunes 21 de octubre · Franja actual
 [ lista de hasta 3 cartas ]
 ```
 
-- Cada franja muestra hasta tres tareas. Si solo hay una o dos, se muestran esas.
+- Cada franja muestra hasta tres tareas. Si solo hay una o dos, se muestran esas. La principal puede mostrar la siguiente como una tarjeta compacta asomada; el resto sigue disponible con `Ver otra`.
 - El orden dentro de la franja es libre: puedes empezar por la que te apetezca.
 - La franja actual no se cierra hasta resolver sus cartas: completadas, «ya la hice», «no aplica» o cambiadas por «Otra». No se salta a la siguiente con pendientes; «Terminar por hoy» es la salida explícita.
 - Al resolver la franja, se propone la siguiente. Nunca arranca sola.
@@ -82,10 +82,10 @@ Lunes 21 de octubre · Franja actual
 
 ### 4.2 Tirada y tres cambios
 
-La carta muestra **qué hacer y duración** antes de comenzar. Hay una acción principal «Empezar» y una secundaria «Otra», con contador de cambios.
+La carta principal muestra **qué hacer y duración** antes de comenzar. Debajo se asoma la siguiente opción con su título y minutos; tocarla la vuelve principal. Hay una acción principal «Empezar» y una secundaria «Otra», con contador de cambios.
 
 - Hay **tres cambios voluntarios por fecha local**, compartidos por todas las franjas y persistentes al recargar. El valor inicial es 3; el ajuste en Ajustes queda para después del primer corte.
-- **Elegir entre las tres cartas visibles es libre y no consume cambios.** «Otra» solo reemplaza una carta por otra que no está en la franja actual.
+- **Elegir entre las cartas visibles es libre y no consume cambios.** Con dos tareas se ven la principal y la asomada; con tres, «Ver otra» cambia la asomada sin mover la principal. «Otra» solo reemplaza una carta por otra que no está en la franja actual.
 - «Otra» aplaza esa carta fuera de la franja y ofrece una alternativa elegible. La tarjeta que entra ocupa su lugar y también debe resolverse; la cambiada queda pendiente y puede volver en una franja posterior. No se cuenta como fallo.
 - Si no hay alternativa, «Otra» no se ofrece ni consume un cambio.
 - Cuando el saldo llega a cero, **«Otra» desaparece**. Un texto secundario informa que ya se usaron los tres cambios, sin regaño.
@@ -246,7 +246,7 @@ Si se incorpora un LLM: servidor, clave privada, contexto mínimo autorizado, ge
 
 Desde el primer día se guardan eventos con fecha, tarea/ocurrencia/sesión cuando corresponda, acción, variante y motivo explícito si existe. También se registra qué carta se ofreció; sin exposición no puede interpretarse un rechazo.
 
-En la carta Ahora, `offered` se registra cuando una carta es la visible, no cuando solo forma parte de la franja. Su identidad es franja + ocurrencia: volver a la misma carta dentro de la misma franja no crea otra exposición, y una carta de una franja posterior sí. Un `started` normal incluye `handId`; el ancla es la excepción acotada.
+En la carta Ahora, `offered` se registra para cada carta visible: la principal y la asomada. Su identidad es franja + ocurrencia: volver a la misma carta dentro de la misma franja no crea otra exposición, y una carta de una franja posterior sí. Un `started` normal incluye `handId`; el ancla es la excepción acotada.
 
 **Vocabulario canónico para implementación:** `offered`, `started`, `paused`, `resumed`, `timer_expired`, `completed`, `partial`, `abandoned`, `swapped`, `already_done`, `not_applicable`, `life_real`, `hand_closed`, `redeemed`, `task_created`, `task_updated`, `task_archived`, `anchor_presented`.
 
@@ -303,7 +303,7 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 
 **Correcciones del editor (2026-10-30):** un preset de momento solo se marca cuando coinciden sus dos extremos; un rango específico como 18:00–18:30 se muestra como Elegir horas, con De/A y el horario efectivo visibles. La tira de días se reparte en una cuadrícula adaptable: 7 columnas cuando cabe, 4 en móvil y 2 en anchos muy estrechos, sin scroll horizontal y conservando objetivos de toque de al menos 44 px; las filas permiten dos líneas para el nombre. Los bloques Mañana, Tarde, Noche, Sin hora, Sin día y Guardadas aparte usan encabezados plegables nativos (`details`/`summary`), muestran su contador y un chevron, inician abiertos y conservan su estado mientras se cambia de día o se abre y cierra el formulario. El formulario conserva un borrador de sesión al cambiar de vista y oculta la lista mientras se edita. Las altas de varios momentos se guardan en una sola transacción, con IDs estables para reintentos. Una carta pendiente que deja de ser elegible se oculta sin rellenar el hueco; un acuerdo ya iniciado conserva su snapshot, salvo que la tarea se archive.
 
-**Carta Ahora (2026-10-30):** la franja se presenta de una tarjeta a la vez: título, duración, `Empezar`, `Ver otra` y `⋯`. Las otras cartas de la misma franja se recorren con `Ver otra`; el paso corto, el cambio por otra tarea y las correcciones viven en `⋯`. No se muestran RC, categorías, pendientes ni contadores de cambios en la primera vista. Sonido, voz y tema viven en **Ajustes**; el Monedero está oculto de la navegación por defecto y se puede habilitar allí. Tras «No lo hice», una frase de empuje con emoji aparece sin un botón adicional.
+**Carta Ahora (2026-10-30, actualizada 2026-10-31):** la franja se presenta como una tarjeta principal con la siguiente opción compacta asomada: título, duración, `Empezar`, `Ver otra` y `⋯` en la principal; la asomada muestra título de hasta dos líneas, minutos y `Elegir`, y al tocarla se vuelve principal. La parte de la tarjeta trasera que queda bajo la principal se oculta: su borde superior no debe transparentarse a través del vidrio. El foco pasa a `Empezar`, cuyo nombre accesible incluye la tarea y su duración. En ventanas bajas se compactan la cabecera de Hoy y los espacios para conservar ambas opciones y los controles por encima del dock; la alternativa respeta los fallbacks de transparencia. Las demás cartas de la franja se recorren con `Ver otra`; el paso corto, el cambio por otra tarea y las correcciones viven en `⋯` de la principal. No se muestran RC, categorías, pendientes ni contadores de cambios en la primera vista. Sonido, voz y tema viven en **Ajustes**; el Monedero está oculto de la navegación por defecto y se puede habilitar allí. Tras «No lo hice», una frase de empuje con emoji aparece sin un botón adicional.
 
 **Ayuda contextual (2026-10-30):** las instrucciones secundarias no ocupan un párrafo permanente. Viven en un icono `i` junto al texto relevante, con tooltip al pasar el cursor, enfocar o tocar. El tooltip se oculta al salir el cursor, al perder el foco, al desplazar la página, con Escape o al tocar fuera; en táctil, un toque abre y otro cierra. Se coloca dentro del viewport y no depende solo de hover. Los estados, validaciones, acciones y límites esenciales siguen siendo texto visible; la ayuda no reemplaza información necesaria para decidir. `Tarea rápida` y `＋ Pendiente` comparten la cabecera de Hoy.
 
@@ -517,6 +517,7 @@ Los IDs y el estado viven en `STATUS.md`. Esta tabla asegura que cada requisito 
 | Sesión rápida | B13 | Timer one-off desde Hoy o el día cerrado, fuera del Mazo/franja y sin RC |
 | Pendientes de una vez | B14 | Lista persistente separada de las tareas recurrentes, con captura rápida, timer y sin RC |
 | Interfaz ES/EN | B15 | Catálogos `es.json`/`en.json`, selector en Ajustes, voz/errores/aria localizados y preferencia offline |
+| Segunda carta asomada | B16 | Carta principal + alternativa compacta, elegir y promover; sin dashboard |
 | Economía | C1, C2 | Segunda capa: recompensas fijas e idempotentes, saldo durable y canje manual |
 | Identidad y acompañamiento | C3, C4, C5, C6 | El Reloj accesible, Vigía, audio opt-in y voz local |
 | Horario y plataforma | D1, D2, D3 | Ancla visible con pausa segura, fallback visual y uso de una mano |
@@ -552,7 +553,8 @@ Proyecto A los lunes y Proyecto B los martes son **casos de prueba del editor y 
 2. **B · Bucle:** apertura por franjas, tres cambios, timer/3-2-1, bloqueo de tarea/franja, pausa, cierre de franja, descanso, editor, sesión rápida, pendientes de una vez e interfaz ES/EN. No cerrar el bloque sin cubrir todos sus IDs.
 3. **C · Economía y piel:** primero C1/C2 (segunda capa) y luego accesibilidad/El Reloj, Vigía, audio y banco local de frases. Coordinar B9 con C1 para probar el tope de recompensa.
 4. **D · Horario y pulido:** ancla con interrupción segura, fallbacks, una mano y validación de salida.
-5. **E · Nube:** E1 dejó esquema, cliente server-only, migración y semilla listos; E2 vinculó el proyecto Neon, aplicó la migración y verificó la semilla; E3 añadió passcode/cookie, API de copia y confirmación en Ajustes. La app sigue local-first; restauración/sync quedan para una fase posterior.
+5. **B16 · Segunda carta:** integrar la alternativa asomada, registrar ambas exposiciones y verificar que solo una tarea puede iniciar.
+6. **E · Nube:** E1 dejó esquema, cliente server-only, migración y semilla listos; E2 vinculó el proyecto Neon, aplicó la migración y verificó la semilla; E3 añadió passcode/cookie, API de copia y confirmación en Ajustes. La app sigue local-first; restauración/sync quedan para una fase posterior.
 
 Se trabaja un ID a la vez. Las pruebas técnicas pueden avanzar mientras una validación en teléfono está pendiente; no se declara hecha esa validación ni se oculta el pendiente. No desplegar ni escoger servicios de pago sin autorización.
 

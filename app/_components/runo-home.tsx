@@ -588,18 +588,23 @@ export function RunoHome() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="runo-shell mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16">
-        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+      <div
+        className="runo-shell mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16"
+        data-task-choices={
+          (view.kind === "ready" && !showEditor && !showWallet && !showSettings && !showPending) || undefined
+        }
+      >
+        <header className="runo-header flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
               Runo
               <span aria-hidden className="ml-2 inline-block h-2 w-2 bg-accent align-middle" />
             </p>
-            <h1 className={`mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet || showPending ? "hidden" : ""}`}>
+            <h1 className={`runo-tagline mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet || showPending ? "hidden" : ""}`}>
               {t("header.tagline")}
             </h1>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-3 pb-1">
+          <div className="runo-header-controls flex flex-wrap items-center justify-end gap-3 pb-1">
             {!showEditor && !showWallet && !showSettings && !showPending && view.kind !== "session" && view.kind !== "anchor" ? (
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -629,7 +634,7 @@ export function RunoHome() {
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col justify-center py-8">
+        <div className="runo-content flex flex-1 flex-col justify-center py-8">
           {showPending ? (
             <PendingView
               focusComposer={pendingComposerFocus}
@@ -917,97 +922,134 @@ function Franja({
 }) {
   const t = useTranslations("franja");
   const common = useTranslations("common");
-  const [index, setIndex] = useState(0);
+  const [primaryIndex, setPrimaryIndex] = useState(0);
+  const [peekOffset, setPeekOffset] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const startButtonRef = useRef<HTMLButtonElement>(null);
+  const focusStart = useRef(false);
   const tasks = view.tasks;
-  const task = tasks[index % Math.max(tasks.length, 1)];
+  const primarySlot = tasks.length ? primaryIndex % tasks.length : 0;
+  const primary = tasks[primarySlot];
+  const alternativesCount = Math.max(0, tasks.length - 1);
+  const normalizedPeekOffset = alternativesCount ? peekOffset % alternativesCount : 0;
+  const secondaryIndex = tasks.length > 1
+    ? (primarySlot + 1 + normalizedPeekOffset) % tasks.length
+    : -1;
+  const secondary = secondaryIndex >= 0 ? tasks[secondaryIndex] : undefined;
   const busy = swapping || correctingId !== null;
 
   useEffect(() => {
-    if (!task) return;
-    void onOffer(view.handId, task);
-  }, [onOffer, task, view.handId]);
+    if (!primary) return;
+    void onOffer(view.handId, primary);
+    if (secondary) void onOffer(view.handId, secondary);
+  }, [onOffer, primary, secondary, view.handId]);
 
-  if (!task) return null;
+  useEffect(() => {
+    if (!focusStart.current) return;
+    focusStart.current = false;
+    startButtonRef.current?.focus();
+  }, [primary]);
 
-  const remaining = task.remainingMin;
-  const primaryLabel = task.shortStepDone
+  if (!primary) return null;
+
+  const remaining = primary.remainingMin;
+  const primaryLabel = primary.shortStepDone
     ? t("continue", { remaining })
     : t("start");
 
-  return (
-    <section className="first-experience" aria-labelledby="first-title">
-      <p className="first-eyebrow">{t("eyebrow")}</p>
-      <h2 id="first-title" className="first-title">{task.title}</h2>
-      <p className="first-duration">{common("minutes", { count: remaining })}</p>
+  function promoteSecondary() {
+    if (!secondary || busy) return;
+    focusStart.current = true;
+    setPrimaryIndex(secondaryIndex);
+    setPeekOffset(0);
+    setMenuOpen(false);
+  }
 
-      <div className="first-actions">
-        <button
-          type="button"
-          className="bg-foreground px-6 text-base font-semibold text-background disabled:opacity-60"
-          disabled={busy}
-          onClick={() => onStart(task, "full")}
-        >
-          {primaryLabel} ▶️
-        </button>
-        {tasks.length > 1 ? (
+  return (
+    <div className="peek-layout">
+      <section className="first-experience peek-front" aria-labelledby="first-title">
+        <p className="first-eyebrow">{t("eyebrow")}</p>
+        <h2 id="first-title" className="first-title">{primary.title}</h2>
+        <p id="first-duration" className="first-duration">{common("minutes", { count: remaining })}</p>
+
+        <div className="first-actions">
+          <button
+            ref={startButtonRef}
+            type="button"
+            className="bg-foreground px-6 text-base font-semibold text-background disabled:opacity-60"
+            disabled={busy}
+            aria-labelledby="first-start-label first-title first-duration"
+            onClick={() => onStart(primary, "full")}
+          >
+            <span id="first-start-label">{primaryLabel}</span> <span aria-hidden className="first-start-icon">▶️</span>
+          </button>
+          {tasks.length > 2 ? (
+            <button
+              type="button"
+              className="first-secondary"
+              disabled={busy}
+              onClick={() => setPeekOffset((value) => value + 1)}
+            >
+              {t("showAnother")}
+            </button>
+          ) : null}
           <button
             type="button"
-            className="first-secondary"
+            className="first-more"
             disabled={busy}
-            onClick={() => {
-              setIndex((value) => value + 1);
-              setMenuOpen(false);
-            }}
+            aria-label={common("moreOptions")}
+            aria-expanded={menuOpen}
+            aria-controls="first-more-menu"
+            onClick={() => setMenuOpen((value) => !value)}
           >
-            {t("showAnother")}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="first-more"
-          disabled={busy}
-          aria-label={common("moreOptions")}
-          aria-expanded={menuOpen}
-          aria-controls="first-more-menu"
-          onClick={() => setMenuOpen((value) => !value)}
-        >
-          ⋯
-        </button>
-      </div>
-
-      {menuOpen ? (
-        <div id="first-more-menu" className="first-menu">
-          {task.shortStepMin && !task.shortStepDone ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onStart(task, "short")}
-            >
-              {t("shortStep", { minutes: task.shortStepMin })}
-            </button>
-          ) : null}
-          {view.canSwap ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void onSwap(task)}
-            >
-              {t("swap")}
-            </button>
-          ) : null}
-          <button type="button" disabled={busy} onClick={() => onAlreadyDone(task)}>
-            {t("alreadyDone")}
-          </button>
-          <button type="button" disabled={busy} onClick={() => onNotApplicable(task)}>
-            {t("notToday")}
-          </button>
-          <button type="button" disabled={busy} onClick={() => onEdit(task)}>
-            {t("edit")}
+            ⋯
           </button>
         </div>
+
+        {menuOpen ? (
+          <div id="first-more-menu" className="first-menu">
+            {primary.shortStepMin && !primary.shortStepDone ? (
+              <button type="button" disabled={busy} onClick={() => onStart(primary, "short")}>
+                {t("shortStep", { minutes: primary.shortStepMin })}
+              </button>
+            ) : null}
+            {view.canSwap ? (
+              <button type="button" disabled={busy} onClick={() => void onSwap(primary)}>
+                {t("swap")}
+              </button>
+            ) : null}
+            <button type="button" disabled={busy} onClick={() => onAlreadyDone(primary)}>
+              {t("alreadyDone")}
+            </button>
+            <button type="button" disabled={busy} onClick={() => onNotApplicable(primary)}>
+              {t("notToday")}
+            </button>
+            <button type="button" disabled={busy} onClick={() => onEdit(primary)}>
+              {t("edit")}
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      {secondary ? (
+        <button
+          type="button"
+          className="peek-back"
+          onClick={promoteSecondary}
+          disabled={busy}
+          aria-labelledby="peek-back-action peek-back-title peek-back-duration"
+        >
+          <span className="peek-back-top">
+            <span className="peek-back-label">{t("otherOption")}</span>
+            <span id="peek-back-action" className="peek-back-action">{t("chooseTask")}</span>
+          </span>
+          <span id="peek-back-title" className="peek-back-title">{secondary.title}</span>
+          <span id="peek-back-duration" className="peek-back-duration">
+            {common("minutes", { count: secondary.remainingMin })}
+          </span>
+        </button>
       ) : null}
-    </section>
+    </div>
   );
 }
 

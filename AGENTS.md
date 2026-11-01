@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 App personal de hábitos, organización y timer, con presión configurable y recompensas en minutos de ocio. Un solo usuario, español de México. El objetivo es ayudar a actuar y volver a la vida, no maximizar adicción o tiempo dentro de la app.
 
-**Alcance vigente:** `plan.md` v1.7, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
+**Alcance vigente:** `plan.md` v1.8, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
 
 ## 1. Lectura y fuentes de verdad
 
@@ -48,7 +48,7 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 
 ## 3. Contrato del producto que no se debe perder
 
-1. **Una carta en foco**, no un dashboard durante el timer. Pausa, salida y mute siguen accesibles; configuración y monedero son vistas secundarias permitidas.
+1. **Una carta principal en foco, con una alternativa asomada antes de empezar**, no un dashboard durante el timer. La alternativa se vuelve principal al elegirla. Pausa, salida y mute siguen accesibles; configuración y monedero son vistas secundarias permitidas.
 2. **Franjas de hasta tres cartas, no tres tareas por día.** Varias franjas por día; solo una abierta. No se pasa a la siguiente hasta resolver la actual (completada, ya la hice, no aplica o cambiada). Menos de tres si no hay elegibles; no rellenar con duplicados.
 3. **Tres «Otra» por fecha local**, compartidos entre franjas. Elegir entre las cartas visibles es libre y no consume cambios. «Otra» reemplaza una carta por otra que no está en la franja. Al agotarse, desaparece; no hay consumo si no existe alternativa.
 4. **Correcciones neutrales:** «Ya la hice», «Hoy no aplica», vida real, pausa y edición no consumen cambios ni prueban procrastinación. Nunca bloquear toda salida por agotar cambios. En una tarea diaria en sesión activa no hay «dejar pendiente»: pausa, no aplica o terminar por hoy. En un pendiente de una vez, cerrar y dejarlo en la lista es una salida válida.

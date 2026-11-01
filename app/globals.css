@@ -324,6 +324,10 @@ select {
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-ui="liquid"] {
+    --peek-surface: var(--surface-solid);
+  }
+
   :root[data-ui="liquid"] section,
   :root[data-ui="liquid"] ol > li,
   :root[data-ui="liquid"] ul > li,
@@ -333,6 +337,10 @@ select {
 }
 
 @media (prefers-reduced-transparency: reduce) {
+  :root[data-ui="liquid"] {
+    --peek-surface: var(--surface-solid);
+  }
+
   :root[data-ui="liquid"] section,
   :root[data-ui="liquid"] ol > li,
   :root[data-ui="liquid"] ul > li,
@@ -722,4 +730,191 @@ body > * {
 :root[data-ui="liquid"] .day-toggle:focus-within {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+/* Carta principal con la siguiente opción asomándose. */
+.peek-layout {
+  --peek-overlap: 0.85rem;
+  display: grid;
+  gap: 0;
+}
+
+.peek-front {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+:root[data-ui="liquid"] .peek-back {
+  position: relative;
+  z-index: 0;
+  display: grid;
+  min-width: 0;
+  width: auto;
+  margin: calc(-1 * var(--peek-overlap)) 1rem 0;
+  padding: 1.65rem 1rem 0.9rem;
+  border: 1px solid var(--surface-border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--peek-surface, var(--surface));
+  box-shadow: var(--surface-shadow);
+  /* El vidrio frontal no debe transparentar el borde de la tarjeta de atrás. */
+  clip-path: inset(var(--peek-overlap) -6rem -6rem);
+  color: var(--foreground);
+  text-align: left;
+}
+
+:root[data-ui="liquid"] .peek-back:hover:not(:disabled) {
+  border-color: var(--control);
+}
+
+.peek-back:disabled {
+  opacity: 0.6;
+}
+
+.peek-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.peek-back-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.peek-back-label {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.peek-back-action {
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.peek-back-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin-top: 0.35rem;
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.peek-back-duration {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 639px) {
+  :root[data-ui="liquid"] .peek-front {
+    padding: 1rem;
+  }
+
+  .peek-front .first-eyebrow {
+    margin-top: 0;
+  }
+
+  .peek-front .first-title {
+    font-size: clamp(1.8rem, 6vw, 2.6rem);
+  }
+
+  .peek-front .first-actions {
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+
+  .peek-front .first-actions > .bg-foreground {
+    padding-inline: 1rem;
+  }
+
+  :root[data-ui="liquid"] .peek-back {
+    margin-inline: 0.85rem;
+  }
+}
+
+/* Mantener las opciones visibles sobre el dock en ventanas bajas. */
+@media (max-height: 760px) {
+  :root[data-ui="liquid"] .runo-shell[data-task-choices] {
+    padding-top: 1rem;
+  }
+
+  .runo-shell[data-task-choices] .runo-header {
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  :root[data-ui="liquid"] .runo-shell[data-task-choices] .runo-tagline {
+    font-size: 1.7rem;
+    line-height: 1.1;
+  }
+
+  .runo-shell[data-task-choices] .runo-header-controls {
+    gap: 0.5rem;
+    padding-bottom: 0;
+  }
+
+  .runo-shell[data-task-choices] .runo-content {
+    padding-block: 0.75rem;
+  }
+
+  :root[data-ui="liquid"] .runo-shell[data-task-choices] .peek-front {
+    padding: 1rem;
+  }
+
+  .runo-shell[data-task-choices] .first-eyebrow {
+    margin-top: 0;
+  }
+
+  .runo-shell[data-task-choices] .first-title {
+    font-size: clamp(1.8rem, 6vw, 2.6rem);
+  }
+
+  .runo-shell[data-task-choices] .first-actions {
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .runo-shell[data-task-choices] .first-actions > .bg-foreground {
+    padding-inline: 0.9rem;
+  }
+
+  :root[data-ui="liquid"] .runo-shell[data-task-choices] .peek-back {
+    padding-block: 1.3rem 0.7rem;
+  }
+}
+
+@media (max-width: 359px) {
+  :root[data-ui="liquid"] .runo-shell[data-task-choices] .runo-header-controls button {
+    padding-inline: 0.6rem;
+    font-size: 0.78rem;
+  }
+
+  .runo-shell[data-task-choices] .first-actions {
+    gap: 0.4rem;
+  }
+
+  .runo-shell[data-task-choices] .first-actions > .bg-foreground {
+    padding-inline: 0.5rem;
+  }
+
+  .peek-front .first-start-icon {
+    display: none;
+  }
+
+  .peek-front .first-secondary {
+    max-width: 4rem;
+  }
 }

@@ -69,7 +69,9 @@
     "swap": "Cambiar por otra tarea 🔄",
     "alreadyDone": "Ya está hecho ✅",
     "notToday": "Hoy no ❌",
-    "edit": "Editar tarea ✏️"
+    "edit": "Editar tarea ✏️",
+    "chooseTask": "Elegir",
+    "otherOption": "Otra opción"
   },
   "quick": {
     "eyebrow": "Tarea rápida",
