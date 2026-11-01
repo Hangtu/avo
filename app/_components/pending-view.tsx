@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Field } from "@base-ui/react/field";
+import { Form } from "@base-ui/react/form";
+import { Menu } from "@base-ui/react/menu";
+import { Toggle } from "@base-ui/react/toggle";
+import { ToggleGroup } from "@base-ui/react/toggle-group";
+import { Toast } from "@base-ui/react/toast";
 import { useTranslations } from "next-intl";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { openDatabase } from "@/lib/db/database";
 import {
   completePendingDirect,
   createPending,
   deletePending,
   listPendings,
+  restorePending,
 } from "@/lib/db/repository";
 import type { Pending } from "@/lib/domain/types";
 import { HelpTip } from "./help-tip";
@@ -29,20 +37,26 @@ export function PendingView({
   onStart: (pending: Pending) => Promise<void>;
 }) {
   const t = useTranslations("pending");
+  const reduceMotion = useReducedMotion();
   const errors = useTranslations("errors");
+  const common = useTranslations("common");
+  const toast = useTranslations("toast");
+  const toastManager = Toast.useToastManager();
   const [items, setItems] = useState<Pending[]>([]);
+  const [showComposer, setShowComposer] = useState(focusComposer > 0);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadKey, setLoadKey] = useState(0);
   const [title, setTitle] = useState("");
   const [minutes, setMinutes] = useState("25");
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const minutesRef = useRef<HTMLInputElement>(null);
   const addingRef = useRef(false);
   const actionBusyRef = useRef(false);
 
@@ -75,9 +89,22 @@ export function PendingView({
 
   useEffect(() => {
     if (focusComposer > 0) {
-      titleRef.current?.focus();
+      requestAnimationFrame(() => titleRef.current?.focus());
     }
   }, [focusComposer]);
+
+  function openComposer() {
+    setShowComposer(true);
+    setActionError(null);
+    requestAnimationFrame(() => titleRef.current?.focus());
+  }
+
+  function closeComposer() {
+    setShowComposer(false);
+    setTitle("");
+    setMinutes("25");
+    setFormErrors({});
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,20 +112,18 @@ export function PendingView({
     addingRef.current = true;
     const cleanTitle = title.trim();
     const value = Number(minutes);
-    if (!cleanTitle) {
+    const nextErrors: Record<string, string> = {};
+    if (!cleanTitle) nextErrors.title = t("nameError");
+    if (!Number.isSafeInteger(value) || value < 1) nextErrors.minutes = t("minutesError");
+    if (Object.keys(nextErrors).length > 0) {
       addingRef.current = false;
-      setFormError(t("nameError"));
+      setFormErrors(nextErrors);
+      (nextErrors.title ? titleRef : minutesRef).current?.focus();
       return;
     }
-    if (!Number.isSafeInteger(value) || value < 1) {
-      addingRef.current = false;
-      setFormError(t("minutesError"));
-      return;
-    }
-    setFormError(null);
+    setFormErrors({});
     setAdding(true);
     setActionError(null);
-    setStatus(null);
     try {
       const db = await openDatabase();
       try {
@@ -111,14 +136,14 @@ export function PendingView({
         setItems((previous) => [pending, ...previous]);
         setTitle("");
         setMinutes("25");
-        setStatus(t("added"));
-        titleRef.current?.focus();
+        setShowComposer(false);
+        toastManager.add({ title: t("added"), type: "success", timeout: 3500 });
       } finally {
         db.close();
       }
     } catch (error) {
       console.error("No se pudo agregar el pendiente", error);
-      setFormError(errors("savePending"));
+      setActionError(errors("savePending"));
     } finally {
       addingRef.current = false;
       setAdding(false);
@@ -130,7 +155,6 @@ export function PendingView({
     actionBusyRef.current = true;
     setBusyId(pending.id);
     setActionError(null);
-    setStatus(null);
     try {
       await onStart(pending);
     } catch (error) {
@@ -147,7 +171,6 @@ export function PendingView({
     actionBusyRef.current = true;
     setBusyId(pending.id);
     setActionError(null);
-    setStatus(null);
     try {
       const db = await openDatabase();
       try {
@@ -156,7 +179,7 @@ export function PendingView({
         db.close();
       }
       setItems((previous) => previous.filter((item) => item.id !== pending.id));
-      setStatus(t("completed"));
+      toastManager.add({ title: t("completed"), type: "success", timeout: 3500 });
     } catch (error) {
       console.error("No se pudo completar el pendiente", error);
       setActionError(errors("completePending"));
@@ -166,12 +189,30 @@ export function PendingView({
     }
   }
 
+  async function restoreRemoved(pending: Pending) {
+    try {
+      const db = await openDatabase();
+      try {
+        const restored = await restorePending(db, pending.id, Date.now());
+        setItems((previous) => [
+          restored,
+          ...previous.filter((item) => item.id !== restored.id),
+        ].sort((a, b) => b.createdAt - a.createdAt));
+      } finally {
+        db.close();
+      }
+      toastManager.add({ title: t("restored"), type: "success", timeout: 4000 });
+    } catch (error) {
+      console.error("No se pudo deshacer el borrado", error);
+      toastManager.add({ title: toast("undoFailed"), type: "error", timeout: 5000 });
+    }
+  }
+
   async function remove(pending: Pending) {
     if (actionBusyRef.current) return;
     actionBusyRef.current = true;
     setBusyId(pending.id);
     setActionError(null);
-    setStatus(null);
     try {
       const db = await openDatabase();
       try {
@@ -181,7 +222,18 @@ export function PendingView({
       }
       setItems((previous) => previous.filter((item) => item.id !== pending.id));
       setDeleteId(null);
-      setStatus(t("removed"));
+      const toastId = toastManager.add({
+        title: t("removed"),
+        type: "success",
+        timeout: 8000,
+        actionProps: {
+          children: toast("undo"),
+          onClick() {
+            toastManager.close(toastId);
+            void restoreRemoved(pending);
+          },
+        },
+      });
     } catch (error) {
       console.error("No se pudo quitar el pendiente", error);
       setActionError(errors("removePending"));
@@ -192,83 +244,138 @@ export function PendingView({
   }
 
   return (
-    <section aria-labelledby="pending-title" className="border-y border-line py-8 sm:py-10">
+    <motion.section
+      aria-labelledby="pending-title"
+      className="border-y border-line py-8 sm:py-10"
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0.12 : 0.22, ease: "easeOut" }}
+    >
       <p className="pending-eyebrow text-xs font-semibold uppercase tracking-[0.12em] text-muted">
         {t("eyebrow")}
       </p>
-      <div className="mt-3 flex items-start gap-2">
-        <h2 id="pending-title" className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          {t("title")}
-        </h2>
-        <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 id="pending-title" className="min-w-0 text-2xl font-semibold tracking-tight sm:text-3xl">
+            {t("title")} <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
+          </h2>
+        </div>
+        {!showComposer ? (
+          <button
+            type="button"
+            aria-label={t("newAria")}
+            onClick={openComposer}
+            className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold"
+          >
+            {t("new")}
+          </button>
+        ) : null}
       </div>
 
-      {message && !status ? (
+      {message ? (
         <p role="status" className="mt-4 border-l-2 border-accent pl-4 text-sm leading-6">
           {message}
         </p>
       ) : null}
 
-      <form onSubmit={submit} className="mt-7 border-y border-line py-5">
+      {showComposer ? (
+      <Form
+        noValidate
+        errors={formErrors}
+        onSubmit={submit}
+        className="mt-7 border-y border-line py-5"
+      >
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
-          <label className="block min-w-0">
-            <span className="text-sm font-medium">{t("what")}</span>
-            <input
+          <Field.Root name="title" className="form-field min-w-0">
+            <Field.Label className="form-label">{t("what")}</Field.Label>
+            <Field.Control
               ref={titleRef}
-              required
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                setFormErrors((current) => {
+                  if (!current.title) return current;
+                  const next = { ...current };
+                  delete next.title;
+                  return next;
+                });
+              }}
               className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
               placeholder={t("placeholder")}
             />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">{t("minutes")}</span>
-            <input
-              required
+            <Field.Error className="form-error" />
+          </Field.Root>
+          <Field.Root name="minutes" className="form-field">
+            <Field.Label className="form-label">{t("minutes")}</Field.Label>
+            <Field.Control
+              ref={minutesRef}
               type="number"
               min={1}
               step={1}
               inputMode="numeric"
               value={minutes}
-              onChange={(event) => setMinutes(event.target.value)}
+              onChange={(event) => {
+                setMinutes(event.target.value);
+                setFormErrors((current) => {
+                  if (!current.minutes) return current;
+                  const next = { ...current };
+                  delete next.minutes;
+                  return next;
+                });
+              }}
               className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
             />
-          </label>
+            <Field.Error className="form-error" />
+          </Field.Root>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2" aria-label={t("minutesAria")}>
+        <ToggleGroup
+          value={[minutes]}
+          onValueChange={(values) => {
+            const value = values[0];
+            if (!value) return;
+            setMinutes(value);
+            setFormErrors((current) => {
+              if (!current.minutes) return current;
+              const next = { ...current };
+              delete next.minutes;
+              return next;
+            });
+          }}
+          className="mt-3 flex flex-wrap gap-2"
+          aria-label={t("minutesAria")}
+        >
           {[5, 15, 25, 30].map((value) => (
-            <button
+            <Toggle
               key={value}
-              type="button"
-              data-on={Number(minutes) === value}
-              aria-pressed={Number(minutes) === value}
-              onClick={() => setMinutes(String(value))}
+              value={String(value)}
               className="day-toggle justify-center"
             >
               {value} min
-            </button>
+            </Toggle>
           ))}
+        </ToggleGroup>
+        <div className="mt-5 flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-end">
+          <button
+            type="button"
+            onClick={closeComposer}
+            disabled={adding}
+            className="min-h-11 text-sm font-semibold text-muted underline underline-offset-4 disabled:opacity-60 sm:order-1"
+          >
+            {common("cancel")}
+          </button>
+          <motion.button
+            type="submit"
+            disabled={adding}
+            className="min-h-11 w-full rounded-none bg-foreground px-6 text-sm font-semibold text-background disabled:opacity-60 sm:order-2 sm:w-auto"
+            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+            transition={{ duration: 0.12 }}
+          >
+            {adding ? t("saving") : t("add")}
+          </motion.button>
         </div>
-        {formError ? (
-          <p className="mt-3 border-l-2 border-accent pl-4 text-sm" role="alert">
-            {formError}
-          </p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={adding}
-          className="mt-4 min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
-        >
-          {adding ? t("saving") : t("add")}
-        </button>
-      </form>
-
-      {status ? (
-        <p role="status" className="mt-4 border-l-2 border-accent pl-4 text-sm">
-          {status}
-        </p>
+      </Form>
       ) : null}
+
       {actionError ? (
         <p role="alert" className="mt-4 border-l-2 border-accent pl-4 text-sm leading-6">
           {actionError}
@@ -302,15 +409,24 @@ export function PendingView({
 
       {!loading && !loadError && items.length > 0 ? (
         <div className="mt-7">
-          <div className="flex items-baseline justify-between gap-3 border-b border-line pb-3">
-            <h3 className="text-sm font-semibold">{t("listTitle")}</h3>
-            <p className="text-xs text-muted">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-line pb-3">
+            <h3 className="min-w-0 text-sm font-semibold">{t("listTitle")}</h3>
+            <p className="whitespace-nowrap text-xs text-muted">
               {t("count", { count: items.length })}
             </p>
           </div>
           <ul className="divide-y divide-line">
+            <AnimatePresence initial={false}>
             {items.map((pending) => (
-              <li key={pending.id} className="py-5">
+              <motion.li
+                key={pending.id}
+                layout
+                className="py-5"
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -4 }}
+                transition={{ duration: reduceMotion ? 0.1 : 0.18, ease: "easeOut" }}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h4 className="text-lg font-semibold leading-snug break-words">
@@ -322,31 +438,60 @@ export function PendingView({
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => void start(pending)}
                     disabled={busyId !== null}
                     className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
+                    whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                    transition={{ duration: 0.12 }}
                   >
                     {busyId === pending.id ? t("starting") : t("start")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void markDone(pending)}
-                    disabled={busyId !== null}
-                    className="min-h-11 rounded-none border border-control px-4 text-sm font-semibold disabled:opacity-60"
-                  >
-                    {t("done")}
-                  </button>
+                  </motion.button>
                   {deleteId !== pending.id ? (
-                    <button
-                      type="button"
-                      onClick={() => setDeleteId(pending.id)}
-                      disabled={busyId !== null}
-                      className="min-h-11 px-2 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
+                    <Menu.Root
+                      open={menuOpenId === pending.id}
+                      onOpenChange={(open) => setMenuOpenId(open ? pending.id : null)}
                     >
-                      {t("remove")}
-                    </button>
+                      <Menu.Trigger
+                        type="button"
+                        className="first-more"
+                        disabled={busyId !== null}
+                        aria-label={common("moreOptions")}
+                      >
+                        ⋯
+                      </Menu.Trigger>
+                      <Menu.Portal>
+                        <Menu.Positioner
+                          className="first-menu-positioner"
+                          sideOffset={8}
+                          align="end"
+                        >
+                          <Menu.Popup className="first-menu">
+                            <Menu.Item
+                              className="first-menu-item"
+                              disabled={busyId !== null}
+                              onClick={() => {
+                                setMenuOpenId(null);
+                                void markDone(pending);
+                              }}
+                            >
+                              {t("done")}
+                            </Menu.Item>
+                            <Menu.Item
+                              className="first-menu-item"
+                              disabled={busyId !== null}
+                              onClick={() => {
+                                setMenuOpenId(null);
+                                setDeleteId(pending.id);
+                              }}
+                            >
+                              {t("remove")}
+                            </Menu.Item>
+                          </Menu.Popup>
+                        </Menu.Positioner>
+                      </Menu.Portal>
+                    </Menu.Root>
                   ) : null}
                 </div>
 
@@ -373,11 +518,12 @@ export function PendingView({
                     </div>
                   </div>
                 ) : null}
-              </li>
+              </motion.li>
             ))}
+            </AnimatePresence>
           </ul>
         </div>
       ) : null}
-    </section>
+    </motion.section>
   );
 }

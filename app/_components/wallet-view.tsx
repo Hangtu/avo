@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Field } from "@base-ui/react/field";
+import { Form } from "@base-ui/react/form";
+import { motion, useReducedMotion } from "motion/react";
+import { Toast } from "@base-ui/react/toast";
 import { useTranslations } from "next-intl";
 
 import { HelpTip } from "./help-tip";
@@ -22,14 +26,17 @@ function newActionId(): string {
 export function WalletView() {
   const t = useTranslations("wallet");
   const errors = useTranslations("errors");
+  const toastManager = Toast.useToastManager();
+  const reduceMotion = useReducedMotion();
   const [balance, setBalance] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const amountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,15 +71,17 @@ export function WalletView() {
     if (balance === null || busy) return;
     const value = Number(amount);
     if (!Number.isSafeInteger(value) || value <= 0) {
-      setError(t("invalid"));
+      setFieldErrors({ amount: t("invalid") });
+      amountRef.current?.focus();
       return;
     }
     if (value > balance) {
-      setError(t("notEnough"));
+      setFieldErrors({ amount: t("notEnough") });
+      amountRef.current?.focus();
       return;
     }
+    setFieldErrors({});
     setError(null);
-    setNotice(null);
     setConfirmation({ amount: value, actionId: newActionId() });
   }
 
@@ -80,15 +89,19 @@ export function WalletView() {
     if (!confirmation || busy) return;
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       const db = await openDatabase();
       try {
         const result = await redeemRc(db, confirmation.amount, confirmation.actionId, Date.now());
         setBalance(result.balance);
-        setNotice(t("used", { minutes: confirmation.amount }));
+        toastManager.add({
+          title: t("used", { minutes: confirmation.amount }),
+          type: "success",
+          timeout: 4000,
+        });
         setConfirmation(null);
         setAmount("");
+        setFieldErrors({});
       } finally {
         db.close();
       }
@@ -137,12 +150,6 @@ export function WalletView() {
               : t("balanceMinutes", { minutes: balance % 60, total: balance })}
           </p>
 
-          {notice ? (
-            <p className="mt-4 border-l-2 border-line pl-4 text-sm" role="status">
-              {notice}
-            </p>
-          ) : null}
-
           {balance === 0 ? (
             <p className="mt-5 text-sm leading-6 text-muted">
               {t("empty")}
@@ -156,14 +163,16 @@ export function WalletView() {
                 {t("confirmCopy", { minutes: confirmation.amount })}
               </p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <button
+                <motion.button
                   type="button"
                   onClick={() => void confirm()}
                   disabled={busy}
                   className="min-h-11 bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
+                  whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                  transition={{ duration: 0.12 }}
                 >
                   {busy ? t("saving") : t("confirm")}
-                </button>
+                </motion.button>
                 <button
                   type="button"
                   onClick={() => setConfirmation(null)}
@@ -175,10 +184,19 @@ export function WalletView() {
               </div>
             </div>
           ) : (
-            <div className="mt-6">
-              <label className="block max-w-xs">
-                <span className="text-sm font-medium">{t("input")}</span>
-                <input
+            <Form
+              noValidate
+              errors={fieldErrors}
+              onSubmit={(event) => {
+                event.preventDefault();
+                review();
+              }}
+              className="mt-6"
+            >
+              <Field.Root name="amount" className="form-field max-w-xs">
+                <Field.Label className="form-label">{t("input")}</Field.Label>
+                <Field.Control
+                  ref={amountRef}
                   type="number"
                   inputMode="numeric"
                   min={1}
@@ -188,20 +206,28 @@ export function WalletView() {
                   onChange={(event) => {
                     setAmount(event.target.value);
                     setError(null);
+                    setFieldErrors((current) => {
+                      if (!current.amount) return current;
+                      const next = { ...current };
+                      delete next.amount;
+                      return next;
+                    });
                   }}
                   className="mt-1 min-h-11 w-full border border-control bg-background px-3 text-base"
                   placeholder={String(Math.min(10, balance))}
                 />
-              </label>
-              <button
-                type="button"
-                onClick={review}
+                <Field.Error className="form-error" />
+              </Field.Root>
+              <motion.button
+                type="submit"
                 disabled={busy}
                 className="mt-4 min-h-11 bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
+                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                transition={{ duration: 0.12 }}
               >
                 {t("review")}
-              </button>
-            </div>
+              </motion.button>
+            </Form>
           )}
 
           {error ? (

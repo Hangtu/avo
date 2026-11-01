@@ -32,8 +32,21 @@ describe("elegibilidad antes de prioridad", () => {
 
   it("excluye archivadas y plantillas sin programación", () => {
     const archived = { ...task("old"), archivedAt: NOW };
-    const draft = task("care", { days: [], priority: 3 });
+    const draft: Task = { ...task("care", { priority: 3 }), days: [] };
     expect(proposeHand({ tasks: [archived, draft], occurrences: [], now: NOW, seed: "s" })).toEqual([]);
+  });
+
+  it("prefiere una tarea con horario activo sobre una sin hora de igual importancia", () => {
+    const coffee = task("coffee", {
+      priority: 3, window: { start: "06:00", end: "12:00" },
+    });
+    const vitamins = task("vitamins", { priority: 3 });
+    expect(chooseNextTask({
+      tasks: [vitamins, coffee], occurrences: [], now: at(9, 21), seed: "s",
+    })!.task.id).toBe("coffee");
+    expect(chooseNextTask({
+      tasks: [vitamins, coffee], occurrences: [], now: at(12), seed: "s",
+    })!.task.id).toBe("vitamins");
   });
 
   it("trata la franja como inicio incluido y fin excluido", () => {

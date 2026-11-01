@@ -110,6 +110,29 @@ export async function archiveTask(db: RunoDatabase, id: string, now: number): Pr
   });
 }
 
+/** Restores an archived task for the short undo window in the UI. */
+export async function restoreArchivedTask(
+  db: RunoDatabase, id: string, now: number,
+): Promise<Task> {
+  assertId(id);
+  assertTimestamp(now);
+  return db.transaction("rw", db.tasks, db.events, async () => {
+    const task = await db.tasks.get(id);
+    if (!task) throw new DomainError("not_found", "Esa tarea ya no está.");
+    if (task.archivedAt === null) return task;
+    await appendEvent(db, {
+      actionId: `task:restore:${id}:${task.archivedAt}`,
+      type: "task_updated",
+      at: now,
+      taskId: id,
+      context: { ...taskEventContext(task), restoredFromArchive: true },
+    });
+    const restored: Task = { ...task, archivedAt: null, updatedAt: now };
+    await db.tasks.put(restored);
+    return restored;
+  });
+}
+
 export async function listTasks(db: RunoDatabase, includeArchived = false): Promise<Task[]> {
   return db.tasks.filter((task) => includeArchived || task.archivedAt === null).sortBy("createdAt");
 }
@@ -179,6 +202,25 @@ export async function completePendingDirect(
 }
 
 /** Hides a pending that is no longer relevant; it never deletes a running session. */
+/** Restores a pending hidden with deletePending; completed items stay completed. */
+export async function restorePending(
+  db: RunoDatabase, pendingId: string, now: number,
+): Promise<Pending> {
+  assertId(pendingId);
+  assertTimestamp(now);
+  return db.transaction("rw", db.pendings, async () => {
+    const pending = await db.pendings.get(pendingId);
+    if (!pending) throw new DomainError("not_found", "Ese pendiente ya no está.");
+    if (pending.completedAt !== null) {
+      throw new DomainError("invalid_transition", "Ese pendiente ya está hecho.");
+    }
+    if (pending.deletedAt === null) return pending;
+    const restored: Pending = { ...pending, deletedAt: null, updatedAt: now };
+    await db.pendings.put(restored);
+    return restored;
+  });
+}
+
 export async function deletePending(
   db: RunoDatabase, pendingId: string, now: number,
 ): Promise<void> {
@@ -324,6 +366,42 @@ export async function markOccurrenceAlreadyDoneDirect(
       taskId: occurrence.taskId, occurrenceId: occurrence.id, context: { source },
     });
     const updated: Occurrence = { ...occurrence, status: "already_done", updatedAt: now };
+    await db.occurrences.put(updated);
+    return updated;
+  });
+}
+
+/** Reopens a terminal occurrence after a mistaken completion; credit is kept, not duplicated. */
+export async function reactivateOccurrence(
+  db: RunoDatabase, occurrenceId: string, now: number,
+): Promise<Occurrence> {
+  assertId(occurrenceId);
+  assertTimestamp(now);
+  return db.transaction("rw", db.occurrences, db.events, async () => {
+    const occurrence = await db.occurrences.get(occurrenceId);
+    if (!occurrence) throw new DomainError("not_found", "Esa tarea ya no está.");
+    if (occurrence.status === "pending") return occurrence;
+    if (!TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
+      throw new DomainError("invalid_transition", "Esa tarea todavía no está terminada.");
+    }
+    await appendEvent(db, {
+      actionId: `occurrence:reactivate:${occurrence.id}:${occurrence.updatedAt}`,
+      type: "task_updated", at: now, taskId: occurrence.taskId, occurrenceId: occurrence.id,
+      context: {
+        reactivated: true,
+        previousStatus: occurrence.status,
+        creditedRc: occurrence.creditedRc,
+      },
+    });
+    const updated: Occurrence = {
+      ...occurrence,
+      status: "pending",
+      timerElapsedSec: 0,
+      shortStepCompleted: false,
+      agreement: null,
+      anchorPresentedAt: null,
+      updatedAt: now,
+    };
     await db.occurrences.put(updated);
     return updated;
   });
@@ -505,7 +583,7 @@ export async function startQuickSession(
     durationMin,
     priority: 2,
     category: "rápida",
-  });
+  }, { allowEmptyDays: true });
   const date = toLocalDate(now);
   const occurrenceId = occurrenceIdFor(taskId, date);
 
@@ -1099,8 +1177,10 @@ async function closeHand(
 }
 
 /**
- * Keeps one open franja per date. Its slots are not refilled until every card
- * is resolved; then the next franja is created from the remaining eligible tasks.
+ * Keeps one open franja per date. While at least one card remains, the open
+ * franja is re-evaluated against the current clock and keeps at least two
+ * visible cards when other eligible tasks exist. Once every card is resolved,
+ * the next franja is created from the remaining tasks.
  */
 export async function ensureFranja(
   db: RunoDatabase,
@@ -1138,24 +1218,65 @@ export async function ensureFranja(
       const currentTaskIds = [...new Set(currentOccurrences.map((occurrence) => occurrence.taskId))];
       const currentTasks = (await db.tasks.bulkGet(currentTaskIds))
         .filter((task): task is Task => task !== undefined);
-      const views = taskViewsForHand(hand, currentTasks, currentOccurrences, now);
+      let views = taskViewsForHand(hand, currentTasks, currentOccurrences, now);
       if (views.length === 0) {
         await closeHand(db, hand, now, "resolved");
         hand = undefined;
       } else {
-        const excluded = new Set(hand.occurrenceIds);
-        const remainingEligible = eligibleCandidates({
+        // Re-evaluate the open franja with the current clock. Started/partial
+        // cards keep their place; the rest can be reordered or replaced by a
+        // better current candidate. Deferred cards stay out until the next
+        // franja, and this never consumes a manual "Otra" change.
+        const occurrenceById = new Map(currentOccurrences.map((occurrence) => [occurrence.id, occurrence]));
+        const taskById = new Map(currentTasks.map((task) => [task.id, task]));
+        const protectedIds = hand.occurrenceIds.filter((occurrenceId) => {
+          const occurrence = occurrenceById.get(occurrenceId);
+          if (!occurrence || TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) return false;
+          const task = taskById.get(occurrence.taskId);
+          if (!task || task.archivedAt !== null) return false;
+          return occurrence.shortStepCompleted || occurrence.agreement !== null || occurrence.timerElapsedSec > 0;
+        });
+        const ranked = proposeHand({
           tasks, occurrences, now, seed,
-          excludeOccurrenceIds: [...excluded],
-        }).length;
-        const canSwap = swapsRemaining > 0 && eligibleCandidates({
-          tasks, occurrences, now, seed,
-          excludeOccurrenceIds: [...excluded, ...hand.deferredOccurrenceIds],
-        }).length > 0;
-        return {
-          hand, tasks: views, pendingToday, remainingEligible,
-          swapsRemaining, canSwap,
-        };
+          excludeOccurrenceIds: hand.deferredOccurrenceIds,
+        });
+        const occurrenceIds: string[] = [];
+        for (const occurrenceId of protectedIds) {
+          if (!occurrenceIds.includes(occurrenceId)) occurrenceIds.push(occurrenceId);
+        }
+        for (const candidate of ranked) {
+          if (occurrenceIds.length >= 3) break;
+          if (!occurrenceIds.includes(candidate.occurrenceId)) {
+            occurrenceIds.push(candidate.occurrenceId);
+          }
+        }
+        const nextIds = occurrenceIds.slice(0, 3);
+        const previousIds = hand.occurrenceIds;
+        const unchanged = nextIds.length === previousIds.length &&
+          nextIds.every((occurrenceId, index) => occurrenceId === previousIds[index]);
+        if (!unchanged) {
+          await db.hands.update(hand.id, { occurrenceIds: nextIds });
+          hand = { ...hand, occurrenceIds: nextIds };
+          views = taskViewsForHand(hand, tasks, occurrences, now);
+        }
+        if (views.length === 0) {
+          await closeHand(db, hand, now, "resolved");
+          hand = undefined;
+        } else {
+          const excluded = new Set(hand.occurrenceIds);
+          const remainingEligible = eligibleCandidates({
+            tasks, occurrences, now, seed,
+            excludeOccurrenceIds: [...excluded],
+          }).length;
+          const canSwap = swapsRemaining > 0 && eligibleCandidates({
+            tasks, occurrences, now, seed,
+            excludeOccurrenceIds: [...excluded, ...hand.deferredOccurrenceIds],
+          }).length > 0;
+          return {
+            hand, tasks: views, pendingToday, remainingEligible,
+            swapsRemaining, canSwap,
+          };
+        }
       }
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import { openDatabase } from "@/lib/db/database";
 import {
@@ -54,6 +55,7 @@ export function SessionView({
 }) {
   const t = useTranslations("session");
   const common = useTranslations("common");
+  const reduceMotion = useReducedMotion();
   const locale = useLocale();
   const messages = useMessages();
   const voicePhrases = useMemo(() => voicePhrasesFromMessages(messages), [messages]);
@@ -252,7 +254,12 @@ export function SessionView({
   }
 
   return (
-    <section className="border-y border-line py-8 sm:py-10">
+    <motion.section
+      className="border-y border-line py-8 sm:py-10"
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0.12 : 0.25, ease: "easeOut" }}
+    >
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {current.status === "running"
           ? isShort ? t("status.firstStep") : t("status.now")
@@ -290,166 +297,194 @@ export function SessionView({
         </p>
       ) : null}
 
-      {current.status === "running" ? (
-        <>
-          <p
-            role="timer"
-            aria-label={t("timerAria")}
-            className="mt-8 break-words text-center text-[clamp(2.25rem,20vw,4.5rem)] font-semibold tracking-tight tabular-nums"
+      <AnimatePresence mode="wait" initial={false}>
+        {current.status === "running" ? (
+          <motion.div
+            key="running"
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.16, ease: "easeOut" }}
           >
-            {formatRemaining(remainingMs)}
-          </p>
-          <p className="mt-4 text-center text-sm text-muted">
-            {t("endsAt", { time: formatEndTime(current.startedAt, current.remainingSecAtStart, intlLocales[locale]) })}
-          </p>
-          <Vigia progress={progress} isShort={isShort} />
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <button
-              type="button"
-              onClick={() => void complete()}
-              disabled={busy}
-              className="min-h-12 rounded-none bg-foreground px-7 text-base font-semibold text-background disabled:opacity-60"
+            <p
+              role="timer"
+              aria-label={t("timerAria")}
+              className="mt-8 break-words text-center text-[clamp(2.25rem,20vw,4.5rem)] font-semibold tracking-tight tabular-nums"
             >
-              {busy ? common("saving") : isShort ? t("finishStep") : t("finish")}
-            </button>
-            <button
-              type="button"
-              onClick={() => void pauseNow()}
-              disabled={busy}
-              className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
-            >
-              {t("pause")}
-            </button>
-            <button
-              type="button"
-              onClick={() => void pauseNow("baby")}
-              disabled={busy}
-              className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
-            >
-              {t("baby")}
-            </button>
-          </div>
-        </>
-      ) : null}
-
-      {current.status === "awaiting_confirmation" ? (
-        <div className="mt-6 space-y-4">
-          <p role="status" className="text-base leading-7 text-muted">
-            {isPending
-              ? t("timeUpPending")
-              : isQuick
-                ? t("timeUpQuick")
-                : isShort
-                  ? t("timeUpStep")
-                  : t("timeUpTask")}
-          </p>
-          <Vigia progress={progress} isShort={isShort} />
-          {!showNoOptions ? (
-            <>
-              <p className="text-lg font-semibold">
-                {isShort ? t("didStep") : t("didTask")}
-              </p>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => void complete()}
-                  disabled={busy}
-                  className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
-                >
-                  {busy ? common("saving") : isShort ? t("yesStep") : t("yesTask")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void retry()}
-                  disabled={busy}
-                  className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
-                >
-                  {busy ? common("saving") : t("more")}
-                </button>
-                <button
-                  type="button"
-                  onClick={askNo}
-                  disabled={busy}
-                  className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
-                >
-                  {isShort ? t("noStep") : t("noTask")}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-lg font-semibold">
-                {isShort
-                  ? t("whatStep")
-                  : isPending ? t("whatPending") : t("whatTask")}
-              </p>
-              {noPhrase ? (
-                <p className="border-l-2 border-accent pl-4 text-base leading-7">
-                  {noPhrase}
-                </p>
-              ) : null}
-              <p className="text-sm leading-6 text-muted">
-                {isPending
-                  ? t("retryHelpPending")
-                  : t("retryHelp")}
-              </p>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => void retry()}
-                  disabled={busy}
-                  className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
-                >
-                  {busy ? common("saving") : t("more")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void notApplicable()}
-                  disabled={busy}
-                  className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
-                >
-                  {isPending ? t("later") : t("notToday")}
-                </button>
-              </div>
+              {formatRemaining(remainingMs)}
+            </p>
+            <p className="mt-4 text-center text-sm text-muted">
+              {t("endsAt", { time: formatEndTime(current.startedAt, current.remainingSecAtStart, intlLocales[locale]) })}
+            </p>
+            <Vigia progress={progress} isShort={isShort} />
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <motion.button
+                type="button"
+                onClick={() => void complete()}
+                disabled={busy}
+                className="min-h-12 rounded-none bg-foreground px-7 text-base font-semibold text-background disabled:opacity-60"
+                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                transition={{ duration: 0.12 }}
+              >
+                {busy ? common("saving") : isShort ? t("finishStep") : t("finish")}
+              </motion.button>
               <button
                 type="button"
-                onClick={() => setShowNoOptions(false)}
+                onClick={() => void pauseNow()}
                 disabled={busy}
-                className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
+                className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
               >
-                {t("back")}
+                {t("pause")}
               </button>
-            </>
-          )}
-        </div>
-      ) : null}
+              <button
+                type="button"
+                onClick={() => void pauseNow("baby")}
+                disabled={busy}
+                className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
+              >
+                {t("baby")}
+              </button>
+            </div>
+          </motion.div>
+        ) : null}
 
-      {current.status === "paused" ? (
-        <div className="mt-6 space-y-4">
-          <p className="text-base leading-7 text-muted">
-            {t("pausedTime", { time: formatRemaining(current.remainingSecAtStart * 1000) })}
-          </p>
-          <Vigia progress={progress} isShort={isShort} />
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => void resumeNow()}
-              disabled={busy}
-              className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
-            >
-              {busy ? common("saving") : t("continue")}
-            </button>
-            <button
-              type="button"
-              onClick={() => void notApplicable()}
-              disabled={busy}
-              className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
-            >
-              {isPending ? t("later") : t("notToday")}
-            </button>
-          </div>
-        </div>
-      ) : null}
+        {current.status === "awaiting_confirmation" ? (
+          <motion.div
+            key="awaiting"
+            className="mt-6 space-y-4"
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.16, ease: "easeOut" }}
+          >
+            <p role="status" className="text-base leading-7 text-muted">
+              {isPending
+                ? t("timeUpPending")
+                : isQuick
+                  ? t("timeUpQuick")
+                  : isShort
+                    ? t("timeUpStep")
+                    : t("timeUpTask")}
+            </p>
+            <Vigia progress={progress} isShort={isShort} />
+            {!showNoOptions ? (
+              <>
+                <p className="text-lg font-semibold">
+                  {isShort ? t("didStep") : t("didTask")}
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <motion.button
+                    type="button"
+                    onClick={() => void complete()}
+                    disabled={busy}
+                    className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
+                    whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                    transition={{ duration: 0.12 }}
+                  >
+                    {busy ? common("saving") : isShort ? t("yesStep") : t("yesTask")}
+                  </motion.button>
+                  <button
+                    type="button"
+                    onClick={() => void retry()}
+                    disabled={busy}
+                    className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
+                  >
+                    {busy ? common("saving") : t("more")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={askNo}
+                    disabled={busy}
+                    className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
+                  >
+                    {isShort ? t("noStep") : t("noTask")}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-semibold">
+                  {isShort
+                    ? t("whatStep")
+                    : isPending ? t("whatPending") : t("whatTask")}
+                </p>
+                {noPhrase ? (
+                  <p className="border-l-2 border-accent pl-4 text-base leading-7">
+                    {noPhrase}
+                  </p>
+                ) : null}
+                <p className="text-sm leading-6 text-muted">
+                  {isPending
+                    ? t("retryHelpPending")
+                    : t("retryHelp")}
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => void retry()}
+                    disabled={busy}
+                    className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
+                  >
+                    {busy ? common("saving") : t("more")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void notApplicable()}
+                    disabled={busy}
+                    className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
+                  >
+                    {isPending ? t("later") : t("notToday")}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNoOptions(false)}
+                  disabled={busy}
+                  className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:underline disabled:opacity-60"
+                >
+                  {t("back")}
+                </button>
+              </>
+            )}
+          </motion.div>
+        ) : null}
+
+        {current.status === "paused" ? (
+          <motion.div
+            key="paused"
+            className="mt-6 space-y-4"
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.16, ease: "easeOut" }}
+          >
+            <p className="text-base leading-7 text-muted">
+              {t("pausedTime", { time: formatRemaining(current.remainingSecAtStart * 1000) })}
+            </p>
+            <Vigia progress={progress} isShort={isShort} />
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <motion.button
+                type="button"
+                onClick={() => void resumeNow()}
+                disabled={busy}
+                className="min-h-12 flex-1 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
+                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                transition={{ duration: 0.12 }}
+              >
+                {busy ? common("saving") : t("continue")}
+              </motion.button>
+              <button
+                type="button"
+                onClick={() => void notApplicable()}
+                disabled={busy}
+                className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
+              >
+                {isPending ? t("later") : t("notToday")}
+              </button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {actionError ? (
         <p className="mt-5 border-l-2 border-accent pl-4 text-sm leading-6" role="alert">
@@ -469,7 +504,7 @@ export function SessionView({
           </button>
         </div>
       ) : null}
-    </section>
+    </motion.section>
   );
 }
 

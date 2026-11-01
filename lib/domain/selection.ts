@@ -95,6 +95,10 @@ export function eligibleCandidates(input: SelectionInput): Candidate[] {
     if (anchor) return anchor;
     const priority = b.task.priority - a.task.priority;
     if (priority) return priority;
+    // A task whose editable time window is active now is more relevant than
+    // an equally important task with no time context.
+    const relevance = Number(b.task.window !== undefined) - Number(a.task.window !== undefined);
+    if (relevance) return relevance;
     const diversity = Number(a.task.category === input.previousCategory) -
       Number(b.task.category === input.previousCategory);
     if (diversity) return diversity;

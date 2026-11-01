@@ -9,10 +9,10 @@ const EVERY_DAY: TaskInput["days"] = [0, 1, 2, 3, 4, 5, 6];
 interface SeedTask { id: string; input: TaskInput }
 const INITIAL_TASKS: SeedTask[] = [
   { id: "seed:creatine-vitamin-d", input: {
-    title: "Creatina + Vitamina D", days: [], durationMin: 2, priority: 3, category: "personal",
+    title: "Creatina + Vitamina D", days: EVERY_DAY, durationMin: 2, priority: 3, category: "personal",
   } },
   { id: "seed:elian-vitamins", input: {
-    title: "Darle las vitaminas a Elian", days: [], durationMin: 3, priority: 3, category: "familia",
+    title: "Darle las vitaminas a Elian", days: EVERY_DAY, durationMin: 3, priority: 3, category: "familia",
   } },
   { id: "seed:brush-teeth", input: {
     title: "Cepillarme los dientes", days: EVERY_DAY, durationMin: 3, priority: 3, category: "personal",
@@ -32,7 +32,7 @@ const INITIAL_TASKS: SeedTask[] = [
     shortStep: { title: "Preparar ingredientes", durationMin: 1 },
   } },
   { id: "seed:elian-care", input: {
-    title: "Sacar mocos a Elian", days: [], durationMin: 3, priority: 2, category: "familia",
+    title: "Sacar mocos a Elian", days: EVERY_DAY, durationMin: 3, priority: 2, category: "familia",
   } },
   { id: "seed:laundry", input: {
     title: "Lavar ropa", days: [1], durationMin: 15, priority: 2, category: "casa",

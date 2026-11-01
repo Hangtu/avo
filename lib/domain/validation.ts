@@ -24,7 +24,10 @@ function positiveMinutes(value: number): void {
 }
 
 /** Rebuild/clone the input so callers cannot mutate persisted nested values. */
-export function validateTaskInput(input: TaskInput): TaskInput {
+export function validateTaskInput(
+  input: TaskInput,
+  options: { allowEmptyDays?: boolean } = {},
+): TaskInput {
   if (typeof input.title !== "string" || !input.title.trim()) {
     throw new DomainError("validation", "Escribe el nombre de la tarea.");
   }
@@ -42,12 +45,17 @@ export function validateTaskInput(input: TaskInput): TaskInput {
     throw new DomainError("validation", "Elige días de la semana.");
   }
 
+  const days = [...new Set(input.days)].sort();
+  if (!options.allowEmptyDays && days.length === 0) {
+    throw new DomainError("validation", "Elige al menos un día.");
+  }
+
   const normalized: TaskInput = {
     title: input.title.trim(),
     category: input.category.trim(),
     durationMin: input.durationMin,
     priority: input.priority,
-    days: [...new Set(input.days)].sort(),
+    days,
   };
   if (input.window) {
     const start = parseClockTime(input.window.start);

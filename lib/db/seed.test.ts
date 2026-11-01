@@ -12,17 +12,19 @@ describe("semilla del Mazo", () => {
     expect(await seedDatabase(db, NOW)).toEqual({ createdTaskCount: 10 });
     expect(await db.tasks.count()).toBe(10);
     expect(await getSettings(db, NOW)).toMatchObject({ audioEnabled: false, showWallet: false });
-    expect(await db.tasks.filter((task) => task.days.length === 0).count()).toBe(3);
+    expect(await db.tasks.filter((task) => task.days.length === 0).count()).toBe(0);
   });
 
-  it("no programa suplementos/cuidados ni les inventa escalones", async () => {
+  it("programa suplementos/cuidados todos los días sin inventar escalones", async () => {
     const db = await testDb();
     await seedDatabase(db, NOW);
-    const drafts = await db.tasks.filter((task) => task.days.length === 0).toArray();
-    expect(drafts.map((task) => task.id).sort()).toEqual([
+    const daily = await db.tasks.bulkGet([
       "seed:creatine-vitamin-d", "seed:elian-care", "seed:elian-vitamins",
     ]);
-    expect(drafts.every((task) => task.shortStep === undefined)).toBe(true);
+    expect(daily.map((task) => task?.days)).toEqual([
+      [0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6],
+    ]);
+    expect(daily.every((task) => task?.shortStep === undefined)).toBe(true);
   });
 
   it("conserva días y hora de los ejemplos domésticos/gym", async () => {
@@ -72,8 +74,8 @@ describe("semilla del Mazo", () => {
   it("editar una copia de las plantillas no cambia la semilla compartida", () => {
     const copy = initialTaskTemplates();
     copy[0].input.title = "Otro";
-    copy[0].input.days.push(1);
+    copy[0].input.days = [1];
     expect(initialTaskTemplates()[0].input.title).toBe("Creatina + Vitamina D");
-    expect(initialTaskTemplates()[0].input.days).toEqual([]);
+    expect(initialTaskTemplates()[0].input.days).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 });

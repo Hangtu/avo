@@ -2,7 +2,7 @@
 
 > **Runo te ayuda a recordar, elegir con menos esfuerzo y empezar una tarea adecuada al momento. Te acompaña con tiempo visible, presión configurable y recompensas, sin castigarte por atender tu vida.**
 
-**Versión del alcance:** 1.8 — franjas de hasta tres, carta principal con la siguiente opción asomada, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez, interfaz bilingüe español/inglés, Neon/Drizzle y copia manual protegida en la nube; Runo Coins pasa a la segunda capa.
+**Versión del alcance:** 1.11 — hábitos con al menos un día obligatorio, franja que se reevalúa por horario, orden visual por arrastre en el editor, franjas de hasta tres, carta principal con la siguiente opción asomada, tres cambios diarios, bloqueo de foco con salidas explícitas, descanso gratuito, sesión rápida sin RC, pendientes de una sola vez, interfaz bilingüe español/inglés, Neon/Drizzle y copia manual protegida en la nube; Runo Coins pasa a la segunda capa.
 **Estado de ejecución y siguiente acción:** [`STATUS.md`](./STATUS.md). Este plan describe el producto; no certifica funcionalidades construidas.
 **Instrucciones para agentes:** [`AGENTS.md`](./AGENTS.md).
 
@@ -63,7 +63,7 @@ Los cuatro trabajos de Runo son: **recordar y orientar · facilitar el arranque 
 
 Si existe una sesión activa —corriendo, pausada o esperando confirmación—, la app la abre en su estado real. No muestra la lista de franjas, no inicia otra y no reanuda sola.
 
-Sin sesión activa, la app muestra el día local y la **franja actual**: un bloque de hasta tres tareas elegibles para ese momento, ordenadas por prioridad. La app arma las franjas que hagan falta; no crea franjas vacías ni rellena con duplicados. Puede haber varias franjas en un mismo día y varias en la misma mañana, tarde o noche.
+Sin sesión activa, la app muestra el día local y la **franja actual**: un bloque de hasta tres tareas elegibles para ese momento, ordenadas por prioridad. La app arma las franjas que hagan falta; no crea franjas vacías ni rellena con duplicados. Al abrir/volver, cada hora en punto y al cambiar de mañana/tarde/noche, la franja abierta se reevalúa: mantiene al menos dos visibles y hasta tres, conserva lo empezado y puede reemplazar cartas no empezadas por otras más pertinentes. Puede haber varias franjas en un mismo día y varias en la misma mañana, tarde o noche.
 
 ```text
 Lunes 21 de octubre · Franja actual
@@ -92,7 +92,7 @@ La carta principal muestra **qué hacer y duración** antes de comenzar. Debajo 
 - **«Ya la hice», «Hoy no aplica», pausa, vida real y corrección de configuración no consumen cambios.** Permanecen accesibles aunque se hayan agotado.
 - «Ya la hice» cierra la ocurrencia sin crear tiempo de trabajo ni pagar RC retroactivos. «Hoy no aplica» la excluye solo de esa fecha. Ambas acciones son neutrales y se registran por separado.
 
-La selección filtra primero por días, estado y horario; después prioriza anclas vencidas todavía aplicables, prioridad, diversidad y desempate determinista. No sacrifica elegibilidad por peso. El Jefe no interviene en el MVP.
+La selección filtra primero por días, estado y horario; después prioriza anclas vencidas todavía aplicables, importancia y, dentro de la misma importancia, una ventana horaria activa antes que una tarea sin hora; al final usa diversidad y desempate determinista. No sacrifica elegibilidad por peso. El Jefe no interviene en el MVP.
 
 ### 4.3 Asalto, bloqueo, pausa y resultados
 
@@ -132,7 +132,7 @@ El progreso registrado es **tiempo del timer y resultados declarados**, no una m
 En **Hoy** o después de cerrar el día, la cabecera ofrece **Tarea rápida** junto a **＋ Pendiente**: un timer one-off para algo que no estaba en la lista, como pagar cuentas o resolver un pendiente inmediato. Se abre en un panel sobre la vista actual. También está disponible cuando hay una tarea asignada; no la reemplaza ni la marca como hecha, solo permite resolver algo fuera de la lista y volver.
 
 - Pide un nombre y minutos enteros; no usa categoría, prioridad, días, franja ni escalón.
-- **No es una tarea del Mazo** y no entra a ninguna franja, ocurrencia diaria o cola de propuestas. Internamente conserva su sesión/ocurrencia para sobrevivir una recarga, pero no aparece en Tareas.
+- **No es una tarea del Mazo** y no entra a ninguna franja, ocurrencia diaria o cola de propuestas. Internamente conserva su sesión/ocurrencia para sobrevivir una recarga, pero no aparece en Hábitos.
 - **No paga RC** ni genera ledger. Es tiempo de foco, no una recompensa económica; así no se puede usar para producir minutos de ocio sin límite.
 - No cambia el estado del día abierto ni cerrado. Al terminar o abandonar, vuelve a la pantalla desde donde empezó (Hoy o día cerrado) y permite otra sesión rápida.
 - Solo puede haber una sesión activa a la vez, igual que con las tareas. Pausa, «El bebé», «No aplica» y la confirmación de término funcionan con el mismo timer.
@@ -143,7 +143,7 @@ En **Hoy** o después de cerrar el día, la cabecera ofrece **Tarea rápida** ju
 
 Además de las tareas recurrentes, Runo mantiene una **lista de pendientes** para cosas que no se repiten: pagar las cuentas del banco, cancelar una suscripción, comprar pilas o mandar un correo. No son tareas del Mazo y no tienen día, franja, prioridad ni escalón.
 
-- **Pestaña propia «Pendientes»**, separada de Hoy y Tareas. Se puede abrir desde el dock en móvil y escritorio. Un botón **＋ Pendiente** en Hoy permite agregar sin perder el hilo.
+- **Pestaña propia «Pendientes»**, separada de Hoy y Hábitos. Se puede abrir desde el dock en móvil y escritorio. Un botón **＋ Pendiente** en Hoy permite agregar sin perder el hilo.
 - El formulario pide **título y minutos enteros**; el valor inicial es 25 y hay atajos 5/15/25/30. No se guarda como tarea.
 - Cada pendiente se muestra como tarjeta con **Empezar**, **Ya lo hice** y **Quitar**. «Quitar» pide confirmación; «Ya lo hice» cierra sin timer, sin trabajo registrado y sin RC.
 - El timer se abre directo, sin 3-2-1. Se puede pausar, usar «El bebé» y terminar antes con **Terminé**. Al llegar a cero no se completa solo: pregunta si terminaste; si no, el pendiente sigue en la lista. «Reintentar 5 min» añade un tramo; «Dejarlo para después» cierra la sesión sin borrar el pendiente.
@@ -299,11 +299,17 @@ Son dirección de tono, no assets para copiar. La app no reproduce logotipos, te
 
 **Base elegida después de la exploración (Liquid Focus, 2026-10-30):** fondo ambiental `#EFF6F5`, tinta `#17252A`, superficies de vidrio con fallback sólido, muted `#3B5457`, acento `#4F6BFF`, primario `#3948C8` y timer circular. En móvil la navegación principal baja a un dock de vidrio; en escritorio queda arriba. Modo noche `#0C161B`/`#EAF7F6`/`#8EA2FF`. Lexend se mantiene; el vidrio nunca es la única capa de legibilidad.
 
-**Editor por día (2026-10-30):** la configuración de tareas usa una tira Lun–Dom con contadores, una lista filtrada por el día elegido y un grupo separado «Sin día». Crear desde un día prellena ese día; editar conserva el contexto. La lista se agrupa en Mañana (05:00–11:59), Tarde (12:00–18:59), Noche (19:00–04:59) y Sin hora; se ordena por hora y usa filas compactas. El formulario ofrece un selector de tipos existentes con opción «+ Nuevo tipo», días con estado visible y momentos Mañana/Tarde/Noche/Cualquier hora/Elegir horas; las horas exactas siguen disponibles. En una tarea nueva se pueden seleccionar varios momentos: se crean tareas separadas, una por momento, cada una con su propia ocurrencia y pago. Al editar, una copia puede crearse desde «Copiar a otro momento».
+**Editor por día (2026-10-30):** la configuración de hábitos usa una tira Lun–Dom con contadores y una lista filtrada por el día elegido. El orden visual dentro de cada sección se puede ajustar arrastrando el agarre de la fila; es independiente de la prioridad de Hoy. Todo hábito debe tener al menos un día; no existe un grupo «Sin día». Crear desde un día prellena ese día; editar conserva el contexto. La lista se agrupa en Mañana (05:00–11:59), Tarde (12:00–18:59), Noche (19:00–04:59) y Sin hora; se ordena por hora y usa filas compactas. El formulario ofrece un selector de tipos existentes con opción «+ Nuevo tipo», días con estado visible y momentos Mañana/Tarde/Noche/Cualquier hora/Elegir horas; las horas exactas siguen disponibles. En una tarea nueva se pueden seleccionar varios momentos: se crean tareas separadas, una por momento, cada una con su propia ocurrencia y pago. Al editar, una copia puede crearse desde «Copiar a otro momento».
 
-**Correcciones del editor (2026-10-30):** un preset de momento solo se marca cuando coinciden sus dos extremos; un rango específico como 18:00–18:30 se muestra como Elegir horas, con De/A y el horario efectivo visibles. La tira de días se reparte en una cuadrícula adaptable: 7 columnas cuando cabe, 4 en móvil y 2 en anchos muy estrechos, sin scroll horizontal y conservando objetivos de toque de al menos 44 px; las filas permiten dos líneas para el nombre. Los bloques Mañana, Tarde, Noche, Sin hora, Sin día y Guardadas aparte usan encabezados plegables nativos (`details`/`summary`), muestran su contador y un chevron, inician abiertos y conservan su estado mientras se cambia de día o se abre y cierra el formulario. El formulario conserva un borrador de sesión al cambiar de vista y oculta la lista mientras se edita. Las altas de varios momentos se guardan en una sola transacción, con IDs estables para reintentos. Una carta pendiente que deja de ser elegible se oculta sin rellenar el hueco; un acuerdo ya iniciado conserva su snapshot, salvo que la tarea se archive.
+**Correcciones del editor (2026-10-30):** un preset de momento solo se marca cuando coinciden sus dos extremos; un rango específico como 18:00–18:30 se muestra como Elegir horas, con De/A y el horario efectivo visibles. La tira de días se reparte en una cuadrícula adaptable: 7 columnas cuando cabe, 4 en móvil y 2 en anchos muy estrechos, sin scroll horizontal y conservando objetivos de toque de al menos 44 px; las filas permiten dos líneas para el nombre. Los bloques Mañana, Tarde, Noche y Sin hora usan encabezados plegables nativos (`details`/`summary`), muestran su contador y un chevron, inician abiertos y conservan su estado mientras se cambia de día o se abre y cierra el formulario. El formulario conserva un borrador de sesión al cambiar de vista y oculta la lista mientras se edita. Las altas de varios momentos se guardan en una sola transacción, con IDs estables para reintentos. Una carta pendiente que deja de ser elegible se oculta; si quedan hábitos elegibles, la franja abierta se repone hasta dos. Un acuerdo ya iniciado conserva su snapshot, salvo que la tarea se archive.
 
-**Carta Ahora (2026-10-30, actualizada 2026-10-31):** la franja se presenta como una tarjeta principal con la siguiente opción compacta asomada: título, duración, `Empezar`, `Ver otra` y `⋯` en la principal; la asomada muestra título de hasta dos líneas, minutos y `Elegir`, y al tocarla se vuelve principal. La parte de la tarjeta trasera que queda bajo la principal se oculta: su borde superior no debe transparentarse a través del vidrio. El foco pasa a `Empezar`, cuyo nombre accesible incluye la tarea y su duración. En ventanas bajas se compactan la cabecera de Hoy y los espacios para conservar ambas opciones y los controles por encima del dock; la alternativa respeta los fallbacks de transparencia. Las demás cartas de la franja se recorren con `Ver otra`; el paso corto, el cambio por otra tarea y las correcciones viven en `⋯` de la principal. No se muestran RC, categorías, pendientes ni contadores de cambios en la primera vista. Sonido, voz y tema viven en **Ajustes**; el Monedero está oculto de la navegación por defecto y se puede habilitar allí. Tras «No lo hice», una frase de empuje con emoji aparece sin un botón adicional.
+**Hábitos con día obligatorio (2026-11-01):** toda tarea recurrente necesita al menos un día; si no tiene ninguno, corresponde a Pendientes. El editor rechaza guardar sin día, el grupo «Sin día» desaparece y la migración v4 asigna todos los días a las tareas existentes sin día para que sigan visibles y editables. La vista y la navegación usan «Hábitos»; «Tarea rápida» sigue siendo una acción puntual separada.
+
+**Franja viva (2026-11-01):** la franja abierta se recalcula al abrir/volver a la app, cada hora en punto y al cambiar de mañana/tarde/noche. Mantiene al menos dos cartas visibles y hasta tres; conserva las cartas empezadas o parciales, no reabre las diferidas, no consume cambios y no duplica tareas. Dentro de la misma importancia, una tarea con ventana activa gana a una sin hora: a las 9:21 el café de la mañana puede desplazar a una tarea sin hora. Si todas las cartas se resuelven, la franja cierra y se crea la siguiente. En **Hábitos**, una tarea resuelta hoy se muestra tachada con «Hecho hoy» (o «Hoy no aplica») y conserva la opción **Reactivar** en `⋯`; reactivar la vuelve a pendiente y no duplica el crédito ya ganado.
+
+**Orden visual del editor (2026-11-01):** en **Hábitos**, cada fila tiene un agarre para arrastrarla y ordenarla dentro de su sección (Mañana, Tarde, Noche o Sin hora). El orden es global para todos los días, se guarda localmente en el navegador y no modifica la prioridad ni el orden de las tarjetas de Hoy. Las tareas nuevas se agregan al final de su sección; las tareas completadas se pueden reordenar igual. El arrastre no cruza secciones: mover a otro bloque será una segunda parte, porque cambia el horario real. El botón `⋯` sigue disponible para editar, reactivar o eliminar. El agarre funciona con mouse y teclado; el orden se conserva al recargar.
+
+**Carta Ahora (2026-10-30, actualizada 2026-10-31):** la franja se presenta como una tarjeta principal con la siguiente opción compacta asomada: título, duración, `Empezar`, `Ver otra` y `⋯` en la principal; la asomada muestra título de hasta dos líneas, minutos y `Elegir`, y al tocarla se vuelve principal. La parte de la tarjeta trasera que queda bajo la principal se oculta: su borde superior no debe transparentarse a través del vidrio. El foco pasa a `Empezar`, cuyo nombre accesible incluye la tarea y su duración. En ventanas bajas se compactan la cabecera de Hoy y los espacios para conservar ambas opciones y los controles por encima del dock; la alternativa respeta los fallbacks de transparencia. Las demás cartas de la franja se recorren con `Ver otra`; el paso corto, el cambio por otra tarea y las correcciones viven en `⋯` de la principal. No se muestran RC, categorías, pendientes ni contadores de cambios en la primera vista. Sonido, voz y tema viven en **Ajustes**; en el MVP visible, el Monedero no aparece en la navegación ni en Ajustes. Tras «No lo hice», una frase de empuje con emoji aparece sin un botón adicional.
 
 **Ayuda contextual (2026-10-30):** las instrucciones secundarias no ocupan un párrafo permanente. Viven en un icono `i` junto al texto relevante, con tooltip al pasar el cursor, enfocar o tocar. El tooltip se oculta al salir el cursor, al perder el foco, al desplazar la página, con Escape o al tocar fuera; en táctil, un toque abre y otro cierra. Se coloca dentro del viewport y no depende solo de hover. Los estados, validaciones, acciones y límites esenciales siguen siendo texto visible; la ayuda no reemplaza información necesaria para decidir. `Tarea rápida` y `＋ Pendiente` comparten la cabecera de Hoy.
 
@@ -407,19 +413,21 @@ Los tipos viven en `lib/domain/types.ts`, las validaciones en `lib/domain/valida
 | **Hand** | ID, fecha, número de franja, hasta tres IDs de ocurrencia y estado abierto/cerrado. Solo una franja puede estar abierta a la vez; la siguiente se crea al cerrar la actual |
 
 **Espejo remoto (E1–E3):** `lib/db/schema.ts` replica estas entidades en Postgres. E3 permite reemplazar manualmente el espejo del dueño desde IndexedDB con una passcode y una cookie firmada. La app sigue usando IndexedDB; el espejo no es todavía la fuente de verdad ni se sincroniza.
+
+**MVP visible (2026-11-01):** la copia en la nube y el Monedero no se muestran en Ajustes ni en el dock. El esquema, la API y el código se conservan para la segunda capa; no se borran datos ni se añade sincronización o restauración.
 | **Session** | Ocurrencia, franja si aplica, variante, snapshot de tarea/duración/recompensa, estado, restante del tramo, inicio del tramo y tiempo acumulado. Una sola sesión activa (corriendo o pausada); una pausada bloquea iniciar otra tarea; una anterior puede quedar pausada por un ancla. La sesión rápida usa un snapshot sintético sin Task, no tiene franja y fija recompensa 0; la sesión de un pendiente añade `pendingId` y usa una ocurrencia sintética por sesión |
 | **Pending** | ID, título, minutos enteros, creación, actualización, completado y borrado lógico. No tiene días, franja, ocurrencia diaria, prioridad ni recompensa; se lista aparte y se completa con o sin timer |
 | **Event** | ID y acción idempotente, tipo canónico (§9), timestamp, referencias pertinentes y contexto/motivo explícito |
 | **Ledger** | Movimiento entero de RC, motivo, timestamp y origen único del crédito o canje; fuente del saldo |
-| **Settings** | Audio apagado inicialmente, perfil de sonido, intensidad máxima 0–2 del MVP, tema automático/manual y visibilidad del Monedero (apagado por defecto); preferencias persistentes. El máximo de cambios (3) y el descanso (10 min) son fijos en el primer corte; su ajuste queda para después |
+| **Settings** | Audio apagado inicialmente, perfil de sonido, intensidad máxima 0–2 del MVP, tema automático/manual; preferencias persistentes. El máximo de cambios (3) y el descanso (10 min) son fijos en el primer corte; su ajuste queda para después. La visibilidad del Monedero no se expone en el MVP visible |
 
 **Estados de ocurrencia:** pendiente, en progreso, parcial, completada, ya realizada fuera de la app o no aplica. Los últimos tres la excluyen de nuevas propuestas para esa fecha.
 
 **Estados de sesión:** corriendo, pausada, esperando confirmación, completada, parcial o abandonada. Completar un escalón cierra su sesión, pero la ocurrencia queda parcial. «Terminar por hoy» cierra una sesión abierta como abandonada y deja la ocurrencia pendiente.
 
-Las duraciones se validan como minutos enteros positivos; un escalón debe ser menor que la duración completa. Una tarea sin días programados permanece en el Mazo pero no entra en la selección automática.
+Las duraciones se validan como minutos enteros positivos; un escalón debe ser menor que la duración completa. Todo hábito recurrente requiere al menos un día; si no tiene ninguno, corresponde a Pendientes. La migración v4 y la semilla inicial asignan todos los días a las tareas que habían quedado sin día para no perderlas; el usuario puede ajustar sus días después.
 
-Se guarda el historial al archivar una tarea. Editar una plantilla afecta propuestas aún no iniciadas y ocurrencias futuras, no modifica retrospectivamente sesiones, acuerdos de ocurrencias ya empezadas, ocurrencias cerradas o el ledger. No se repite un cuidado registrado como realizado ni se crea otra ocurrencia para rellenar una franja.
+Se guarda el historial al eliminar una tarea (borrado lógico). Editar una plantilla afecta propuestas aún no iniciadas y ocurrencias futuras, no modifica retrospectivamente sesiones, acuerdos de ocurrencias ya empezadas, ocurrencias cerradas o el ledger. No se repite un cuidado registrado como realizado ni se crea otra ocurrencia para rellenar una franja.
 
 ## 14. Fases del producto
 
@@ -472,11 +480,11 @@ Estas decisiones incluyen las aclaraciones aprobadas en la revisión de alineaci
 |---|---|
 | Nombre e idioma | Runo; español de México, directo y legible |
 | Foco | Una carta visible durante el trabajo, con controles esenciales accesibles |
-| Mano / franja | Franja de hasta tres; varias por día; solo una abierta; no se pasa a la siguiente hasta resolver la actual |
+| Mano / franja | Franja de hasta tres; varias por día; solo una abierta; se reevalúa al abrir/volver y cada hora conservando al menos dos visibles; no se pasa a la siguiente hasta resolver la actual |
 | Cambios | Tres «Otra» por fecha local, compartidos entre franjas; elegir dentro de la franja es libre; desaparece al agotarse |
 | Correcciones | «Ya la hice», «No aplica», vida real y edición no consumen cambios ni provocan presión. En una tarea diaria en sesión activa no hay «dejar pendiente»: pausa, no aplica o terminar por hoy. En un pendiente de una vez, cerrar y dejarlo en la lista es una salida válida |
-| Configuración | Agregar, editar y archivar cualquier día; el Parte no es requisito |
-| Planificación | Días y franjas opcionales; proyectos A/B son tareas configurables desde MVP |
+| Configuración | Agregar, editar y eliminar con confirmación cualquier día; el historial se conserva y el Parte no es requisito |
+| Planificación | Días obligatorios (al menos uno); franjas opcionales; proyectos A/B son tareas configurables desde MVP |
 | Pausa | Persistente; una pausada sigue bloqueando otra tarea; reanudación explícita; cerrar sin pausar deja transcurrir el reloj |
 | Urgencia | Con app visible, guardar/pausar antes de presentar la ancla; sin inicio ni reprogramación automáticos |
 | Escalones | Opcionales, concretos y parciales; ninguna obligación universal de un minuto |
@@ -530,20 +538,20 @@ Son **plantillas editables**, no recomendaciones de salud ni una imposición de 
 
 | Carta | Días / horario inicial de ejemplo | Completa | Escalón opcional | Prioridad |
 |---|---|---|---|---|
-| Creatina + Vitamina D | Según rutina configurada por el usuario* | 2 min | — | 3 |
-| Darle las vitaminas a Elian | Según rutina configurada por el usuario* | 3 min | — | 3 |
+| Creatina + Vitamina D | Todos los días como ejemplo editable* | 2 min | — | 3 |
+| Darle las vitaminas a Elian | Todos los días como ejemplo editable* | 3 min | — | 3 |
 | Cepillarme los dientes | Diario | 3 min | Preparar el cepillo, 1 min; no completa la higiene | 3 |
 | Hacerme un café | Diario, franja sugerida editable 06:00–12:00 | 5 min | — | 3 |
 | Bañarme | Diario | 15 min | Preparar ropa/toalla, 1 min | 2 |
 | Desayuno | Diario, franja sugerida editable 06:00–12:00 | 15 min | Preparar ingredientes, 1 min | 2 |
-| Sacar mocos a Elian | Solo según necesidad/rutina configurada* | 3 min | — | 2 |
+| Sacar mocos a Elian | Todos los días como ejemplo editable* | 3 min | — | 2 |
 | Lavar ropa | Lunes | 15 min | Meter ropa a la lavadora, 1 min | 2 |
 | Aseo de la casa | Lunes | 30 min | Recoger cinco cosas, 1 min | 2 |
 | Prepararme para el gym | Lun–vie, hora 18:00, franja 18:00–18:30 | 30 min | Preparar ropa del gym, 1 min | 3 |
 
-\* Las tres plantillas de suplementos/cuidados se crean **sin días programados hasta que el usuario configure su rutina**. La app no inventa dosis ni frecuencia y no bloquea el primer uso para pedir esa configuración. No se vuelven a sugerir para una fecha una vez registradas como realizadas. Los timers son ayudas de organización, no instrucciones sobre cómo realizar un cuidado.
+\* Las tres plantillas de suplementos/cuidados se crean **con todos los días como ejemplo editable** para que aparezcan desde el primer uso. La app no inventa dosis ni indicaciones médicas; el usuario puede ajustar sus días. No se vuelven a sugerir para una fecha una vez registradas como realizadas. Los timers son ayudas de organización, no instrucciones sobre cómo realizar un cuidado.
 
-La app filtra por horario y ordena por prioridad. El café y el desayuno quedan en la mañana; el gym conserva su hora fija de ejemplo. Las tareas sin hora siguen siendo elegibles durante el día y pueden aparecer en la franja que corresponda. Ninguna franja se rellena con tareas incompatibles con el momento.
+La app filtra por horario y ordena por prioridad; dentro de la misma importancia, una tarea con horario activo gana a una sin hora. El café y el desayuno quedan en la mañana; el gym conserva su hora fija de ejemplo. Las tareas sin hora siguen siendo elegibles durante el día y pueden aparecer en la franja que corresponda. Ninguna franja se rellena con tareas incompatibles con el momento.
 
 Proyecto A los lunes y Proyecto B los martes son **casos de prueba del editor y del motor**, no proyectos reales inventados en el Mazo del usuario. La semilla de diez plantillas se crea una sola vez; las actualizaciones no la recrean ni sobrescriben las ediciones.
 

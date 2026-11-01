@@ -14,15 +14,15 @@ describe("validación de tareas", () => {
     expect(input.shortStep!.title).toBe("Meter ropa a la lavadora");
   });
 
-  it("admite una plantilla sin programación ni escalón", () => {
-    expect(validateTaskInput(taskInput({ days: [], shortStep: undefined })).days).toEqual([]);
+  it("exige al menos un día para un hábito", () => {
+    expect(() => validateTaskInput(taskInput({ days: [] }))).toThrow(/al menos un día/i);
   });
 
   it.each([
     { title: " " }, { category: "" }, { durationMin: 0 },
     { durationMin: -1 }, { durationMin: 1.5 }, { durationMin: Number.NaN },
     { durationMin: Number.POSITIVE_INFINITY }, { durationMin: Number.MAX_SAFE_INTEGER },
-    { priority: 0 }, { priority: 4 }, { days: [7] }, { days: [-1] },
+    { priority: 0 }, { priority: 4 }, { days: [] }, { days: [7] }, { days: [-1] },
     { shortStep: { title: "", durationMin: 1 } },
     { shortStep: { title: "Paso", durationMin: 0 } },
     { shortStep: { title: "Paso", durationMin: 15 } },

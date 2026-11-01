@@ -1,20 +1,54 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { AlertDialog } from "@base-ui/react/alert-dialog";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Field } from "@base-ui/react/field";
+import { Form } from "@base-ui/react/form";
+import { Menu } from "@base-ui/react/menu";
+import { NumberField } from "@base-ui/react/number-field";
+import { Switch } from "@base-ui/react/switch";
+import { Toggle } from "@base-ui/react/toggle";
+import { ToggleGroup } from "@base-ui/react/toggle-group";
+import { Toast } from "@base-ui/react/toast";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 
 import { HelpTip } from "./help-tip";
+import { SelectControl } from "./select-control";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
   archiveTask,
   createTasks,
   createTask,
   listTasks,
+  reactivateOccurrence,
+  restoreArchivedTask,
   updateTask,
 } from "@/lib/db/repository";
-import { BLOCK_RANGES, blockForTime, windowPreset, type BlockKey } from "@/lib/domain/schedule";
-import type { ClockTime, Weekday } from "@/lib/domain/time";
-import type { Task, TaskInput } from "@/lib/domain/types";
+import {
+  BLOCK_RANGES, blockForTime, taskTime, windowPreset, type BlockKey,
+} from "@/lib/domain/schedule";
+import {
+  buildTaskOrder, reorderTaskOrder, sortTasksForDisplay, type TaskOrder,
+} from "@/lib/domain/task-order";
+import { toLocalDate, weekdayOf, type ClockTime, type Weekday } from "@/lib/domain/time";
+import type { Occurrence, Task, TaskInput } from "@/lib/domain/types";
 
 const WEEKDAYS = [
   { value: 1, short: "daysShort.mon", full: "daysFull.mon" },
@@ -39,6 +73,34 @@ const BLOCKS = [
 ] as const;
 
 const DRAFT_KEY = "runo:task-editor-draft:v1";
+const CLOSED_SECTIONS_KEY = "runo:task-editor-closed-sections:v1";
+const TASK_ORDER_KEY = "runo:task-editor-order:v1";
+
+function readTaskOrder(): TaskOrder {
+  try {
+    if (typeof window === "undefined") return {};
+    const raw = window.localStorage.getItem(TASK_ORDER_KEY);
+    if (!raw) return {};
+    const value = JSON.parse(raw) as unknown;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value).filter(
+        (entry): entry is [string, number] =>
+          typeof entry[1] === "number" && Number.isFinite(entry[1]),
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeTaskOrder(order: TaskOrder): void {
+  try {
+    window.localStorage.setItem(TASK_ORDER_KEY, JSON.stringify(order));
+  } catch {
+    // The order still works for this visit if storage is unavailable.
+  }
+}
 
 interface FormState {
   id: string | null;
@@ -126,16 +188,6 @@ function newId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function taskTime(task: Task): string | null {
-  return task.fixedTime ?? task.window?.start ?? null;
-}
-
-function timeMinutes(time: string | null): number {
-  if (!time) return 24 * 60;
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
 interface EditorDraft {
   form: FormState;
   categoryMode: "existing" | "new";
@@ -186,6 +238,29 @@ function clearDraft(): void {
   }
 }
 
+function readClosedSections(): Record<string, boolean> {
+  try {
+    if (typeof window === "undefined") return {};
+    const raw = window.localStorage.getItem(CLOSED_SECTIONS_KEY);
+    if (!raw) return {};
+    const value = JSON.parse(raw) as unknown;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeClosedSections(value: Record<string, boolean>): void {
+  try {
+    window.localStorage.setItem(CLOSED_SECTIONS_KEY, JSON.stringify(value));
+  } catch {
+    // Storage can be unavailable; collapsing still works for this visit.
+  }
+}
+
 function DisclosureChevron() {
   return (
     <svg
@@ -205,14 +280,229 @@ function DisclosureChevron() {
   );
 }
 
+function DoneCheck() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" className="h-3 w-3 shrink-0">
+      <path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Reveal({
+  show,
+  reduceMotion,
+  className,
+  children,
+}: {
+  show: boolean;
+  reduceMotion: boolean | null;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <AnimatePresence initial={false}>
+      {show ? (
+        <motion.div
+          className={className}
+          initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0.1 : 0.18, ease: "easeOut" }}
+          style={{ overflow: "hidden" }}
+        >
+          {children}
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+function GripIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4">
+      <circle cx="5" cy="4" r="1" />
+      <circle cx="11" cy="4" r="1" />
+      <circle cx="5" cy="8" r="1" />
+      <circle cx="11" cy="8" r="1" />
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="11" cy="12" r="1" />
+    </svg>
+  );
+}
+
+interface TaskRowProps {
+  task: Task;
+  occurrence: Occurrence | undefined;
+  menuTaskId: string | null;
+  onMenuChange: (taskId: string | null) => void;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  onReactivate: (task: Task, occurrence: Occurrence) => void;
+  reactivatingId: string | null;
+}
+
+function TaskRow({
+  task, occurrence, menuTaskId, onMenuChange, onEdit, onDelete, onReactivate, reactivatingId,
+}: TaskRowProps) {
+  const t = useTranslations("editor");
+  const common = useTranslations("common");
+  const reduceMotion = useReducedMotion();
+  const {
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
+  } = useSortable({ id: task.id });
+  const time = taskTime(task);
+  const done = occurrence?.status === "completed" || occurrence?.status === "already_done";
+  const skipped = occurrence?.status === "not_applicable";
+  const resolved = done || skipped;
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: reduceMotion ? undefined : transition,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`border-b border-line${done ? " task-row-done" : skipped ? " task-row-skipped" : ""}${isDragging ? " task-row-dragging" : ""}`}
+    >
+      <div className="task-row-main flex min-h-14 items-start gap-2 py-3">
+        <button
+          type="button"
+          className="task-grip shrink-0"
+          {...attributes}
+          {...listeners}
+          aria-label={t("list.dragHandle")}
+        >
+          <GripIcon />
+        </button>
+        <div className="task-row-content flex min-w-0 flex-1 items-start gap-3">
+          <span className="min-w-0 flex-1">
+            <span className={`line-clamp-2 text-base font-semibold leading-snug${done ? " task-title-done" : ""}`}>
+              {task.title}
+            </span>
+            <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+              <span>{time ?? t("list.noTime")} · {common("minutes", { count: task.durationMin })}</span>
+              {done ? (
+                <span className="task-done-badge">
+                  <DoneCheck />
+                  {t("list.doneToday")}
+                </span>
+              ) : null}
+              {skipped ? (
+                <span className="task-skipped-badge">{t("list.notApplicableToday")}</span>
+              ) : null}
+            </span>
+          </span>
+        </div>
+        <Menu.Root
+          open={menuTaskId === task.id}
+          onOpenChange={(open) => onMenuChange(open ? task.id : null)}
+        >
+          <Menu.Trigger
+            type="button"
+            className="first-more task-row-menu shrink-0"
+            aria-label={`${task.title}: ${common("moreOptions")}`}
+          >
+            ⋯
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner
+              className="first-menu-positioner"
+              sideOffset={8}
+              align="end"
+            >
+              <Menu.Popup className="first-menu">
+                <Menu.Item
+                  className="first-menu-item"
+                  onClick={() => {
+                    onMenuChange(null);
+                    onEdit(task);
+                  }}
+                >
+                  {t("edit")}
+                </Menu.Item>
+                {resolved && occurrence ? (
+                  <Menu.Item
+                    className="first-menu-item"
+                    disabled={reactivatingId === occurrence.id}
+                    onClick={() => {
+                      onMenuChange(null);
+                      onReactivate(task, occurrence);
+                    }}
+                  >
+                    {t("list.reactivate")}
+                  </Menu.Item>
+                ) : null}
+                <Menu.Item
+                  className="first-menu-item"
+                  onClick={() => {
+                    onMenuChange(null);
+                    onDelete(task);
+                  }}
+                >
+                  {t("list.delete")}
+                </Menu.Item>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
+      </div>
+    </li>
+  );
+}
+
+function SortableTaskList({
+  tasks, renderTask, onReorder,
+}: {
+  tasks: readonly Task[];
+  renderTask: (task: Task) => ReactNode;
+  onReorder: (activeId: string, overId: string, visibleIds: string[]) => void;
+}) {
+  const t = useTranslations("editor");
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const ids = tasks.map((task) => task.id);
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    onReorder(String(active.id), String(over.id), ids);
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+      accessibility={{
+        screenReaderInstructions: { draggable: t("list.dragInstructions") },
+      }}
+    >
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <ul className="task-list">{tasks.map(renderTask)}</ul>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
 export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null }) {
   const t = useTranslations("editor");
   const common = useTranslations("common");
+  const toast = useTranslations("toast");
+  const toastManager = Toast.useToastManager();
   const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [todayOccurrences, setTodayOccurrences] = useState<Occurrence[]>([]);
+  const [today] = useState(() => toLocalDate(Date.now()));
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<FormState | null>(null);
+  const [menuTaskId, setMenuTaskId] = useState<string | null>(null);
+  const [deleteTask, setDeleteTask] = useState<Task | null>(null);
   const [categoryMode, setCategoryMode] = useState<"existing" | "new">("existing");
   const [customWindow, setCustomWindow] = useState(false);
   const [newBlocks, setNewBlocks] = useState<BlockKey[]>([]);
@@ -225,10 +515,18 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [selectedDay, setSelectedDay] = useState<Weekday>(
     () => new Date().getDay() as Weekday,
   );
+  const reduceMotion = useReducedMotion();
+  const formRef = useRef<HTMLFormElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const durationRef = useRef<HTMLInputElement>(null);
+  const categoryInputRef = useRef<HTMLInputElement>(null);
+  const shortTitleRef = useRef<HTMLInputElement>(null);
+  const shortMinutesRef = useRef<HTMLInputElement>(null);
   const openedInitialTask = useRef(false);
   const draftBootstrapped = useRef(false);
   const [draftReady, setDraftReady] = useState(false);
-  const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
+  const [closedSections, setClosedSections] = useState<Record<string, boolean>>(readClosedSections);
+  const [taskOrder, setTaskOrder] = useState<TaskOrder>(readTaskOrder);
   const retryBatch = useRef<{ signature: string; ids: string[] } | null>(null);
 
   useEffect(() => {
@@ -241,13 +539,38 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   }, [draftReady, form, categoryMode, customWindow, newBlocks, newCustom, copiedBlocks, selectedDay]);
 
   useEffect(() => {
+    writeClosedSections(closedSections);
+  }, [closedSections]);
+
+  useEffect(() => {
+    const onChange = (event: StorageEvent) => {
+      if (event.key === TASK_ORDER_KEY) setTaskOrder(readTaskOrder());
+    };
+    window.addEventListener("storage", onChange);
+    return () => window.removeEventListener("storage", onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!fieldErrors.days) return;
+    if (["title", "durationMin", "category"].some((key) => fieldErrors[key])) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById("habit-days")?.querySelector<HTMLElement>("button")?.focus();
+      document.getElementById("habit-days")?.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [fieldErrors]);
+
+  useEffect(() => {
     let cancelled = false;
     let db: RunoDatabase | null = null;
 
     async function load() {
       try {
         db = await openDatabase();
-        const list = await listTasks(db, true);
+        const [list, dayOccurrences] = await Promise.all([
+          listTasks(db, true),
+          db.occurrences.where("date").equals(today).toArray(),
+        ]);
         if (!cancelled) {
           if (!draftBootstrapped.current) {
             draftBootstrapped.current = true;
@@ -263,12 +586,12 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 setNewCustom(draft.newCustom);
                 setCopiedBlocks(draft.copiedBlocks);
                 setSelectedDay(draft.selectedDay);
-                setNotice(t("notices.draft"));
               }
             }
             setDraftReady(true);
           }
           setTasks(list);
+          setTodayOccurrences(dayOccurrences);
           setLoadError(null);
           if (initialTaskId && !openedInitialTask.current) {
             const target = list.find((task) => task.id === initialTaskId);
@@ -299,11 +622,12 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       cancelled = true;
       db?.close();
     };
-  }, [initialTaskId, reloadKey, t]);
+  }, [initialTaskId, reloadKey, t, today]);
 
   function closeForm() {
     setForm(null);
     setFormError(null);
+    setFieldErrors({});
     setNotice(null);
     clearDraft();
     retryBatch.current = null;
@@ -311,6 +635,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
   function startNew() {
     setFormError(null);
+    setFieldErrors({});
     setNotice(null);
     retryBatch.current = null;
     const next = emptyForm();
@@ -325,6 +650,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
   function startEdit(task: Task) {
     setFormError(null);
+    setFieldErrors({});
     setNotice(null);
     retryBatch.current = null;
     setCategoryMode("existing");
@@ -337,36 +663,60 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
   function patch(changes: Partial<FormState>) {
     setForm((current) => (current ? { ...current, ...changes } : current));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const key of Object.keys(changes)) {
+        if (key in next) {
+          delete next[key];
+          changed = true;
+        }
+      }
+      if ("useShortStep" in changes) {
+        delete next.shortStepTitle;
+        delete next.shortStepDuration;
+        changed = true;
+      }
+      return changed ? next : current;
+    });
   }
 
-  function toggleDay(day: Weekday) {
-    setForm((current) => {
-      if (!current) return current;
-      const days = current.days.includes(day)
-        ? current.days.filter((value) => value !== day)
-        : [...current.days, day];
-      return { ...current, days };
-    });
+  function focusFirstError(errors: Record<string, string>) {
+    const order = ["title", "durationMin", "category", "days", "shortStepTitle", "shortStepDuration"];
+    const first = order.find((key) => errors[key]);
+    if (!first) return;
+    if (first === "title") titleRef.current?.focus();
+    else if (first === "durationMin") durationRef.current?.focus();
+    else if (first === "category") {
+      if (categoryMode === "new") categoryInputRef.current?.focus();
+      else document.getElementById("task-category-trigger")?.focus();
+    } else if (first === "days") {
+      document.querySelector<HTMLElement>("#habit-days button")?.focus();
+    } else if (first === "shortStepTitle") shortTitleRef.current?.focus();
+    else shortMinutesRef.current?.focus();
+  }
+
+  function validateForm(instance: FormState): Record<string, string> {
+    const errors: Record<string, string> = {};
+    if (!instance.title.trim()) errors.title = t("errors.name");
+    const duration = Number(instance.durationMin);
+    if (!Number.isSafeInteger(duration) || duration < 1) errors.durationMin = t("errors.minutes");
+    if (!instance.category.trim()) errors.category = t("errors.type");
+    if (instance.days.length === 0) errors.days = t("errors.days");
+    if (instance.useShortStep) {
+      if (!instance.shortStepTitle.trim()) errors.shortStepTitle = t("errors.firstStep");
+      const stepMinutes = Number(instance.shortStepDuration);
+      if (!Number.isSafeInteger(stepMinutes) || stepMinutes < 1) {
+        errors.shortStepDuration = t("errors.stepMinutes");
+      }
+    }
+    return errors;
   }
 
   function chooseNewAny() {
     setNewBlocks([]);
     setNewCustom(false);
     patch({ useWindow: false });
-  }
-
-  function toggleNewBlock(block: BlockKey) {
-    const next = newBlocks.includes(block)
-      ? newBlocks.filter((value) => value !== block)
-      : [...newBlocks, block];
-    setNewBlocks(next);
-    setNewCustom(false);
-    if (next.length === 0) {
-      patch({ useWindow: false });
-      return;
-    }
-    const first = BLOCK_RANGES[next[0]];
-    patch({ useWindow: true, windowStart: first.start, windowEnd: first.end });
   }
 
   function chooseNewCustom() {
@@ -398,7 +748,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       const copyKey = block === "morning"
         ? "notices.copyMorning"
         : block === "afternoon" ? "notices.copyAfternoon" : "notices.copyNight";
-      setNotice(t(copyKey));
+      toastManager.add({ title: t(copyKey), type: "success", timeout: 4000 });
       setReloadKey((key) => key + 1);
     } catch (error) {
       console.error("No se pudo duplicar la tarea", error);
@@ -411,9 +761,18 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!form || saving) return;
+    const errors = validateForm(form);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFormError(null);
+      focusFirstError(errors);
+      return;
+    }
+    setFieldErrors({});
     setSaving(true);
     setFormError(null);
     setNotice(null);
+    let savedMessage: string | null = null;
     try {
       const db = await openDatabase();
       try {
@@ -446,7 +805,9 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             : inputs.map(() => `task:${newId()}`);
           retryBatch.current = { signature, ids };
           await createTasks(db, inputs.map((input, index) => ({ id: ids[index], input })), now);
-          setNotice(inputs.length > 1 ? t("notices.tasksCreated", { count: inputs.length }) : t("notices.saved"));
+          savedMessage = inputs.length > 1
+            ? t("notices.tasksCreated", { count: inputs.length })
+            : t("notices.saved");
         }
       } finally {
         db.close();
@@ -454,14 +815,35 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       setForm(null);
       clearDraft();
       retryBatch.current = null;
-      if (form.id) setNotice(t("notices.saved"));
+      if (form.id) savedMessage = t("notices.saved");
       setReloadKey((key) => key + 1);
+      toastManager.add({
+        title: savedMessage ?? t("notices.saved"),
+        type: "success",
+        timeout: 4000,
+      });
     } catch {
       setFormError(
         t("notices.saveError"),
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function undoArchive(task: Task) {
+    try {
+      const db = await openDatabase();
+      try {
+        await restoreArchivedTask(db, task.id, Date.now());
+      } finally {
+        db.close();
+      }
+      setReloadKey((key) => key + 1);
+      toastManager.add({ title: toast("undone"), type: "success", timeout: 4000 });
+    } catch (error) {
+      console.error("No se pudo deshacer el archivo", error);
+      toastManager.add({ title: toast("undoFailed"), type: "error", timeout: 5000 });
     }
   }
 
@@ -476,20 +858,55 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       } finally {
         db.close();
       }
-      setNotice(t("notices.savedApart"));
       setReloadKey((key) => key + 1);
+      const toastId = toastManager.add({
+        title: t("notices.deleted"),
+        type: "success",
+        timeout: 8000,
+        actionProps: {
+          children: toast("undo"),
+          onClick() {
+            toastManager.close(toastId);
+            void undoArchive(task);
+          },
+        },
+      });
     } catch (error) {
-      console.error("No se pudo archivar", error);
-      setNotice(t("notices.archiveError"));
+      console.error("No se pudo eliminar la tarea", error);
+      setNotice(t("notices.deleteError"));
     } finally {
       setArchivingId(null);
     }
   }
 
+  async function reactivate(task: Task, occurrence: Occurrence) {
+    if (reactivatingId) return;
+    setReactivatingId(occurrence.id);
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      try {
+        await reactivateOccurrence(db, occurrence.id, Date.now());
+      } finally {
+        db.close();
+      }
+      setReloadKey((key) => key + 1);
+      toastManager.add({ title: t("notices.reactivated"), type: "success", timeout: 4000 });
+    } catch (error) {
+      console.error("No se pudo reactivar la tarea", task.id, error);
+      setNotice(t("notices.reactivateError"));
+    } finally {
+      setReactivatingId(null);
+    }
+  }
+
   const active = tasks?.filter((task) => task.archivedAt === null) ?? [];
-  const archived = tasks?.filter((task) => task.archivedAt !== null) ?? [];
+  const effectiveTaskOrder = useMemo(
+    () => tasks ? buildTaskOrder(tasks, taskOrder) : taskOrder,
+    [tasks, taskOrder],
+  );
   const categories = Array.from(
-    new Set((tasks ?? []).map((task) => task.category.trim()).filter(Boolean)),
+    new Set(active.map((task) => task.category.trim()).filter(Boolean)),
   ).sort((a, b) => a.localeCompare(b));
 
   function formBlock(): "any" | "morning" | "afternoon" | "night" | "custom" {
@@ -518,7 +935,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     });
   }
   const dayTasks = active.filter((task) => task.days.includes(selectedDay));
-  const unscheduled = active.filter((task) => task.days.length === 0);
   const dayCounts = WEEKDAYS.map((day) => ({
     ...day,
     count: active.filter((task) => task.days.includes(day.value)).length,
@@ -532,43 +948,31 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     { key: "any", labelKey: "blocks.none" },
   ] as const).map((block) => ({
     ...block,
-    tasks: dayTasks
-      .filter((task) => blockForTime(taskTime(task)) === block.key)
-      .sort((a, b) =>
-        timeMinutes(taskTime(a)) - timeMinutes(taskTime(b)) || a.title.localeCompare(b.title),
-      ),
+    tasks: sortTasksForDisplay(
+      dayTasks.filter((task) => blockForTime(taskTime(task)) === block.key),
+      effectiveTaskOrder,
+    ),
   }));
-  const editingTask = form?.id ? active.find((task) => task.id === form.id) ?? null : null;
 
   function rememberSection(key: string, open: boolean) {
     setClosedSections((current) => ({ ...current, [key]: !open }));
   }
 
-  function compactRow(task: Task) {
-    const time = taskTime(task);
-    return (
-      <li key={task.id} className="border-b border-line">
-        <button
-          type="button"
-          onClick={() => startEdit(task)}
-          className="flex min-h-14 w-full items-start gap-3 py-3 text-left"
-        >
-          <span className="min-w-0 flex-1">
-            <span className="line-clamp-2 text-base font-semibold leading-snug">
-              {task.title}
-            </span>
-            <span className="mt-1 block text-xs text-muted">
-              {time ?? t("list.noTime")} · {common("minutes", { count: task.durationMin })}
-            </span>
-          </span>
-          <span aria-hidden className="shrink-0 pt-0.5 text-lg text-muted">›</span>
-        </button>
-      </li>
-    );
+  const todayWeekday = weekdayOf(today);
+  const occurrenceByTask = new Map(todayOccurrences.map((occurrence) => [occurrence.taskId, occurrence]));
+
+  function reorderSection(activeId: string, overId: string, visibleIds: string[]) {
+    setTaskOrder((current) => {
+      const base = buildTaskOrder(active, current);
+      const next = reorderTaskOrder(active, visibleIds, activeId, overId, base);
+      if (next === base) return current;
+      writeTaskOrder(next);
+      return next;
+    });
   }
 
   return (
-    <section aria-labelledby="tasks-title">
+    <section aria-labelledby="tasks-title" className="task-editor">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -599,7 +1003,10 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       ) : null}
 
       {form ? (
-        <form
+        <Form
+          ref={formRef}
+          noValidate
+          errors={fieldErrors}
           onSubmit={save}
           className="mt-5 border-y border-line py-6"
         >
@@ -617,49 +1024,61 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             </button>
           </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className="text-sm font-medium">{t("name")}</span>
-              <input
-                required
+          <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
+            <Field.Root name="title" className="form-field block sm:col-span-2">
+              <Field.Label className="form-label">{t("name")}</Field.Label>
+              <Field.Control
+                ref={titleRef}
                 value={form.title}
                 onChange={(event) => patch({ title: event.target.value })}
                 className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                 placeholder={t("namePlaceholder")}
               />
-            </label>
+              <Field.Error className="form-error" />
+            </Field.Root>
             <div className="block">
-              <label className="block">
-                <span className="text-sm font-medium">{t("type")}</span>
-                {categoryMode === "existing" ? (
-                  <select
-                    value={form.category}
-                    onChange={(event) => {
-                      if (event.target.value === "__new__") {
-                        setCategoryMode("new");
-                        patch({ category: "" });
-                      } else {
-                        patch({ category: event.target.value });
-                      }
-                    }}
-                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                  >
-                    {categories.map((category) => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                    <option value="__new__">{t("newType")}</option>
-                  </select>
-                ) : (
-                  <input
-                    required
-                    autoFocus
-                    value={form.category}
-                    onChange={(event) => patch({ category: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                    placeholder={t("typePlaceholder")}
-                  />
-                )}
-              </label>
+              <span className="form-label">{t("type")}</span>
+              {categoryMode === "existing" ? (
+                <SelectControl
+                  id="task-category-trigger"
+                  value={form.category}
+                  label={t("type")}
+                  invalid={Boolean(fieldErrors.category)}
+                  describedBy={fieldErrors.category ? "task-category-error" : undefined}
+                  options={[
+                    ...categories.map((category) => ({
+                      value: category,
+                      label: category.toLocaleUpperCase(),
+                    })),
+                    { value: "__new__", label: t("newType") },
+                  ]}
+                  onChange={(value) => {
+                    if (value === "__new__") {
+                      setCategoryMode("new");
+                      patch({ category: "" });
+                    } else {
+                      patch({ category: value });
+                    }
+                  }}
+                />
+              ) : (
+                <input
+                  ref={categoryInputRef}
+                  id="task-category-new"
+                  autoFocus
+                  aria-invalid={Boolean(fieldErrors.category) || undefined}
+                  aria-describedby={fieldErrors.category ? "task-category-error" : undefined}
+                  value={form.category}
+                  onChange={(event) => patch({ category: event.target.value })}
+                  className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                  placeholder={t("typePlaceholder")}
+                />
+              )}
+              {fieldErrors.category ? (
+                <p id="task-category-error" className="form-error" role="alert">
+                  {fieldErrors.category}
+                </p>
+              ) : null}
               {categoryMode === "new" ? (
                 <button
                   type="button"
@@ -673,34 +1092,47 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 </button>
               ) : null}
             </div>
-            <label className="block">
-              <span className="text-sm font-medium">{t("minutes")}</span>
-              <input
-                required
-                type="number"
+            <Field.Root name="durationMin" className="form-field block">
+              <label htmlFor="task-duration" className="form-label">{t("minutes")}</label>
+              <NumberField.Root
+                id="task-duration"
+                value={form.durationMin === "" ? null : Number(form.durationMin)}
+                onValueChange={(value) => patch({ durationMin: value === null ? "" : String(value) })}
                 min={1}
                 step={1}
-                value={form.durationMin}
-                onChange={(event) => patch({ durationMin: event.target.value })}
-                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">{t("importance")}</span>
-              <select
-                value={form.priority}
-                onChange={(event) =>
-                  patch({ priority: Number(event.target.value) as 1 | 2 | 3 })
-                }
-                className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                inputRef={durationRef}
+                className="number-field"
               >
-                {[3, 2, 1].map((priority) => (
-                  <option key={priority} value={priority}>
-                    {t(PRIORITY_LABEL[priority as 1 | 2 | 3])}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <NumberField.Group className="number-field-group">
+                  <NumberField.Decrement
+                    className="number-field-stepper"
+                    aria-label={common("decrease")}
+                  >
+                    −
+                  </NumberField.Decrement>
+                  <NumberField.Input className="number-field-input" />
+                  <NumberField.Increment
+                    className="number-field-stepper"
+                    aria-label={common("increase")}
+                  >
+                    +
+                  </NumberField.Increment>
+                </NumberField.Group>
+              </NumberField.Root>
+              <Field.Error className="form-error" />
+            </Field.Root>
+            <div className="block">
+              <span className="form-label">{t("importance")}</span>
+              <SelectControl
+                value={String(form.priority)}
+                label={t("importance")}
+                options={[3, 2, 1].map((priority) => ({
+                  value: String(priority),
+                  label: t(PRIORITY_LABEL[priority as 1 | 2 | 3]),
+                }))}
+                onChange={(value) => patch({ priority: Number(value) as 1 | 2 | 3 })}
+              />
+            </div>
           </div>
 
           <fieldset className="mt-5">
@@ -708,26 +1140,45 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               {t("days")}
               <HelpTip label={t("daysHelp")}>{t("daysHelp")}</HelpTip>
             </legend>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {WEEKDAYS.map((day) => {
-                const selected = form.days.includes(day.value);
-                return (
-                  <label
-                    key={day.value}
-                    className="day-toggle"
-                    data-on={selected}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleDay(day.value)}
-                      className="sr-only"
-                    />
-                    <span>{selected ? "✓ " : ""}{t(day.short)}</span>
-                  </label>
-                );
-              })}
-            </div>
+            <ToggleGroup
+              multiple
+              value={form.days.map(String)}
+              onValueChange={(values) => {
+                const days = values
+                  .map(Number)
+                  .filter((value): value is Weekday =>
+                    WEEKDAYS.some((day) => day.value === value),
+                  );
+                setForm((current) => (current ? { ...current, days } : current));
+                setFieldErrors((current) => {
+                  if (!current.days) return current;
+                  const next = { ...current };
+                  delete next.days;
+                  return next;
+                });
+              }}
+              id="habit-days"
+              className="mt-2 flex flex-wrap gap-2"
+              aria-label={t("days")}
+              aria-invalid={fieldErrors.days ? true : undefined}
+              aria-describedby={fieldErrors.days ? "task-days-error" : undefined}
+            >
+              {WEEKDAYS.map((day) => (
+                <Toggle
+                  key={day.value}
+                  value={String(day.value)}
+                  className="day-toggle"
+                  data-day-toggle
+                >
+                  {t(day.short)}
+                </Toggle>
+              ))}
+            </ToggleGroup>
+            {fieldErrors.days ? (
+              <p id="task-days-error" role="alert" className="form-error">
+                {fieldErrors.days}
+              </p>
+            ) : null}
           </fieldset>
 
           <div className="mt-5 space-y-4">
@@ -740,7 +1191,17 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               </legend>
               {form.id ? (
                 <>
-                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  <ToggleGroup
+                    value={[formBlock()]}
+                    onValueChange={(values) => {
+                      const value = values[0];
+                      if (value) {
+                        chooseBlock(value as "any" | "morning" | "afternoon" | "night" | "custom");
+                      }
+                    }}
+                    className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
+                    aria-label={t("when")}
+                  >
                     {([
                       ["any", "anyTime"],
                       ["morning", "morning"],
@@ -748,20 +1209,17 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       ["night", "night"],
                       ["custom", "chooseHours"],
                     ] as const).map(([value, key]) => (
-                      <button
+                      <Toggle
                         key={value}
-                        type="button"
-                        data-on={formBlock() === value}
-                        aria-pressed={formBlock() === value}
-                        onClick={() => chooseBlock(value)}
-                        className="day-toggle justify-center"
+                        value={value}
+                        className="day-toggle block-toggle justify-center"
                       >
                         {t(key)}
-                      </button>
+                      </Toggle>
                     ))}
-                  </div>
-                  {formBlock() === "custom" ? (
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  </ToggleGroup>
+                  <Reveal show={formBlock() === "custom"} reduceMotion={reduceMotion} className="mt-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                       <label className="block">
                         <span className="text-sm text-muted">{t("from")}</span>
                         <input
@@ -781,7 +1239,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                         />
                       </label>
                     </div>
-                  ) : null}
+                  </Reveal>
                   {form.useWindow ? (
                     <p className="mt-2 text-xs tabular-nums text-muted">
                       {t("range", { from: form.windowStart, to: form.windowEnd })}
@@ -813,40 +1271,53 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 </>
               ) : (
                 <>
-                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                    <button
-                      type="button"
-                      data-on={newBlocks.length === 0 && !newCustom}
-                      aria-pressed={newBlocks.length === 0 && !newCustom}
-                      onClick={chooseNewAny}
-                      className="day-toggle justify-center"
-                    >
+                  <ToggleGroup
+                    multiple
+                    value={newCustom ? ["custom"] : newBlocks.length > 0 ? newBlocks : ["any"]}
+                    onValueChange={(values) => {
+                      const previous = newCustom ? ["custom"] : newBlocks.length > 0 ? newBlocks : ["any"];
+                      const added = values.find((value) => !previous.includes(value));
+                      if (added === "custom") {
+                        chooseNewCustom();
+                        return;
+                      }
+                      if (added === "any") {
+                        chooseNewAny();
+                        return;
+                      }
+                      const blocks = values.filter((value): value is BlockKey =>
+                        BLOCKS.some((block) => block.value === value),
+                      );
+                      if (blocks.length === 0) {
+                        chooseNewAny();
+                        return;
+                      }
+                      setNewBlocks(blocks);
+                      setNewCustom(false);
+                      const first = BLOCK_RANGES[blocks[0]];
+                      patch({ useWindow: true, windowStart: first.start, windowEnd: first.end });
+                    }}
+                    className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
+                    aria-label={t("when")}
+                  >
+                    <Toggle value="any" className="day-toggle block-toggle justify-center">
                       {t("anyTime")}
-                    </button>
+                    </Toggle>
                     {BLOCKS.map((block) => (
-                      <button
+                      <Toggle
                         key={block.value}
-                        type="button"
-                        data-on={newBlocks.includes(block.value)}
-                        aria-pressed={newBlocks.includes(block.value)}
-                        onClick={() => toggleNewBlock(block.value)}
-                        className="day-toggle justify-center"
+                        value={block.value}
+                        className="day-toggle block-toggle justify-center"
                       >
                         {t(block.labelKey)}
-                      </button>
+                      </Toggle>
                     ))}
-                    <button
-                      type="button"
-                      data-on={newCustom}
-                      aria-pressed={newCustom}
-                      onClick={chooseNewCustom}
-                      className="day-toggle justify-center"
-                    >
+                    <Toggle value="custom" className="day-toggle block-toggle justify-center">
                       {t("chooseHours")}
-                    </button>
-                  </div>
-                  {newCustom ? (
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    </Toggle>
+                  </ToggleGroup>
+                  <Reveal show={newCustom} reduceMotion={reduceMotion} className="mt-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                       <label className="block">
                         <span className="text-sm text-muted">{t("from")}</span>
                         <input
@@ -866,7 +1337,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                         />
                       </label>
                     </div>
-                  ) : null}
+                  </Reveal>
                   {newCustom && form.useWindow ? (
                     <p className="mt-2 text-xs tabular-nums text-muted">
                       {t("range", { from: form.windowStart, to: form.windowEnd })}
@@ -877,16 +1348,17 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             </fieldset>
 
             <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
-              <input
-                type="checkbox"
+              <Switch.Root
                 checked={form.useFixedTime}
-                onChange={(event) => patch({ useFixedTime: event.target.checked })}
-                className="h-6 w-6"
-              />
+                onCheckedChange={(checked) => patch({ useFixedTime: checked })}
+                className="runo-switch"
+              >
+                <Switch.Thumb className="runo-switch-thumb" />
+              </Switch.Root>
               {t("exactTime")}
             </label>
-            {form.useFixedTime ? (
-              <label className="block max-w-40">
+            <Reveal show={form.useFixedTime} reduceMotion={reduceMotion} className="max-w-40">
+              <label className="block">
                 <span className="text-sm text-muted">{t("hours")}</span>
                 <input
                   type="time"
@@ -895,41 +1367,64 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                   className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                 />
               </label>
-            ) : null}
+            </Reveal>
 
             <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
-              <input
-                type="checkbox"
+              <Switch.Root
                 checked={form.useShortStep}
-                onChange={(event) => patch({ useShortStep: event.target.checked })}
-                className="h-6 w-6"
-              />
+                onCheckedChange={(checked) => patch({ useShortStep: checked })}
+                className="runo-switch"
+              >
+                <Switch.Thumb className="runo-switch-thumb" />
+              </Switch.Root>
               {t("firstStep")}
             </label>
-            {form.useShortStep ? (
+            <Reveal show={form.useShortStep} reduceMotion={reduceMotion}>
               <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
-                <label className="block">
-                  <span className="text-sm text-muted">{t("firstStepWhat")}</span>
-                  <input
+                <Field.Root name="shortStepTitle" className="form-field block">
+                  <Field.Label className="form-label text-muted">{t("firstStepWhat")}</Field.Label>
+                  <Field.Control
+                    ref={shortTitleRef}
                     value={form.shortStepTitle}
                     onChange={(event) => patch({ shortStepTitle: event.target.value })}
                     className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
                     placeholder={t("firstStepPlaceholder")}
                   />
-                </label>
-                <label className="block">
-                  <span className="text-sm text-muted">{t("minutes")}</span>
-                  <input
-                    type="number"
+                  <Field.Error className="form-error" />
+                </Field.Root>
+                <Field.Root name="shortStepDuration" className="form-field block">
+                  <label htmlFor="task-step-duration" className="form-label text-muted">{t("minutes")}</label>
+                  <NumberField.Root
+                    id="task-step-duration"
+                    value={form.shortStepDuration === "" ? null : Number(form.shortStepDuration)}
+                    onValueChange={(value) => patch({
+                      shortStepDuration: value === null ? "" : String(value),
+                    })}
                     min={1}
                     step={1}
-                    value={form.shortStepDuration}
-                    onChange={(event) => patch({ shortStepDuration: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                  />
-                </label>
+                    inputRef={shortMinutesRef}
+                    className="number-field"
+                  >
+                    <NumberField.Group className="number-field-group">
+                      <NumberField.Decrement
+                        className="number-field-stepper"
+                        aria-label={common("decrease")}
+                      >
+                        −
+                      </NumberField.Decrement>
+                      <NumberField.Input className="number-field-input" />
+                      <NumberField.Increment
+                        className="number-field-stepper"
+                        aria-label={common("increase")}
+                      >
+                        +
+                      </NumberField.Increment>
+                    </NumberField.Group>
+                  </NumberField.Root>
+                  <Field.Error className="form-error" />
+                </Field.Root>
               </div>
-            ) : null}
+            </Reveal>
           </div>
 
           {formError ? (
@@ -939,13 +1434,15 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           ) : null}
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <button
+            <motion.button
               type="submit"
               disabled={saving}
               className="min-h-11 rounded-none bg-foreground px-6 text-sm font-semibold text-background disabled:opacity-60"
+              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+              transition={{ duration: 0.12 }}
             >
               {saving ? t("saving") : t("save")}
-            </button>
+            </motion.button>
             <button
               type="button"
               onClick={closeForm}
@@ -954,21 +1451,8 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             >
               {t("cancel")}
             </button>
-            {editingTask ? (
-              <button
-                type="button"
-                onClick={() => {
-                  closeForm();
-                  void archive(editingTask);
-                }}
-                disabled={saving}
-                className="min-h-11 text-sm font-semibold text-muted underline underline-offset-4 disabled:opacity-60"
-              >
-                {t("saveApart")}
-              </button>
-            ) : null}
           </div>
-        </form>
+        </Form>
       ) : null}
 
       {form ? null : loadError ? (
@@ -986,24 +1470,30 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         <p className="mt-6 text-sm text-muted">{t("list.loading")}</p>
       ) : (
         <>
-          <div className="mt-5" role="group" aria-label={t("list.filterAria")}>
+          <div className="mt-5">
             <div className="days-strip">
-              <div className="days-strip-track">
+              <ToggleGroup
+                value={[String(selectedDay)]}
+                onValueChange={(values) => {
+                  const value = values[0];
+                  if (value === undefined) return;
+                  setSelectedDay(Number(value) as Weekday);
+                }}
+                className="days-strip-track"
+                aria-label={t("list.filterAria")}
+              >
                 {dayCounts.map((day) => (
-                  <button
+                  <Toggle
                     key={day.value}
-                    type="button"
-                    data-on={selectedDay === day.value}
-                    aria-pressed={selectedDay === day.value}
+                    value={String(day.value)}
                     aria-controls="day-tasks"
-                    onClick={() => setSelectedDay(day.value)}
                     className="day-toggle min-h-14 px-1 py-2 text-xs"
                   >
                     <span className="block">{t(day.short)}</span>
                     <span className="mt-1 block tabular-nums opacity-70">{day.count}</span>
-                  </button>
+                  </Toggle>
                 ))}
-              </div>
+              </ToggleGroup>
             </div>
           </div>
 
@@ -1047,7 +1537,28 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                         <DisclosureChevron />
                       </span>
                     </summary>
-                    <ul className="task-list">{block.tasks.map((task) => compactRow(task))}</ul>
+                    <SortableTaskList
+                      tasks={block.tasks}
+                      onReorder={reorderSection}
+                      renderTask={(task) => {
+                        const occurrence = selectedDay === todayWeekday
+                          ? occurrenceByTask.get(task.id)
+                          : undefined;
+                        return (
+                          <TaskRow
+                            key={task.id}
+                            task={task}
+                            occurrence={occurrence}
+                            menuTaskId={menuTaskId}
+                            onMenuChange={setMenuTaskId}
+                            onEdit={startEdit}
+                            onDelete={setDeleteTask}
+                            onReactivate={(target, currentOccurrence) => void reactivate(target, currentOccurrence)}
+                            reactivatingId={reactivatingId}
+                          />
+                        );
+                      }}
+                    />
                   </details>
                 ) : null,
               )}
@@ -1055,51 +1566,42 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           )}
           </div>
 
-          {unscheduled.length > 0 ? (
-            <details
-              className="task-block task-plain mt-8"
-              open={!closedSections.unscheduled}
-              onToggle={(event) => rememberSection("unscheduled", event.currentTarget.open)}
-            >
-              <summary className="flex min-h-11 w-full cursor-pointer flex-wrap items-center justify-between gap-x-2 border-b border-line pb-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
-                  {t("list.unscheduled")}
-                </span>
-                <span className="flex items-center gap-2 text-xs tabular-nums text-muted">
-                  {unscheduled.length}
-                  <DisclosureChevron />
-                </span>
-              </summary>
-              <ul className="task-list">{unscheduled.map((task) => compactRow(task))}</ul>
-            </details>
-          ) : null}
-
-          {archived.length > 0 ? (
-            <details
-              className="task-block task-plain mt-8"
-              open={!closedSections.archived}
-              onToggle={(event) => rememberSection("archived", event.currentTarget.open)}
-            >
-              <summary className="flex min-h-11 w-full cursor-pointer flex-wrap items-center justify-between gap-x-2 border-b border-line pb-2">
-                <span className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">
-                  {t("list.archived")}
-                </span>
-                <span className="flex items-center gap-2 text-xs tabular-nums text-muted">
-                  {archived.length}
-                  <DisclosureChevron />
-                </span>
-              </summary>
-              <ul className="task-list mt-3 space-y-2">
-                {archived.map((task) => (
-                  <li key={task.id} className="border-b border-line py-3 text-sm text-muted">
-                    {task.title} · {t("list.archivedSuffix")}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ) : null}
         </>
       )}
+
+      <AlertDialog.Root
+        open={deleteTask !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTask(null);
+        }}
+      >
+        <AlertDialog.Portal className="runo-dialog-portal">
+          <AlertDialog.Backdrop className="runo-dialog-backdrop" />
+          <AlertDialog.Popup className="runo-dialog">
+            <AlertDialog.Title className="runo-dialog-title">
+              {t("list.deleteTitle")}
+            </AlertDialog.Title>
+            <AlertDialog.Description className="runo-dialog-copy">
+              {t("list.deleteCopy")}
+            </AlertDialog.Description>
+            <div className="runo-dialog-actions">
+              <AlertDialog.Close className="runo-dialog-cancel">
+                {common("cancel")}
+              </AlertDialog.Close>
+              <AlertDialog.Close
+                className="runo-dialog-danger"
+                onClick={() => {
+                  const task = deleteTask;
+                  setDeleteTask(null);
+                  if (task) void archive(task);
+                }}
+              >
+                {t("list.deleteConfirm")}
+              </AlertDialog.Close>
+            </div>
+          </AlertDialog.Popup>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
     </section>
   );
 }

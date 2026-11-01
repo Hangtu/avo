@@ -118,7 +118,7 @@ function taskFrom(value: unknown): Task {
       window: raw.window as TaskInput["window"],
       fixedTime: raw.fixedTime as TaskInput["fixedTime"],
       shortStep: raw.shortStep as TaskInput["shortStep"],
-    });
+    }, { allowEmptyDays: true });
   } catch (error) {
     if (error instanceof DomainError) throw new BackupError(error.message);
     throw error;

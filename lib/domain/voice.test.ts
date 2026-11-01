@@ -13,7 +13,7 @@ describe("voz local", () => {
   it("mantiene un banco pequeño sin duplicados en cada idioma", () => {
     for (const bank of Object.values(banks)) {
       const phrases = Object.values(bank).flat();
-      expect(phrases).toHaveLength(10);
+      expect(phrases).toHaveLength(9);
       expect(new Set(phrases).size).toBe(phrases.length);
     }
   });

@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Field } from "@base-ui/react/field";
+import { Form } from "@base-ui/react/form";
 import { useLocale, useTranslations } from "next-intl";
 
 import { HelpTip } from "./help-tip";
@@ -42,8 +44,10 @@ export function CloudBackup() {
   const locale = useLocale();
   const [mode, setMode] = useState<Mode>("loading");
   const [passcode, setPasscode] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const passcodeRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(null);
@@ -104,9 +108,11 @@ export function CloudBackup() {
   async function connect() {
     if (busy) return;
     if (!passcode.trim()) {
-      setError(t("passcodeRequired"));
+      setFieldErrors({ passcode: t("passcodeRequired") });
+      passcodeRef.current?.focus();
       return;
     }
+    setFieldErrors({});
     setBusy(true);
     setError(null);
     try {
@@ -121,11 +127,13 @@ export function CloudBackup() {
         return;
       }
       if (response.status === 401) {
-        setError(t("wrongPasscode"));
+        setFieldErrors({ passcode: t("wrongPasscode") });
+        passcodeRef.current?.focus();
         return;
       }
       if (!response.ok) throw new Error("connect");
       setPasscode("");
+      setFieldErrors({});
       setNotice(null);
       await loadStatus();
     } catch {
@@ -240,24 +248,37 @@ export function CloudBackup() {
       {mode === "login" ? (
         <div className="mt-3">
           <p className="text-sm text-muted">{t("notConnected")}</p>
-          <form
+          <Form
+            noValidate
+            errors={fieldErrors}
             className="mt-3 flex flex-wrap items-end gap-3"
             onSubmit={(event) => {
               event.preventDefault();
               void connect();
             }}
           >
-            <label className="min-w-0 flex-1">
-              <span className="text-sm font-medium">{t("passcodeLabel")}</span>
-              <input
+            <Field.Root name="passcode" className="form-field min-w-0 flex-1">
+              <Field.Label className="form-label">{t("passcodeLabel")}</Field.Label>
+              <Field.Control
+                ref={passcodeRef}
                 type="password"
                 autoComplete="current-password"
                 value={passcode}
-                onChange={(event) => setPasscode(event.target.value)}
+                onChange={(event) => {
+                  setPasscode(event.target.value);
+                  setError(null);
+                  setFieldErrors((current) => {
+                    if (!current.passcode) return current;
+                    const next = { ...current };
+                    delete next.passcode;
+                    return next;
+                  });
+                }}
                 disabled={busy}
                 className="mt-1 min-h-11 w-full min-w-0 border border-control bg-background px-3 text-base disabled:opacity-60"
               />
-            </label>
+              <Field.Error className="form-error" />
+            </Field.Root>
             <button
               type="submit"
               disabled={busy}
@@ -265,7 +286,7 @@ export function CloudBackup() {
             >
               {busy ? t("connecting") : t("connect")}
             </button>
-          </form>
+          </Form>
         </div>
       ) : null}
 

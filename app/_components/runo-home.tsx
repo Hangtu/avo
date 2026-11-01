@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
+import { Menu } from "@base-ui/react/menu";
+import { Toast } from "@base-ui/react/toast";
 import { useLocale, useTranslations } from "next-intl";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
@@ -8,7 +11,6 @@ import {
   ensureDay,
   ensureFranja,
   ensureOccurrence,
-  getSettings,
   listTasks,
   markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicableDirect,
@@ -33,6 +35,7 @@ import { TaskEditor } from "./task-editor";
 import { useVoicePreference } from "./use-voice-preference";
 import { WalletView } from "./wallet-view";
 import { SettingsView } from "./settings-view";
+import { RunoToaster } from "./runo-toaster";
 import { useThemePreference } from "./use-theme-preference";
 
 interface FranjaTask {
@@ -63,9 +66,8 @@ type View =
       remainingEligible: number;
       swapsRemaining: number;
       canSwap: boolean;
-      unscheduled: number;
     }
-  | { kind: "empty"; dateLabel: string; pendingToday: number; unscheduled: number }
+  | { kind: "empty"; dateLabel: string; pendingToday: number }
   | { kind: "closed"; dateLabel: string };
 
 function formatDate(now: number, locale: string): string {
@@ -104,7 +106,6 @@ export function RunoHome() {
   const [editorTaskId, setEditorTaskId] = useState<string | null>(null);
   const [pendingComposerFocus, setPendingComposerFocus] = useState(0);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-  const [showWalletLink, setShowWalletLink] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
   const [correctingId, setCorrectingId] = useState<string | null>(null);
@@ -113,6 +114,7 @@ export function RunoHome() {
   const pendingBusyRef = useRef(false);
   const voice = useVoicePreference();
   const theme = useThemePreference();
+  const reduceMotion = useReducedMotion();
   const swapBusy = useRef(false);
   const correctBusy = useRef(false);
 
@@ -128,8 +130,6 @@ export function RunoHome() {
         const dateLabel = formatDate(now, intlLocales[locale]);
 
         await seedDatabase(db, now);
-        const preferences = await getSettings(db, now);
-        if (!cancelled) setShowWalletLink(preferences.showWallet);
         const day = await ensureDay(db, date, now);
 
         const active = await db.sessions
@@ -166,7 +166,6 @@ export function RunoHome() {
 
         const occurrences = await db.occurrences.where("date").equals(date).toArray();
         const franja = await ensureFranja(db, { date, now, seed: date, tasks, occurrences });
-        const unscheduled = tasks.filter((task) => task.days.length === 0).length;
 
         if (cancelled) return;
 
@@ -192,14 +191,12 @@ export function RunoHome() {
             remainingEligible: franja.remainingEligible,
             swapsRemaining: franja.swapsRemaining,
             canSwap: franja.canSwap,
-            unscheduled,
           });
         } else {
           setView({
             kind: "empty",
             dateLabel,
             pendingToday: franja.pendingToday,
-            unscheduled,
           });
         }
       } catch (error) {
@@ -225,6 +222,54 @@ export function RunoHome() {
     setPendingStart(null);
     setRefreshKey((key) => key + 1);
   }, []);
+
+  const lastAutoRefresh = useRef(0);
+  const autoRefresh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastAutoRefresh.current < 1000) return;
+    lastAutoRefresh.current = now;
+    refreshView(null);
+  }, [refreshView]);
+
+  const autoRefreshEnabled =
+    !showEditor &&
+    !showWallet &&
+    !showSettings &&
+    !showPending &&
+    !quickFormOpen &&
+    !showBreak &&
+    pendingStart === null &&
+    (view.kind === "ready" || view.kind === "empty");
+
+  useEffect(() => {
+    if (!autoRefreshEnabled) return;
+    let timer: number | undefined;
+
+    const scheduleNextHour = () => {
+      const now = Date.now();
+      const next = new Date(now);
+      next.setMinutes(0, 0, 0);
+      next.setHours(next.getHours() + 1);
+      timer = window.setTimeout(() => {
+        autoRefresh();
+        scheduleNextHour();
+      }, Math.max(1000, next.getTime() - now + 250));
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") autoRefresh();
+    };
+    const refreshOnFocus = () => autoRefresh();
+
+    scheduleNextHour();
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshOnFocus);
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [autoRefresh, autoRefreshEnabled]);
 
   const finishSession = useCallback((offerBreak = false, message?: string) => {
     const fromPending = view.kind === "session" && view.session.pendingId !== undefined;
@@ -335,16 +380,6 @@ export function RunoHome() {
     setShowEditor(true);
   }, []);
 
-  const openWallet = useCallback(() => {
-    setShowBreak(false);
-    setShowEditor(false);
-    setShowSettings(false);
-    setShowPending(false);
-    setQuickFormOpen(false);
-    setEditorTaskId(null);
-    setShowWallet(true);
-  }, []);
-
   const openSettings = useCallback(() => {
     setShowBreak(false);
     setShowEditor(false);
@@ -364,7 +399,7 @@ export function RunoHome() {
     setNotice(null);
     setPendingMessage(null);
     setShowPending(true);
-    if (focusComposer) setPendingComposerFocus((value) => value + 1);
+    setPendingComposerFocus((value) => focusComposer ? value + 1 : 0);
   }, []);
 
   const closeSecondary = useCallback(() => {
@@ -586,7 +621,25 @@ export function RunoHome() {
     }
   }, [locale, t]);
 
+  const screenKey = showPending
+    ? "pending"
+    : showEditor
+      ? `editor:${editorTaskId ?? "list"}`
+      : showWallet
+        ? "wallet"
+        : showSettings
+          ? "settings"
+          : pendingStart
+            ? `countdown:${pendingStart.task.id}`
+            : view.kind === "session"
+              ? `session:${view.session.id}`
+              : view.kind === "anchor"
+                ? `anchor:${view.occurrence.id}`
+                : view.kind;
+
   return (
+    <MotionConfig reducedMotion="user">
+    <Toast.Provider limit={2} timeout={4000}>
     <main className="min-h-screen bg-background text-foreground">
       <div
         className="runo-shell mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16"
@@ -635,6 +688,14 @@ export function RunoHome() {
         </header>
 
         <div className="runo-content flex flex-1 flex-col justify-center py-8">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={screenKey}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+              transition={{ duration: reduceMotion ? 0.12 : 0.18, ease: "easeOut" }}
+            >
           {showPending ? (
             <PendingView
               focusComposer={pendingComposerFocus}
@@ -648,8 +709,6 @@ export function RunoHome() {
               tone={voice.tone ?? 0}
               voiceReady={voice.ready}
               onTone={voice.setTone}
-              onWalletVisibilityChange={setShowWalletLink}
-              onOpenWallet={openWallet}
               theme={theme.mode}
               themeReady={theme.ready}
               themeBusy={theme.busy}
@@ -681,14 +740,21 @@ export function RunoHome() {
               />
             </section>
           ) : null}
-          {!showEditor && !showWallet && !showSettings && !showPending && notice ? (
-            <p
-              role="alert"
-              className="mb-4 border-l-2 border-line pl-4 text-sm leading-6"
-            >
-              {notice}
-            </p>
-          ) : null}
+          <AnimatePresence initial={false}>
+            {!showEditor && !showWallet && !showSettings && !showPending && notice ? (
+              <motion.p
+                key={notice}
+                role="alert"
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reduceMotion ? 0.1 : 0.15 }}
+                className="mb-4 border-l-2 border-line pl-4 text-sm leading-6"
+              >
+                {notice}
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
 
           {!showEditor && !showWallet && !showSettings && !showPending && pendingStart ? (
             <Countdown
@@ -747,6 +813,8 @@ export function RunoHome() {
               {view.kind === "closed" ? <DayClosed view={view} /> : null}
             </>
           ) : null}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         <div aria-hidden className="runo-dock-scrim" />
@@ -759,6 +827,7 @@ export function RunoHome() {
             disabled={pendingStart !== null}
             aria-current={!showEditor && !showWallet && !showSettings && !showPending ? "page" : undefined}
           >
+            {!showEditor && !showWallet && !showSettings && !showPending ? <DockIndicator /> : null}
             {t("nav.today")}
           </button>
           <button
@@ -767,6 +836,7 @@ export function RunoHome() {
             disabled={pendingStart !== null}
             aria-current={showEditor ? "page" : undefined}
           >
+            {showEditor ? <DockIndicator /> : null}
             {t("nav.tasks")}
           </button>
           <button
@@ -776,6 +846,7 @@ export function RunoHome() {
             aria-current={showPending ? "page" : undefined}
             aria-label={t("nav.pending")}
           >
+            {showPending ? <DockIndicator /> : null}
             <span className="dock-label-full">{t("nav.pending")}</span>
             <span className="dock-label-short" aria-hidden>{t("nav.pendingShort")}</span>
           </button>
@@ -785,21 +856,27 @@ export function RunoHome() {
             disabled={pendingStart !== null}
             aria-current={showSettings ? "page" : undefined}
           >
+            {showSettings ? <DockIndicator /> : null}
             {t("nav.settings")}
           </button>
-          {showWalletLink ? (
-            <button
-              type="button"
-              onClick={openWallet}
-              disabled={pendingStart !== null}
-              aria-current={showWallet ? "page" : undefined}
-            >
-              {t("nav.wallet")}
-            </button>
-          ) : null}
         </nav>
       </div>
     </main>
+    <RunoToaster />
+    </Toast.Provider>
+    </MotionConfig>
+  );
+}
+
+function DockIndicator() {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.span
+      aria-hidden
+      className="runo-dock-active"
+      layoutId={reduceMotion ? undefined : "runo-dock-active"}
+      transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
+    />
   );
 }
 
@@ -818,6 +895,7 @@ function Countdown({
 }) {
   const t = useTranslations("countdown");
   const common = useTranslations("common");
+  const reduceMotion = useReducedMotion();
   const [count, setCount] = useState(3);
   const fired = useRef(false);
   const title = variant === "short" ? task.shortStepTitle ?? task.title : task.title;
@@ -844,9 +922,18 @@ function Countdown({
         {variant === "short" ? t("firstStep") : t("starting")}
       </p>
       <h2 className="mt-3 text-2xl font-semibold leading-tight">{title}</h2>
-      <p className="mt-6 text-8xl font-semibold tabular-nums text-foreground">
-        {count === 0 ? "…" : count}
-      </p>
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.p
+          key={count}
+          className="mt-6 text-8xl font-semibold tabular-nums text-foreground"
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.82 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+          transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.55 }}
+        >
+          {count === 0 ? "…" : count}
+        </motion.p>
+      </AnimatePresence>
       <p className="mt-4 text-sm leading-6 text-muted">
         {t("cancelHelp", { duration })}
       </p>
@@ -925,6 +1012,7 @@ function Franja({
   const [primaryIndex, setPrimaryIndex] = useState(0);
   const [peekOffset, setPeekOffset] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
   const startButtonRef = useRef<HTMLButtonElement>(null);
   const focusStart = useRef(false);
   const tasks = view.tasks;
@@ -966,23 +1054,37 @@ function Franja({
   }
 
   return (
-    <div className="peek-layout">
-      <section className="first-experience peek-front" aria-labelledby="first-title">
+    <>
+      <p className="first-prompt">{t("prompt")}</p>
+      <div className="peek-layout">
+      <AnimatePresence mode="popLayout">
+        <motion.section
+          key={primary.id}
+          layout
+          className="first-experience peek-front"
+          aria-labelledby="first-title"
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+          transition={{ type: "spring", stiffness: 380, damping: 34, mass: 0.7 }}
+        >
         <p className="first-eyebrow">{t("eyebrow")}</p>
         <h2 id="first-title" className="first-title">{primary.title}</h2>
         <p id="first-duration" className="first-duration">{common("minutes", { count: remaining })}</p>
 
         <div className="first-actions">
-          <button
+          <motion.button
             ref={startButtonRef}
             type="button"
             className="bg-foreground px-6 text-base font-semibold text-background disabled:opacity-60"
             disabled={busy}
             aria-labelledby="first-start-label first-title first-duration"
             onClick={() => onStart(primary, "full")}
+            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+            transition={{ duration: 0.12 }}
           >
             <span id="first-start-label">{primaryLabel}</span> <span aria-hidden className="first-start-icon">▶️</span>
-          </button>
+          </motion.button>
           {tasks.length > 2 ? (
             <button
               type="button"
@@ -993,51 +1095,84 @@ function Franja({
               {t("showAnother")}
             </button>
           ) : null}
-          <button
-            type="button"
-            className="first-more"
-            disabled={busy}
-            aria-label={common("moreOptions")}
-            aria-expanded={menuOpen}
-            aria-controls="first-more-menu"
-            onClick={() => setMenuOpen((value) => !value)}
-          >
-            ⋯
-          </button>
+          <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>
+            <Menu.Trigger
+              type="button"
+              className="first-more"
+              disabled={busy}
+              aria-label={common("moreOptions")}
+            >
+              ⋯
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner
+                className="first-menu-positioner"
+                sideOffset={8}
+                align="end"
+              >
+                <Menu.Popup className="first-menu">
+                  {primary.shortStepMin && !primary.shortStepDone ? (
+                    <Menu.Item
+                      className="first-menu-item"
+                      disabled={busy}
+                      onClick={() => onStart(primary, "short")}
+                    >
+                      {t("shortStep", { minutes: primary.shortStepMin })}
+                    </Menu.Item>
+                  ) : null}
+                  {view.canSwap ? (
+                    <Menu.Item
+                      className="first-menu-item"
+                      disabled={busy}
+                      onClick={() => void onSwap(primary)}
+                    >
+                      {t("swap")}
+                    </Menu.Item>
+                  ) : null}
+                  <Menu.Item
+                    className="first-menu-item"
+                    disabled={busy}
+                    onClick={() => onAlreadyDone(primary)}
+                  >
+                    {t("alreadyDone")}
+                  </Menu.Item>
+                  <Menu.Item
+                    className="first-menu-item"
+                    disabled={busy}
+                    onClick={() => onNotApplicable(primary)}
+                  >
+                    {t("notToday")}
+                  </Menu.Item>
+                  <Menu.Item
+                    className="first-menu-item"
+                    disabled={busy}
+                    onClick={() => onEdit(primary)}
+                  >
+                    {t("edit")}
+                  </Menu.Item>
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
         </div>
+        </motion.section>
+      </AnimatePresence>
 
-        {menuOpen ? (
-          <div id="first-more-menu" className="first-menu">
-            {primary.shortStepMin && !primary.shortStepDone ? (
-              <button type="button" disabled={busy} onClick={() => onStart(primary, "short")}>
-                {t("shortStep", { minutes: primary.shortStepMin })}
-              </button>
-            ) : null}
-            {view.canSwap ? (
-              <button type="button" disabled={busy} onClick={() => void onSwap(primary)}>
-                {t("swap")}
-              </button>
-            ) : null}
-            <button type="button" disabled={busy} onClick={() => onAlreadyDone(primary)}>
-              {t("alreadyDone")}
-            </button>
-            <button type="button" disabled={busy} onClick={() => onNotApplicable(primary)}>
-              {t("notToday")}
-            </button>
-            <button type="button" disabled={busy} onClick={() => onEdit(primary)}>
-              {t("edit")}
-            </button>
-          </div>
-        ) : null}
-      </section>
-
-      {secondary ? (
-        <button
+      <AnimatePresence mode="popLayout" initial={false}>
+        {secondary ? (
+        <motion.button
           type="button"
+          key={secondary.id}
+          layout
           className="peek-back"
           onClick={promoteSecondary}
           disabled={busy}
+          whileTap={reduceMotion ? undefined : { scale: 0.99 }}
           aria-labelledby="peek-back-action peek-back-title peek-back-duration"
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+          transition={{ type: "spring", stiffness: 380, damping: 34, mass: 0.7 }}
         >
           <span className="peek-back-top">
             <span className="peek-back-label">{t("otherOption")}</span>
@@ -1047,9 +1182,11 @@ function Franja({
           <span id="peek-back-duration" className="peek-back-duration">
             {common("minutes", { count: secondary.remainingMin })}
           </span>
-        </button>
-      ) : null}
-    </div>
+        </motion.button>
+        ) : null}
+      </AnimatePresence>
+      </div>
+    </>
   );
 }
 

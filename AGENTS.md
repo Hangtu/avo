@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 App personal de hábitos, organización y timer, con presión configurable y recompensas en minutos de ocio. Un solo usuario, español de México. El objetivo es ayudar a actuar y volver a la vida, no maximizar adicción o tiempo dentro de la app.
 
-**Alcance vigente:** `plan.md` v1.8, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
+**Alcance vigente:** `plan.md` v1.11, con las aclaraciones aprobadas por el dueño. No recuperar reglas obsoletas del historial de conversación.
 
 ## 1. Lectura y fuentes de verdad
 
@@ -49,10 +49,10 @@ Si estos documentos discrepan, no escoger la regla más cómoda: comprobar la ú
 ## 3. Contrato del producto que no se debe perder
 
 1. **Una carta principal en foco, con una alternativa asomada antes de empezar**, no un dashboard durante el timer. La alternativa se vuelve principal al elegirla. Pausa, salida y mute siguen accesibles; configuración y monedero son vistas secundarias permitidas.
-2. **Franjas de hasta tres cartas, no tres tareas por día.** Varias franjas por día; solo una abierta. No se pasa a la siguiente hasta resolver la actual (completada, ya la hice, no aplica o cambiada). Menos de tres si no hay elegibles; no rellenar con duplicados.
+2. **Franjas de hasta tres cartas, no tres tareas por día.** Varias franjas por día; solo una abierta. No se pasa a la siguiente hasta resolver la actual (completada, ya la hice, no aplica o cambiada). La franja abierta se reevalúa al abrir/volver y cada hora: mantiene al menos dos visibles, conserva lo empezado, no reabre diferidas y no duplica. Dentro de la misma importancia, una tarea con horario activo gana a una sin hora.
 3. **Tres «Otra» por fecha local**, compartidos entre franjas. Elegir entre las cartas visibles es libre y no consume cambios. «Otra» reemplaza una carta por otra que no está en la franja. Al agotarse, desaparece; no hay consumo si no existe alternativa.
 4. **Correcciones neutrales:** «Ya la hice», «Hoy no aplica», vida real, pausa y edición no consumen cambios ni prueban procrastinación. Nunca bloquear toda salida por agotar cambios. En una tarea diaria en sesión activa no hay «dejar pendiente»: pausa, no aplica o terminar por hoy. En un pendiente de una vez, cerrar y dejarlo en la lista es una salida válida.
-5. **Editor cualquier día:** agregar, editar y archivar con duración, días, franja/hora opcionales, prioridad y escalón. No depende del Parte ni de llegar al domingo.
+5. **Editor cualquier día:** agregar, editar y eliminar con confirmación (conservando historial) con duración, al menos un día obligatorio, franja/hora opcionales, prioridad y escalón. El orden visual dentro de cada sección se puede arrastrar y se guarda localmente; no altera la prioridad de Hoy ni cruza secciones. No depende del Parte ni de llegar al domingo.
 6. **Pausa explícita persistente:** congela el restante; volver no reanuda solo. Cerrar sin pausar deja transcurrir el reloj. Una pausa sigue bloqueando el inicio de otra tarea. Cero no completa ni paga: pide confirmación. No hay «Casi» ni «Dejar pendiente» en una sesión activa de una tarea diaria; un pendiente de una vez puede cerrarse y quedarse en su lista.
 7. **Escalón opcional, no universal:** primer paso concreto y parcial. Preparar materiales no completa higiene, suplementación o cuidados. No inventar dosis ni frecuencias médicas.
 8. **Horarios pertinentes:** filtrar por días/franjas antes de ordenar por prioridad. Una ancla visible pausa y guarda la sesión anterior, se presenta una vez y no inicia un timer ni mueve citas automáticamente.

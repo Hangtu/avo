@@ -4,7 +4,7 @@ import type {
 } from "@/lib/domain/types";
 
 export const DATABASE_NAME = "runo";
-export const DATABASE_VERSION = 3;
+export const DATABASE_VERSION = 4;
 
 const STORES_V2 = {
   tasks: "id, archivedAt, *days",
@@ -45,7 +45,14 @@ export class RunoDatabase extends Dexie {
         if (day.closedAt === undefined) day.closedAt = null;
       }),
     );
-    this.version(DATABASE_VERSION).stores(STORES_V3);
+    this.version(3).stores(STORES_V3);
+    this.version(DATABASE_VERSION).stores(STORES_V3).upgrade((tx) =>
+      tx.table("tasks").toCollection().modify((task: { days?: unknown }) => {
+        if (Array.isArray(task.days) && task.days.length === 0) {
+          task.days = [0, 1, 2, 3, 4, 5, 6];
+        }
+      }),
+    );
   }
 }
 

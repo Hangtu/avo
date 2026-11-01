@@ -21,6 +21,21 @@ export function windowPreset(start: string, end: string): WindowPreset {
 }
 
 /** The visual list group comes from the current task time, not its full window. */
+export function taskTime(task: {
+  fixedTime?: ClockTime;
+  window?: { start: ClockTime; end: ClockTime };
+}): string | null {
+  return task.fixedTime ?? task.window?.start ?? null;
+}
+
+/** Minutes for the visual task time; no time sorts last. */
+export function timeMinutes(time: string | null): number {
+  if (!time) return 24 * 60;
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+
 export function blockForTime(time: string | null): TaskBlock {
   if (!time) return "any";
   const hour = Number(time.slice(0, 2));

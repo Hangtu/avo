@@ -33,7 +33,7 @@ describe("franja actual", () => {
   });
 
   it("no rellena cuando hay menos de tres elegibles", () => {
-    const tasks = [task("a"), task("draft", { days: [] })];
+    const tasks = [task("a"), { ...task("draft"), days: [] }];
     const view = currentFranja({ tasks, occurrences: [], now: NOW, seed: "s" });
     expect(view.candidates.map((candidate) => candidate.task.id)).toEqual(["a"]);
     expect(view.remainingEligible).toBe(0);

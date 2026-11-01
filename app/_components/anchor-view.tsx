@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { motion, useReducedMotion } from "motion/react";
 import type { Task } from "@/lib/domain/types";
 import { HelpTip } from "./help-tip";
 
@@ -18,8 +19,15 @@ export function AnchorView({
   onNotApplicable: () => void;
 }) {
   const t = useTranslations("anchor");
+  const reduceMotion = useReducedMotion();
   return (
-    <section className="border-y border-line py-8 sm:py-10" aria-labelledby="anchor-title">
+    <motion.section
+      className="border-y border-line py-8 sm:py-10"
+      aria-labelledby="anchor-title"
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0.12 : 0.24, ease: "easeOut" }}
+    >
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {t("eyebrow", { time: task.fixedTime ?? "" })}
       </p>
@@ -58,6 +66,6 @@ export function AnchorView({
           {t("notToday")}
         </button>
       </div>
-    </section>
+    </motion.section>
   );
 }

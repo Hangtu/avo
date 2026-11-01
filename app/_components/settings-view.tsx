@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { useChangeLocale } from "./i18n-provider";
 import { HelpTip } from "./help-tip";
-import { CloudBackup } from "./cloud-backup";
+import { SelectControl } from "./select-control";
 import { openDatabase } from "@/lib/db/database";
 import { getSettings, saveSettings } from "@/lib/db/repository";
 import type { Settings } from "@/lib/domain/types";
@@ -19,8 +19,6 @@ export function SettingsView({
   tone,
   voiceReady,
   onTone,
-  onWalletVisibilityChange,
-  onOpenWallet,
   theme,
   themeReady,
   themeBusy,
@@ -30,8 +28,6 @@ export function SettingsView({
   tone: VoiceTone;
   voiceReady: boolean;
   onTone: (tone: VoiceTone) => void;
-  onWalletVisibilityChange: (visible: boolean) => void;
-  onOpenWallet: () => void;
   theme: ThemeMode;
   themeReady: boolean;
   themeBusy: boolean;
@@ -80,7 +76,6 @@ export function SettingsView({
         const next: Settings = { ...current, ...patch, updatedAt: now };
         await saveSettings(db, next);
         setSettings(next);
-        if (patch.showWallet !== undefined) onWalletVisibilityChange(patch.showWallet);
       } finally {
         db.close();
       }
@@ -121,18 +116,20 @@ export function SettingsView({
             {settings.audioEnabled ? t("sound.mute") : t("sound.activate")}
           </button>
           {settings.audioEnabled ? (
-            <label className="flex min-h-11 flex-wrap items-center gap-2 text-sm text-muted">
+            <div className="flex min-h-11 flex-wrap items-center gap-2 text-sm text-muted">
               <span>{t("sound.label")}</span>
-              <select
+              <SelectControl
+                inline
                 value={settings.sound}
-                onChange={(event) => void update({ sound: event.target.value as Settings["sound"] })}
+                label={t("sound.label")}
                 disabled={busy}
-                className="min-h-11 border border-control bg-background px-3 text-sm disabled:opacity-60"
-              >
-                <option value="brown">{t("sound.soft")}</option>
-                <option value="tick">{t("sound.tick")}</option>
-              </select>
-            </label>
+                options={[
+                  { value: "brown", label: t("sound.soft") },
+                  { value: "tick", label: t("sound.tick") },
+                ]}
+                onChange={(value) => void update({ sound: value as Settings["sound"] })}
+              />
+            </div>
           ) : null}
         </div>
       </div>
@@ -168,42 +165,19 @@ export function SettingsView({
           <h3 className="text-lg font-semibold">{t("language.title")}</h3>
           <HelpTip label={t("language.helpLabel")}>{t("language.help")}</HelpTip>
         </div>
-        <label className="mt-3 flex min-h-11 flex-wrap items-center gap-2 text-sm text-muted">
+        <div className="mt-3 flex min-h-11 flex-wrap items-center gap-2 text-sm text-muted">
           <span>{t("language.label")}</span>
-          <select
+          <SelectControl
+            inline
             value={locale}
-            onChange={(event) => setLocale(event.target.value as Locale)}
-            className="min-h-11 max-w-full border border-control bg-background px-3 text-sm"
-          >
-            <option value="es">{t("language.spanish")}</option>
-            <option value="en">{t("language.english")}</option>
-          </select>
-        </label>
-      </div>
-
-      <CloudBackup />
-
-      <div className="mt-7 border-t border-line pt-5">
-        <h3 className="text-lg font-semibold">{t("wallet.title")}</h3>
-        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={settings.showWallet}
-            onChange={(event) => void update({ showWallet: event.target.checked })}
-            disabled={busy}
-            className="h-5 w-5"
+            label={t("language.label")}
+            options={[
+              { value: "es", label: t("language.spanish") },
+              { value: "en", label: t("language.english") },
+            ]}
+            onChange={(value) => setLocale(value as Locale)}
           />
-          {t("wallet.show")}
-        </label>
-        {settings.showWallet ? (
-          <button
-            type="button"
-            onClick={onOpenWallet}
-            className="mt-3 min-h-11 text-sm font-semibold underline underline-offset-4"
-          >
-            {t("wallet.open")}
-          </button>
-        ) : null}
+        </div>
       </div>
 
       {error ? <p className="mt-5 text-sm" role="alert">{error}</p> : null}
