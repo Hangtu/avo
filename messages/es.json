@@ -29,6 +29,7 @@
     "tasks": "Hábitos",
     "pending": "Pendientes",
     "pendingShort": "Pend.",
+    "pendingNavAria": "Pendientes, {count, plural, one {# pendiente} other {# pendientes}}",
     "settings": "Ajustes",
     "wallet": "Monedero",
     "backToToday": "Volver a hoy",
@@ -80,7 +81,15 @@
     "notToday": "Hoy no ❌",
     "edit": "Editar hábito ✏️",
     "chooseTask": "Elegir",
-    "otherOption": "Otra opción"
+    "otherOption": "Otra opción",
+    "confirm": {
+      "alreadyDoneTitle": "¿Ya la hiciste?",
+      "alreadyDoneCopy": "Se cierra sin timer y no se registra tiempo.",
+      "alreadyDoneConfirm": "Sí, ya está hecha",
+      "notTodayTitle": "¿Dejar «{title}» para otro día?",
+      "notTodayCopy": "No vuelve a aparecer hoy y no se marca como hecha. No gasta un cambio.",
+      "notTodayConfirm": "Sí, hoy no"
+    }
   },
   "quick": {
     "eyebrow": "Tarea rápida",
@@ -122,9 +131,12 @@
     "starting": "Abriendo…",
     "done": "Ya lo hice ✅",
     "remove": "Quitar",
-    "removeConfirm": "¿Lo quito de la lista?",
+    "doneTitle": "¿Ya lo hiciste?",
+    "doneCopy": "Se quita de la lista sin usar el timer.",
+    "doneConfirm": "Sí, ya lo hice",
+    "removeTitle": "¿Quitar este pendiente?",
+    "removeConfirm": "Se quita de la lista. Puedes deshacerlo desde el aviso.",
     "yesRemove": "Sí, quitar",
-    "no": "No",
     "added": "Listo, lo agregué.",
     "completed": "Listo, ya no está en la lista.",
     "removed": "Listo, lo quité.",

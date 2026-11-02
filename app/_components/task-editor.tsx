@@ -288,6 +288,15 @@ function DoneCheck() {
   );
 }
 
+function SkipDash() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" className="h-3 w-3 shrink-0">
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M5.4 8h5.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function Reveal({
   show,
   reduceMotion,
@@ -377,7 +386,7 @@ function TaskRow({
         </button>
         <div className="task-row-content flex min-w-0 flex-1 items-start gap-3">
           <span className="min-w-0 flex-1">
-            <span className={`line-clamp-2 text-base font-semibold leading-snug${done ? " task-title-done" : ""}`}>
+            <span className={`line-clamp-2 text-base font-semibold leading-snug${done ? " task-title-done" : skipped ? " task-title-skipped" : ""}`}>
               {task.title}
             </span>
             <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -389,7 +398,10 @@ function TaskRow({
                 </span>
               ) : null}
               {skipped ? (
-                <span className="task-skipped-badge">{t("list.notApplicableToday")}</span>
+                <span className="task-skipped-badge">
+                  <SkipDash />
+                  {t("list.notApplicableToday")}
+                </span>
               ) : null}
             </span>
           </span>

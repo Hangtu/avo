@@ -13,6 +13,7 @@ html {
   --surface: #f8f5ef;
   --muted: #544e47;
   --accent: #c43d2e;
+  --warning: #7a5200;
   --line: #d8d2c6;
   --control: #8c8275;
 }
@@ -24,6 +25,7 @@ html {
   --surface: #24201b;
   --muted: #c4bbad;
   --accent: #e0705f;
+  --warning: #f2c14e;
   --line: #463f35;
   --control: #9a8f80;
 }
@@ -84,6 +86,7 @@ select {
   --surface-2: rgba(255, 255, 255, 0.3);
   --muted: #3b5457;
   --accent: #4f6bff;
+  --warning: #7a5200;
   --line: rgba(23, 37, 42, 0.1);
   --control: #6f8b8e;
   --primary: #3948c8;
@@ -118,6 +121,7 @@ select {
   --surface-2: rgba(255, 255, 255, 0.05);
   --muted: #a9c0bf;
   --accent: #8aa0ff;
+  --warning: #f2c14e;
   --line: rgba(234, 247, 246, 0.08);
   --control: #7e9c9d;
   --primary: #8ea2ff;
@@ -454,8 +458,8 @@ select {
 }
 
 :root[data-ui="liquid"] .runo-dock button {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: fit-content;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -520,6 +524,50 @@ select {
   background: var(--primary);
   box-shadow: 0 10px 24px -18px rgba(66, 89, 232, 0.8);
   pointer-events: none;
+}
+
+/* Open pending count on the dock; quiet, never alarming. It perches above the
+   label instead of sharing its text line. */
+.dock-badge {
+  position: relative;
+  top: -0.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  margin-left: 0.32rem;
+  padding: 0 0.22rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: var(--surface-solid);
+  color: var(--foreground);
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1;
+  vertical-align: middle;
+  pointer-events: none;
+}
+
+/* Below 360 the dock keeps equal-width tabs; the count perches on the corner. */
+@media (max-width: 359px) {
+  :root[data-ui="liquid"] .runo-dock button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dock-badge {
+    position: absolute;
+    top: 0.02rem;
+    right: 0.16rem;
+    min-width: 0.86rem;
+    height: 0.86rem;
+    margin: 0;
+    padding: 0 0.16rem;
+    font-size: 0.52rem;
+  }
 }
 
 @media (max-width: 240px) {
@@ -746,11 +794,20 @@ body > * {
   opacity: 0.68;
 }
 
-.task-title-done {
+.task-title-done,
+.task-title-skipped {
   color: var(--muted);
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
+}
+
+.task-title-done {
   text-decoration-color: color-mix(in srgb, var(--choice) 72%, transparent);
+}
+
+/* Skipped is settled, not pending: crossed out with a warm, quieter line. */
+.task-title-skipped {
+  text-decoration-color: color-mix(in srgb, var(--warning) 58%, transparent);
 }
 
 .task-done-badge,
@@ -773,8 +830,9 @@ body > * {
 }
 
 .task-skipped-badge {
-  border: 1px solid var(--line);
-  color: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--warning) 42%, transparent);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
 }
 
 @keyframes runo-done-in {
@@ -1618,7 +1676,18 @@ body > * {
   margin-top: 0.5rem;
 }
 
+.runo-dialog-note {
+  display: block;
+  margin-top: 0.7rem;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--primary);
+  color: var(--foreground);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 .runo-dialog-cancel,
+.runo-dialog-confirm,
 .runo-dialog-danger {
   min-height: 2.75rem;
   padding: 0 1.1rem;
@@ -1631,6 +1700,12 @@ body > * {
 .runo-dialog-cancel {
   background: transparent;
   color: var(--foreground);
+}
+
+.runo-dialog-confirm {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-fg);
 }
 
 .runo-dialog-danger {
@@ -1658,3 +1733,5 @@ body > * {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+

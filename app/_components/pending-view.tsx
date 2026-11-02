@@ -18,6 +18,7 @@ import {
   restorePending,
 } from "@/lib/db/repository";
 import type { Pending } from "@/lib/domain/types";
+import { ConfirmDialog } from "./confirm-dialog";
 import { HelpTip } from "./help-tip";
 
 function newPendingId(): string {
@@ -31,10 +32,12 @@ export function PendingView({
   focusComposer = 0,
   message = null,
   onStart,
+  onCountChange,
 }: {
   focusComposer?: number;
   message?: string | null;
   onStart: (pending: Pending) => Promise<void>;
+  onCountChange?: (count: number) => void;
 }) {
   const t = useTranslations("pending");
   const reduceMotion = useReducedMotion();
@@ -54,7 +57,11 @@ export function PendingView({
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{
+    kind: "done" | "remove";
+    pending: Pending;
+  } | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const minutesRef = useRef<HTMLInputElement>(null);
   const addingRef = useRef(false);
@@ -86,6 +93,11 @@ export function PendingView({
       cancelled = true;
     };
   }, [loadKey, errors]);
+
+  useEffect(() => {
+    if (loading || loadError !== null) return;
+    onCountChange?.(items.length);
+  }, [items, loading, loadError, onCountChange]);
 
   useEffect(() => {
     if (focusComposer > 0) {
@@ -221,7 +233,6 @@ export function PendingView({
         db.close();
       }
       setItems((previous) => previous.filter((item) => item.id !== pending.id));
-      setDeleteId(null);
       const toastId = toastManager.add({
         title: t("removed"),
         type: "success",
@@ -448,82 +459,72 @@ export function PendingView({
                   >
                     {busyId === pending.id ? t("starting") : t("start")}
                   </motion.button>
-                  {deleteId !== pending.id ? (
-                    <Menu.Root
-                      open={menuOpenId === pending.id}
-                      onOpenChange={(open) => setMenuOpenId(open ? pending.id : null)}
+                  <Menu.Root
+                    open={menuOpenId === pending.id}
+                    onOpenChange={(open) => setMenuOpenId(open ? pending.id : null)}
+                  >
+                    <Menu.Trigger
+                      type="button"
+                      className="first-more"
+                      disabled={busyId !== null}
+                      aria-label={common("moreOptions")}
                     >
-                      <Menu.Trigger
-                        type="button"
-                        className="first-more"
-                        disabled={busyId !== null}
-                        aria-label={common("moreOptions")}
+                      ⋯
+                    </Menu.Trigger>
+                    <Menu.Portal>
+                      <Menu.Positioner
+                        className="first-menu-positioner"
+                        sideOffset={8}
+                        align="end"
                       >
-                        ⋯
-                      </Menu.Trigger>
-                      <Menu.Portal>
-                        <Menu.Positioner
-                          className="first-menu-positioner"
-                          sideOffset={8}
-                          align="end"
-                        >
-                          <Menu.Popup className="first-menu">
-                            <Menu.Item
-                              className="first-menu-item"
-                              disabled={busyId !== null}
-                              onClick={() => {
-                                setMenuOpenId(null);
-                                void markDone(pending);
-                              }}
-                            >
-                              {t("done")}
-                            </Menu.Item>
-                            <Menu.Item
-                              className="first-menu-item"
-                              disabled={busyId !== null}
-                              onClick={() => {
-                                setMenuOpenId(null);
-                                setDeleteId(pending.id);
-                              }}
-                            >
-                              {t("remove")}
-                            </Menu.Item>
-                          </Menu.Popup>
-                        </Menu.Positioner>
-                      </Menu.Portal>
-                    </Menu.Root>
-                  ) : null}
+                        <Menu.Popup className="first-menu">
+                          <Menu.Item
+                            className="first-menu-item"
+                            disabled={busyId !== null}
+                            onClick={() => {
+                              setMenuOpenId(null);
+                              setConfirm({ kind: "done", pending });
+                              setConfirmOpen(true);
+                            }}
+                          >
+                            {t("done")}
+                          </Menu.Item>
+                          <Menu.Item
+                            className="first-menu-item"
+                            disabled={busyId !== null}
+                            onClick={() => {
+                              setMenuOpenId(null);
+                              setConfirm({ kind: "remove", pending });
+                              setConfirmOpen(true);
+                            }}
+                          >
+                            {t("remove")}
+                          </Menu.Item>
+                        </Menu.Popup>
+                      </Menu.Positioner>
+                    </Menu.Portal>
+                  </Menu.Root>
                 </div>
-
-                {deleteId === pending.id ? (
-                  <div className="mt-3 border-l-2 border-accent pl-4" role="alert">
-                    <p className="text-sm leading-6">{t("removeConfirm")}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void remove(pending)}
-                        disabled={busyId !== null}
-                        className="min-h-11 rounded-none bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
-                      >
-                        {t("yesRemove")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteId(null)}
-                        disabled={busyId !== null}
-                        className="min-h-11 rounded-none border border-control px-4 text-sm font-semibold disabled:opacity-60"
-                      >
-                        {t("no")}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
               </motion.li>
             ))}
             </AnimatePresence>
           </ul>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={confirm?.kind === "remove" ? t("removeTitle") : t("doneTitle")}
+        description={confirm?.kind === "remove" ? t("removeConfirm") : t("doneCopy")}
+        confirmLabel={confirm?.kind === "remove" ? t("yesRemove") : t("doneConfirm")}
+        tone={confirm?.kind === "remove" ? "danger" : "primary"}
+        onConfirm={() => {
+          if (!confirm) return;
+          if (confirm.kind === "remove") void remove(confirm.pending);
+          else void markDone(confirm.pending);
+        }}
+      />
     </motion.section>
   );
 }

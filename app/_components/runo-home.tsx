@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
 import { Menu } from "@base-ui/react/menu";
 import { Toast } from "@base-ui/react/toast";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useMessages, useTranslations } from "next-intl";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
   closeDay,
   ensureDay,
   ensureFranja,
   ensureOccurrence,
+  listPendings,
   listTasks,
   markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicableDirect,
@@ -23,8 +24,11 @@ import {
 import { seedDatabase } from "@/lib/db/seed";
 import { intlLocales } from "@/lib/i18n/config";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
+import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
+import { voicePhrasesFromMessages } from "@/lib/i18n/voice";
 import type { Occurrence, Pending, Session, Task } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
+import { ConfirmDialog } from "./confirm-dialog";
 import { HelpTip } from "./help-tip";
 import { PendingView } from "./pending-view";
 import { QuickTaskForm } from "./quick-task-form";
@@ -106,6 +110,10 @@ export function RunoHome() {
   const [editorTaskId, setEditorTaskId] = useState<string | null>(null);
   const [pendingComposerFocus, setPendingComposerFocus] = useState(0);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+  const pendingLabel = pendingCount === null || pendingCount <= 0
+    ? null
+    : pendingCount > 99 ? "99+" : String(pendingCount);
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
   const [correctingId, setCorrectingId] = useState<string | null>(null);
@@ -131,6 +139,8 @@ export function RunoHome() {
 
         await seedDatabase(db, now);
         const day = await ensureDay(db, date, now);
+        const pendings = await listPendings(db);
+        if (!cancelled) setPendingCount(pendings.length);
 
         const active = await db.sessions
           .filter(
@@ -701,6 +711,7 @@ export function RunoHome() {
               focusComposer={pendingComposerFocus}
               message={pendingMessage}
               onStart={beginPendingSession}
+              onCountChange={setPendingCount}
             />
           ) : null}
           {showEditor ? <TaskEditor initialTaskId={editorTaskId} /> : null}
@@ -805,6 +816,7 @@ export function RunoHome() {
                   onEdit={(task) => openEditorForTask(task.id)}
                   swapping={swapping}
                   correctingId={correctingId}
+                  tone={voice.tone ?? 0}
                 />
               ) : null}
               {view.kind === "empty" ? (
@@ -844,11 +856,14 @@ export function RunoHome() {
             onClick={() => openPendings(false)}
             disabled={pendingStart !== null}
             aria-current={showPending ? "page" : undefined}
-            aria-label={t("nav.pending")}
+            aria-label={pendingCount === null || pendingCount === 0
+              ? t("nav.pending")
+              : t("nav.pendingNavAria", { count: pendingCount })}
           >
             {showPending ? <DockIndicator /> : null}
             <span className="dock-label-full">{t("nav.pending")}</span>
             <span className="dock-label-short" aria-hidden>{t("nav.pendingShort")}</span>
+            <PendingBadge label={pendingLabel} />
           </button>
           <button
             type="button"
@@ -878,6 +893,28 @@ function DockIndicator() {
       transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
     />
   );
+}
+
+/**
+ * Count of open pending items. It pops when the number changes and stays hidden
+ * at zero, so the dock never nags with an empty badge.
+ */
+function PendingBadge({ label }: { label: string | null }) {
+  const reduceMotion = useReducedMotion() ?? false;
+  return label ? (
+    <motion.span
+      key={label}
+      aria-hidden
+      className="dock-badge"
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.45 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={reduceMotion
+        ? { duration: 0.12 }
+        : { type: "spring", stiffness: 560, damping: 24, mass: 0.45 }}
+    >
+      {label}
+    </motion.span>
+  ) : null;
 }
 
 function Countdown({
@@ -996,6 +1033,7 @@ function Franja({
   onEdit,
   swapping,
   correctingId,
+  tone,
 }: {
   view: Extract<View, { kind: "ready" }>;
   onStart: (task: FranjaTask, variant: "full" | "short") => void;
@@ -1006,12 +1044,20 @@ function Franja({
   onEdit: (task: FranjaTask) => void;
   swapping: boolean;
   correctingId: string | null;
+  tone: VoiceTone;
 }) {
   const t = useTranslations("franja");
   const common = useTranslations("common");
+  const messages = useMessages();
+  const voicePhrases = useMemo(() => voicePhrasesFromMessages(messages), [messages]);
   const [primaryIndex, setPrimaryIndex] = useState(0);
   const [peekOffset, setPeekOffset] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [correction, setCorrection] = useState<{
+    kind: "already_done" | "not_applicable";
+    task: FranjaTask;
+  } | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const reduceMotion = useReducedMotion();
   const startButtonRef = useRef<HTMLButtonElement>(null);
   const focusStart = useRef(false);
@@ -1025,6 +1071,14 @@ function Franja({
     : -1;
   const secondary = secondaryIndex >= 0 ? tasks[secondaryIndex] : undefined;
   const busy = swapping || correctingId !== null;
+  const encouragement = correction?.kind === "not_applicable"
+    ? chooseVoicePhrase(
+        tone,
+        "work",
+        `${correction.task.occurrenceId}:not-today`,
+        voicePhrases,
+      )
+    : null;
 
   useEffect(() => {
     if (!primary) return;
@@ -1132,14 +1186,20 @@ function Franja({
                   <Menu.Item
                     className="first-menu-item"
                     disabled={busy}
-                    onClick={() => onAlreadyDone(primary)}
+                    onClick={() => {
+                      setCorrection({ kind: "already_done", task: primary });
+                      setConfirmOpen(true);
+                    }}
                   >
                     {t("alreadyDone")}
                   </Menu.Item>
                   <Menu.Item
                     className="first-menu-item"
                     disabled={busy}
-                    onClick={() => onNotApplicable(primary)}
+                    onClick={() => {
+                      setCorrection({ kind: "not_applicable", task: primary });
+                      setConfirmOpen(true);
+                    }}
                   >
                     {t("notToday")}
                   </Menu.Item>
@@ -1186,6 +1246,25 @@ function Franja({
         ) : null}
       </AnimatePresence>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={correction?.kind === "already_done"
+          ? t("confirm.alreadyDoneTitle")
+          : t("confirm.notTodayTitle", { title: correction?.task.title ?? "" })}
+        description={correction?.kind === "already_done"
+          ? t("confirm.alreadyDoneCopy")
+          : t("confirm.notTodayCopy")}
+        note={encouragement}
+        confirmLabel={correction?.kind === "already_done"
+          ? t("confirm.alreadyDoneConfirm")
+          : t("confirm.notTodayConfirm")}
+        onConfirm={() => {
+          if (!correction) return;
+          if (correction.kind === "already_done") onAlreadyDone(correction.task);
+          else onNotApplicable(correction.task);
+        }}
+      />
     </>
   );
 }
