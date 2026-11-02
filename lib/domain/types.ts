@@ -151,10 +151,13 @@ export interface LedgerEntry {
   at: number;
 }
 
+export const SOUND_KEYS = ["brown", "pink", "rain", "ocean", "tick"] as const;
+export type SoundKey = (typeof SOUND_KEYS)[number];
+
 export interface Settings {
   id: "preferences";
   audioEnabled: boolean;
-  sound: "brown" | "tick";
+  sound: SoundKey;
   maxTone: 0 | 1 | 2;
   theme: "auto" | "light" | "dark";
   showWallet: boolean;

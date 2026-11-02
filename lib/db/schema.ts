@@ -15,7 +15,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import type { JsonValue, Task, TaskAgreement } from "@/lib/domain/types";
+import { SOUND_KEYS, type JsonValue, type Task, type TaskAgreement } from "@/lib/domain/types";
 
 /**
  * Server-side Postgres schema for the future online layer.
@@ -56,7 +56,7 @@ export const ledgerReasonEnum = pgEnum("runo_ledger_reason", [
   "short_step",
   "redemption",
 ]);
-export const soundEnum = pgEnum("runo_sound", ["brown", "tick"]);
+export const soundEnum = pgEnum("runo_sound", SOUND_KEYS);
 export const themeEnum = pgEnum("runo_theme", ["auto", "light", "dark"]);
 export const eventTypeEnum = pgEnum("runo_event_type", [
   "offered",

@@ -379,11 +379,14 @@
     "sound": {
       "title": "Sound",
       "helpLabel": "How sound works",
-      "help": "It starts off. You decide when to turn it on.",
+      "help": "It starts off. You decide when to turn it on. Try it at low volume and keep what helps you.",
       "activate": "Turn on sound",
       "mute": "Mute",
       "label": "Sound",
       "soft": "Soft noise",
+      "pink": "Pink noise",
+      "rain": "Rain",
+      "ocean": "Ocean",
       "tick": "Tick-tock"
     },
     "voice": {

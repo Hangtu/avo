@@ -379,11 +379,14 @@
     "sound": {
       "title": "Sonido",
       "helpLabel": "Cómo funciona el sonido",
-      "help": "Empieza apagado. Tú decides si lo prendes.",
+      "help": "Empieza apagado. Tú eliges si lo prendes. Prueba con volumen bajo y quédate con el que te ayude.",
       "activate": "Activar sonido",
       "mute": "Silenciar",
       "label": "Sonido",
       "soft": "Ruido suave",
+      "pink": "Ruido rosa",
+      "rain": "Lluvia",
+      "ocean": "Olas",
       "tick": "Tic-tac"
     },
     "voice": {

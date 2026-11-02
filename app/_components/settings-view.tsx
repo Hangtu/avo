@@ -125,6 +125,9 @@ export function SettingsView({
                 disabled={busy}
                 options={[
                   { value: "brown", label: t("sound.soft") },
+                  { value: "pink", label: t("sound.pink") },
+                  { value: "rain", label: t("sound.rain") },
+                  { value: "ocean", label: t("sound.ocean") },
                   { value: "tick", label: t("sound.tick") },
                 ]}
                 onChange={(value) => void update({ sound: value as Settings["sound"] })}

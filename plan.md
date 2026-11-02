@@ -17,7 +17,7 @@ App personal de hábitos, pendientes y timer con presión configurable. Un solo 
 - **Timer:** una sola sesión activa (corriendo o pausada). Pausa explícita persistente; volver no reanuda solo. Reloj de pared, sin acumular intervalos. Cerrar sin pausar deja correr el reloj. Cero no completa ni paga: confirma. Un pendiente de una vez puede cerrarse y quedarse en su lista.
 - **Escalón:** primer paso opcional y parcial; no completa la tarea ni se cobra dos veces.
 - **Horarios y ancla:** se filtra por días/franja antes de priorizar. Un ancla visible pausa la sesión anterior, se presenta una vez y no inicia timer ni mueve citas.
-- **Audio:** apagado al inicio; mute persistente; siempre feedback visual. Vibración y wake lock con fallback; no prometer avisos con la app cerrada.
+- **Audio:** apagado al inicio; mute persistente; ruido marrón/rosa, lluvia, olas y tic-tac; siempre feedback visual. Vibración y wake lock con fallback; no prometer avisos con la app cerrada.
 - **Presión:** techo 2, tono normal 1; 5–10 frases locales sin LLM; duro solo a pedido o con motivo. Sin castigos ni rachas.
 - **Descanso:** 10 min gratis al completar, saltable. RC (1 RC = 1 min) quedan para la segunda capa y no se muestran en el MVP.
 - **Sesión rápida:** nombre + minutos desde Hoy o día cerrado; no es tarea, no entra a franja, no paga RC y no altera el día.

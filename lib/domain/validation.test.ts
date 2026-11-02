@@ -73,4 +73,14 @@ describe("preferencias", () => {
     expect(() => validateSettings({ ...defaultSettings(NOW), theme: "otro" } as never)).toThrow();
     expect(() => validateSettings({ ...defaultSettings(NOW), showWallet: "sí" } as never)).toThrow();
   });
+
+  it.each(["brown", "pink", "rain", "ocean", "tick"] as const)(
+    "acepta el sonido %s", (sound) => {
+      expect(validateSettings({ ...defaultSettings(NOW), sound }).sound).toBe(sound);
+    },
+  );
+
+  it("rechaza un sonido fuera del catálogo", () => {
+    expect(() => validateSettings({ ...defaultSettings(NOW), sound: "cafe" } as never)).toThrow();
+  });
 });

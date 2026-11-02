@@ -1,7 +1,7 @@
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
-import { EVENT_TYPES } from "@/lib/domain/types";
+import { EVENT_TYPES, SOUND_KEYS } from "@/lib/domain/types";
 import * as schema from "./schema";
 
 describe("Postgres schema", () => {
@@ -36,6 +36,7 @@ describe("Postgres schema", () => {
       "runo_metadata",
     ]);
     expect(schema.eventTypeEnum.enumValues).toEqual(EVENT_TYPES);
+    expect(schema.soundEnum.enumValues).toEqual(SOUND_KEYS);
   });
 
   it("preserves the one-running-session and append-only idempotency invariants", () => {

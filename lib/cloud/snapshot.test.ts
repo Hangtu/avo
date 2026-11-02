@@ -58,6 +58,12 @@ describe("cloud snapshot", () => {
     expect(rows.metadata[0]?.key).toBe("initial-tasks-v1");
   });
 
+  it("accepts the new sound options", () => {
+    const next = snapshot();
+    next.settings.sound = "ocean";
+    expect(parseBackupSnapshot(next).settings.sound).toBe("ocean");
+  });
+
   it("rejects a different snapshot version", () => {
     expect(() => parseBackupSnapshot({ ...snapshot(), schemaVersion: 2 }))
       .toThrow(/versión/i);

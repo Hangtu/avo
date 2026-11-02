@@ -1,5 +1,5 @@
 import { assertTimestamp, clockMinutes, parseClockTime } from "./time";
-import type { PendingInput, Settings, TaskInput } from "./types";
+import { SOUND_KEYS, type PendingInput, type Settings, type TaskInput } from "./types";
 
 export class DomainError extends Error {
   constructor(
@@ -118,7 +118,7 @@ export function validateSettings(settings: Settings): Settings {
   if (
     settings.id !== "preferences" ||
     typeof settings.audioEnabled !== "boolean" ||
-    !["brown", "tick"].includes(settings.sound) ||
+    !SOUND_KEYS.includes(settings.sound) ||
     ![0, 1, 2].includes(settings.maxTone) ||
     !["auto", "light", "dark"].includes(settings.theme) ||
     typeof settings.showWallet !== "boolean"
