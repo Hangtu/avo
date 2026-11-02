@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
 
 import { useChangeLocale } from "./i18n-provider";
 import { HelpTip } from "./help-tip";
@@ -181,6 +182,18 @@ export function SettingsView({
             onChange={(value) => setLocale(value as Locale)}
           />
         </div>
+      </div>
+
+      <div className="mt-7 border-t border-line pt-5">
+        <h3 className="text-lg font-semibold">{t("legal.title")}</h3>
+        <nav aria-label={t("legal.title")} className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <Link className="font-semibold underline underline-offset-4" href="/privacy">
+            {t("legal.privacy")}
+          </Link>
+          <Link className="font-semibold underline underline-offset-4" href="/data-deletion">
+            {t("legal.deletion")}
+          </Link>
+        </nav>
       </div>
 
       {error ? <p className="mt-5 text-sm" role="alert">{error}</p> : null}

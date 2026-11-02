@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Runo — reglas de trabajo
 
-App personal (un usuario, español de México) de hábitos, pendientes y timer con presión configurable. El objetivo es ayudar a actuar y volver a la vida, no maximizar uso.
+App personal (español de México) de hábitos, pendientes y timer con presión configurable. El objetivo es ayudar a actuar y volver a la vida, no maximizar uso. El dueño autorizó comenzar E4: modo invitado y cuentas opcionales Google/Facebook con datos separados por usuario. E4.2 prepara esquema/espacios; el flujo visible todavía es local-first con copia legacy de un solo dueño, sin OAuth ni sync.
 
 ## Fuentes de verdad
 
@@ -37,8 +37,8 @@ Si la petición es de análisis o documentación, hacer eso; no implementar sin 
 - Franjas de hasta 3, una abierta; 3 cambios por día; correcciones neutrales con confirmación y salida siempre disponible.
 - Pausa persistente y una sola sesión activa. Cero no completa ni paga.
 - Audio apagado al inicio; presión normal 1, techo 2; sin castigos; lenguaje llano; ayuda contextual; ES/EN.
-- Local-first con Dexie. Neon/Drizzle solo en servidor y sin sync. Sin LLM ni analítica de terceros en el MVP.
-- No ampliar a RC visibles, sync, cuentas, rachas, `.ics`, push, dashboards ni motor 2D sin decisión explícita.
+- Local-first con Dexie. Neon/Drizzle solo en servidor. E1–E3 siguen sin sync; E4 en `plan.md` tiene autorización de implementación local por IDs, no de operaciones sobre datos reales ni deploy. Sin LLM ni analítica de terceros en el MVP.
+- La excepción explícita de E4 permite implementar Google/Facebook en una misma cuenta con correo verificado y vinculación segura, y sync solo de datos duraderos, incluido el estado final/histórico de pendientes de una vez. Timer y resultados diarios de rutinas recurrentes siguen locales. No fusionar cuentas por simple coincidencia de email ni ampliar a sync de ejecución, RC visibles, rachas, `.ics`, push, dashboards o motor 2D sin decisión explícita. Un pedido de plan no autoriza implementación; el dueño sí la autorizó después para E4.
 
 ## Implementación
 
@@ -47,7 +47,7 @@ Si la petición es de análisis o documentación, hacer eso; no implementar sin 
 - Respetar `cacheComponents` y `partialPrefetching`; leer la guía antes de cambiar flags o añadir librerías.
 - Tailwind v4 con tokens en variables y `@theme`; no agregar configuración v3.
 - Eventos tipados con el vocabulario del dominio. Distinguir exposición, cambio, vida real, resultado parcial y hecho fuera de la app.
-- Neon/Drizzle solo en servidor: `DATABASE_URL`, `RUNO_PASSCODE` y `RUNO_SESSION_SECRET` nunca en el cliente. Migraciones generadas, revisadas y aplicadas primero en desarrollo; no `push` a producción.
+- Neon/Drizzle solo en servidor: `DATABASE_URL`, secretos OAuth y secretos de sesión (incluidos `RUNO_PASSCODE` y `RUNO_SESSION_SECRET` del acceso legacy) nunca en el cliente. Migraciones generadas, revisadas y aplicadas primero en desarrollo; no `push` a producción. En E4 el dueño se obtiene de la sesión verificada, no del payload ni del dueño fijo de E3.
 - Respetar los bloques gestionados por Next en este archivo.
 
 ## Verificación

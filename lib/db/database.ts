@@ -3,7 +3,9 @@ import type {
   Day, Hand, LedgerEntry, Metadata, Occurrence, Pending, RunoEvent, Session, Settings, Task,
 } from "@/lib/domain/types";
 
-export const DATABASE_NAME = "runo";
+import { databaseNameForSpace, LEGACY_DATABASE_NAME, type LocalSpace } from "./local-space";
+
+export const DATABASE_NAME = LEGACY_DATABASE_NAME;
 export const DATABASE_VERSION = 4;
 
 const STORES_V2 = {
@@ -54,6 +56,11 @@ export class RunoDatabase extends Dexie {
       }),
     );
   }
+}
+
+/** Explicit opt-in, no global active account, automatic import or owner seeds. */
+export function openDatabaseForSpace(space: LocalSpace): Promise<RunoDatabase> {
+  return openDatabase(databaseNameForSpace(space));
 }
 
 export async function openDatabase(name = DATABASE_NAME): Promise<RunoDatabase> {

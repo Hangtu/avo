@@ -8,12 +8,15 @@ de D4 (12/16 criterios) están listos técnicamente, con **Liquid Focus** y la
 carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1–E3** dejó aplicado el esquema Neon/Drizzle, las diez plantillas y una copia manual protegida desde Ajustes; la app sigue local-first y sin sync. El origen HTTPS es **https://runo-mu.vercel.app**, actualizado con E1–E3 el 2026-10-31.
 Falta la instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
 
+**E4 en implementación local:** cuenta opcional Google/Facebook y persistencia selectiva. El primer corte prepara claves/FKs por usuario y espacios locales; **todavía no hay login ni sync en la interfaz** y la migración nueva no se aplicó a Neon. No desplegar sobre el esquema anterior. Decisión técnica, verificación y dependencias en [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md).
+
 ## Antes de trabajar
 
 - [AGENTS.md](./AGENTS.md): instrucciones para agentes.
 - [STATUS.md](./STATUS.md): estado real, siguiente ID y evidencia.
 - [plan.md](./plan.md): contrato de producto y alcance.
-- [docs/cloud/2026-10-31-neon-drizzle.md](./docs/cloud/2026-10-31-neon-drizzle.md): preparación de Neon/Drizzle.
+- [docs/cloud/2026-10-31-neon-drizzle.md](./docs/cloud/2026-10-31-neon-drizzle.md): preparación histórica E1–E3 de Neon/Drizzle.
+- [docs/cloud/2026-11-02-e4-auth-and-spaces.md](./docs/cloud/2026-11-02-e4-auth-and-spaces.md): auth elegida, primer corte E4.2 y validación pendiente.
 
 ## Desarrollo
 
@@ -37,7 +40,7 @@ npm run lint
 npm run build
 ```
 
-Para la capa Neon/Drizzle, después de completar `.env.local`:
+Para la capa Neon/Drizzle, después de completar `.env.local` y **confirmar proyecto/rama de desarrollo y autorización antes de migrar** (ver el registro E4; no ejecutar la semilla del dueño como inicialización multiusuario):
 
 ```bash
 npm run db:generate   # genera SQL sin conectar
@@ -53,9 +56,13 @@ npm run db:verify     # tablas, migraciones, dueño, settings y conteos
 npm run db:studio     # inspección local
 ```
 
-Vitest ejecuta pruebas de dominio y persistencia en Node. `fake-indexeddb`
-solo se carga desde el setup de tests: sus resultados no certifican soporte móvil.
-Las pruebas no requieren red, cuentas ni claves de API.
+Vitest ejecuta pruebas de dominio/persistencia en Node. `fake-indexeddb`
+solo se carga desde el setup de tests; PGlite ejecuta PostgreSQL/WASM en memoria
+para probar migraciones, rollback y aislamiento del repositorio real sin Neon.
+Las pruebas no requieren red, cuentas ni claves de API; no certifican navegador,
+OAuth, Neon ni soporte móvil. Better Auth/adaptador están fijados como herramientas
+de desarrollo de E4.2 (generación/contraste del esquema); al habilitar el servidor
+auth en E4.3 deberán promoverse a dependencias runtime y revisar nuevamente su audit.
 
 Para probar el build de producción: `npm run build` y luego `npm run start`.
 `npm run build` genera también `public/sw.js`; al instalar descubre los assets reales
@@ -71,7 +78,7 @@ Origen estable: **https://runo-mu.vercel.app**
 3. Cierra la app, activa modo avión y vuelve a abrirla.
 4. Comprueba que aparecen tus tareas y que una sesión o saldo ya guardados siguen ahí.
 
-IndexedDB sigue siendo la fuente principal. La copia en Neon solo se envía cuando la pides en **Ajustes → Copia en la nube**; no hay envío automático ni sync.
+IndexedDB sigue siendo la fuente principal y no hay envío automático ni sync. E3 tiene copia manual; en este working tree `CloudBackup` no está montado en Ajustes, así que no asumir que esa opción está visible.
 
 ## Diseño
 
@@ -80,17 +87,19 @@ tinta oscura, un acento bermellón y reglas finas sin sombras. Referencias y reg
 [`plan.md` §10](./plan.md#10-diseño-accesibilidad-e-investigación-pendiente) y
 [`docs/design/references/`](./docs/design/references/README.md).
 
-## Datos
+## Datos y privacidad
 
 La app sigue usando IndexedDB por origen mediante Dexie, con esquema versionado.
 Cerrar una conexión no borra sus registros; borrar el almacenamiento del navegador sí.
 Hay una copia manual en Neon protegida por passcode; no hay restauración ni sincronización entre dispositivos todavía.
+El working tree incluye borradores públicos `/privacy` y `/data-deletion`, sin deploy. La segunda permite borrado local global del navegador, **no borrado por cuenta**; el código remoto existe pero `CloudBackup` no está montado en Ajustes. F01 está pausado hasta adaptar aviso y eliminación a E4 y validar alcance por usuario. Antes de publicarlo, el responsable debe confirmar `NEXT_PUBLIC_PRIVACY_CONTROLLER_NAME`, `NEXT_PUBLIC_PRIVACY_CONTROLLER_ADDRESS` y `NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL` en el entorno de build; son datos públicos legales, no secretos.
 
 La producción actualizada está en **https://runo-mu.vercel.app**. El deploy no migra IndexedDB entre `localhost` y Vercel; son orígenes distintos.
 
 La preparación online está en [`docs/cloud/2026-10-31-neon-drizzle.md`](./docs/cloud/2026-10-31-neon-drizzle.md):
 Neon Postgres + Drizzle, cliente server-only y migración versionada. Las tablas
-ya están aplicadas y la semilla inicial está cargada. La copia manual se envía a
+de E1/E2 están aplicadas y la semilla inicial está cargada; `0001`/`0002` siguen
+pendientes de validación/aplicación remota. La copia manual se envía a
 `/api/cloud/backup` con una cookie firmada; la app no lee Neon y no hay sync.
 Ver también `STATUS.md` (E1–E3).
 

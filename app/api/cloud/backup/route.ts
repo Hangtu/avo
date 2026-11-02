@@ -1,12 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
+  CLOUD_COOKIE,
+  cloudCookieOptions,
   cloudOwnerId,
   isCloudConfigured,
   isRequestAuthenticated,
 } from "@/lib/cloud/auth";
 import { BackupError, parseBackupSnapshot } from "@/lib/cloud/snapshot";
-import { getLastBackup, replaceRemoteSnapshot } from "@/lib/cloud/repository";
+import {
+  deleteRemoteSnapshot,
+  getLastBackup,
+  replaceRemoteSnapshot,
+} from "@/lib/cloud/repository";
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
@@ -27,6 +33,21 @@ export async function GET(request: NextRequest) {
 
   const result = await getLastBackup(cloudOwnerId());
   return NextResponse.json({ configured: true, connected: true, ...result });
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!isCloudConfigured()) return notConfigured();
+  if (!isRequestAuthenticated(request)) return unauthorized();
+
+  try {
+    await deleteRemoteSnapshot(cloudOwnerId());
+    const response = NextResponse.json({ configured: true, deleted: true });
+    response.cookies.set(CLOUD_COOKIE, "", { ...cloudCookieOptions(), maxAge: 0 });
+    return response;
+  } catch (error) {
+    console.error("No se pudo eliminar la copia remota", error);
+    return NextResponse.json({ error: "deletion_failed" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
