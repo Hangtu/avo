@@ -10,6 +10,8 @@ App personal de hábitos, pendientes y timer con presión configurable. Un solo 
 
 - **Hoy:** una carta principal («Ahora») y una alternativa asomada; al tocarla se vuelve principal. Nunca un dashboard durante el timer.
 - **Franjas:** hasta 3 tareas, varias por día, solo una abierta. Se resuelve antes de avanzar (hecha, ya la hice, hoy no o cambiada). Se reevalúa al abrir/volver y cada hora; conserva al menos dos visibles y lo empezado.
+- **Missed:** si la ventana de una tarea termina y sigue sin resolver, permanece viva ese día con la etiqueta «Aún puedes» y su turno visible. Puede empezar tarde, con el timer normal. Dentro de la misma prioridad se ordena antes que la ventana activa y que una tarea sin hora; no se marca sola como «Hoy no» ni pasa al día siguiente.
+- **Cierre:** «Terminar por hoy» abre una revisión neutral de lo no resuelto, separada en «Aún puedes» y «Quedó para después», con Empezar, Ya está hecho y Hoy no. Cerrar sin resolver deja las ocurrencias pendientes, sin castigo.
 - **Cambios:** 3 por fecha local, compartidos entre franjas. Elegir entre las visibles es libre; sin alternativa no se gasta. Al agotarse desaparece «Otra», pero las correcciones siguen.
 - **Correcciones:** «Ya la hice» y «Hoy no» son neutrales, piden confirmación y no gastan cambios. «Hoy no» muestra una frase local de aliento. Cancelar siempre conserva la tarea.
 - **Timer:** una sola sesión activa (corriendo o pausada). Pausa explícita persistente; volver no reanuda solo. Reloj de pared, sin acumular intervalos. Cerrar sin pausar deja correr el reloj. Cero no completa ni paga: confirma. Un pendiente de una vez puede cerrarse y quedarse en su lista.

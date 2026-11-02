@@ -2,7 +2,8 @@ import type { RunoDatabase } from "./database";
 import { appendEvent, eventIdFor, taskEventContext } from "./events";
 import { appendLedgerEntry, creditSourceKey } from "./ledger";
 import { occurrenceIdFor } from "@/lib/domain/occurrence";
-import { availabilityOf, eligibleCandidates, proposeHand } from "@/lib/domain/selection";
+import { availabilityOf, eligibleCandidates, isMissedOccurrence, proposeHand } from "@/lib/domain/selection";
+import { blockForTime, taskTime, type TaskBlock } from "@/lib/domain/schedule";
 import { assertTimestamp, parseLocalDate, toLocalDate, weekdayOf, type LocalDate } from "@/lib/domain/time";
 import {
   assertId, defaultSettings, DomainError, validatePendingInput, validateSettings, validateTaskInput,
@@ -322,7 +323,7 @@ export async function recordOffered(
 /** Resolves an occurrence without opening a session (anchor or franja correction). */
 export async function markOccurrenceNotApplicableDirect(
   db: RunoDatabase, occurrenceId: string, now: number,
-  source: "anchor" | "franja" = "anchor",
+  source: "anchor" | "franja" | "review" = "anchor",
 ): Promise<Occurrence> {
   assertTimestamp(now);
   return db.transaction("rw", db.occurrences, db.events, async () => {
@@ -348,7 +349,7 @@ export async function markOccurrenceNotApplicableDirect(
 /** Marks an occurrence as already done without a session, work time, or retroactive RC. */
 export async function markOccurrenceAlreadyDoneDirect(
   db: RunoDatabase, occurrenceId: string, now: number,
-  source: "franja" = "franja",
+  source: "franja" | "review" = "franja",
 ): Promise<Occurrence> {
   assertTimestamp(now);
   return db.transaction("rw", db.occurrences, db.events, async () => {
@@ -453,6 +454,8 @@ export interface StartSessionInput {
   variant: SessionVariant;
   now: number;
   handId?: string;
+  /** Allows an explicit late start after a window ended, never before it. */
+  allowMissed?: boolean;
   /** Allows a paused previous session to coexist with the urgent anchor. */
   anchor?: boolean;
 }
@@ -461,7 +464,7 @@ export interface StartSessionInput {
 export async function startSession(
   db: RunoDatabase, input: StartSessionInput,
 ): Promise<Session> {
-  const { sessionId, taskId, date, variant, now, handId, anchor } = input;
+  const { sessionId, taskId, date, variant, now, handId, allowMissed = false, anchor } = input;
   assertId(sessionId);
   occurrenceIdFor(taskId, date);
   assertTimestamp(now);
@@ -509,7 +512,9 @@ export async function startSession(
       throw new DomainError("invalid_transition", "Ese aviso ya no está disponible.");
     }
     if (!occurrence.agreement &&
-      (date !== toLocalDate(now) || !availabilityOf(task, occurrence, now).eligible)) {
+      (date !== toLocalDate(now) ||
+        (!availabilityOf(task, occurrence, now).eligible &&
+          !(allowMissed && isMissedOccurrence(task, occurrence, now))))) {
       throw new DomainError("invalid_transition", "Esa tarea no es para este momento.");
     }
     const active = await db.sessions
@@ -552,7 +557,7 @@ export async function startSession(
       actionId: `start:${sessionId}`, type: "started", at: now,
       taskId, occurrenceId: occurrence.id, sessionId,
       ...(handId ? { handId } : {}),
-      context: { variant, ...(anchor ? { anchor: true } : {}) },
+      context: { variant, ...(anchor ? { anchor: true } : {}), ...(allowMissed ? { late: true } : {}) },
     });
     return session;
   });
@@ -1120,6 +1125,8 @@ export interface FranjaTaskView {
   remainingMin: number;
   creditedRc: number;
   remainingRc: number;
+  block: TaskBlock;
+  isMissed: boolean;
 }
 
 export interface CurrentFranja {
@@ -1149,7 +1156,9 @@ function taskViewsForHand(
     if (!liveTask || liveTask.archivedAt !== null) return [];
     // A pending proposal follows the current template; a started agreement keeps
     // its frozen snapshot, but archiving still hides the task.
-    if (!occurrence.agreement && !availabilityOf(liveTask, occurrence, now).eligible) return [];
+    if (!occurrence.agreement &&
+      !availabilityOf(liveTask, occurrence, now).eligible &&
+      !isMissedOccurrence(liveTask, occurrence, now)) return [];
     const task = occurrence.agreement?.task ?? liveTask;
     return [{
       occurrenceId,
@@ -1161,6 +1170,8 @@ function taskViewsForHand(
       ),
       creditedRc: occurrence.creditedRc,
       remainingRc: Math.max(0, task.durationMin - occurrence.creditedRc),
+      block: blockForTime(taskTime(task)),
+      isMissed: isMissedOccurrence(liveTask, occurrence, now),
     }];
   });
 }

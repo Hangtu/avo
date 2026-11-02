@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { availabilityOf, chooseNextTask, eligibleCandidates, proposeHand } from "./selection";
+import { availabilityOf, chooseNextTask, eligibleCandidates, isMissedOccurrence, proposeHand } from "./selection";
 import { occurrenceIdFor } from "./occurrence";
 import type { Occurrence, Task, TaskInput } from "./types";
 import { validateTaskInput } from "./validation";
@@ -46,7 +46,7 @@ describe("elegibilidad antes de prioridad", () => {
     })!.task.id).toBe("coffee");
     expect(chooseNextTask({
       tasks: [vitamins, coffee], occurrences: [], now: at(12), seed: "s",
-    })!.task.id).toBe("vitamins");
+    })).toMatchObject({ task: { id: "coffee" }, isMissed: true });
   });
 
   it("trata la franja como inicio incluido y fin excluido", () => {
@@ -63,12 +63,14 @@ describe("elegibilidad antes de prioridad", () => {
     expect(availabilityOf(gym, undefined, at(18))).toEqual({ eligible: true, isDueAnchor: true });
   });
 
-  it("no propone desayuno por la noche por tener prioridad alta", () => {
+  it("conserva el desayuno missed por delante de una tarea sin hora", () => {
     const tasks = [
       task("breakfast", { priority: 3, window: { start: "06:00", end: "12:00" } }),
       task("home", { priority: 1 }),
     ];
-    expect(chooseNextTask({ tasks, occurrences: [], now: at(20), seed: "s" })!.task.id).toBe("home");
+    expect(chooseNextTask({ tasks, occurrences: [], now: at(20), seed: "s" })).toMatchObject({
+      task: { id: "breakfast" }, isMissed: true,
+    });
   });
 
   it.each(["completed", "already_done", "not_applicable", "in_progress"] as const)(
@@ -103,6 +105,75 @@ describe("elegibilidad antes de prioridad", () => {
     const next = chooseNextTask({ tasks: [edited], occurrences: [partial], now: NOW, seed: "s" });
     expect(next!.task.title).toBe("Lavar ropa");
     expect(next!.task.durationMin).toBe(15);
+  });
+});
+
+describe("tareas missed", () => {
+  const coffee = task("coffee", {
+    priority: 3, window: { start: "06:00", end: "12:00" },
+  });
+
+  it("marca missed justo al cerrar la ventana y no antes", () => {
+    expect(isMissedOccurrence(coffee, undefined, at(11, 59))).toBe(false);
+    expect(isMissedOccurrence(coffee, undefined, at(12))).toBe(true);
+    expect(isMissedOccurrence(coffee, occurrence(coffee), at(13))).toBe(true);
+  });
+
+  it("no marca una ocurrencia terminal o en progreso", () => {
+    expect(isMissedOccurrence(coffee, occurrence(coffee, { status: "completed" }), at(13))).toBe(false);
+    expect(isMissedOccurrence(coffee, occurrence(coffee, { status: "not_applicable" }), at(13))).toBe(false);
+    expect(isMissedOccurrence(coffee, occurrence(coffee, { status: "in_progress" }), at(13))).toBe(false);
+  });
+
+  it("respeta la prioridad antes de missed", () => {
+    const urgent = task("urgent", { priority: 3 });
+    const missedLow = task("low", {
+      priority: 1, window: { start: "06:00", end: "12:00" },
+    });
+    expect(chooseNextTask({
+      tasks: [urgent, missedLow], occurrences: [], now: at(13), seed: "s",
+    })!.task.id).toBe("urgent");
+  });
+
+  it("con la misma prioridad, missed gana a una ventana activa y a una tarea sin hora", () => {
+    const lunch = task("lunch", {
+      priority: 2, window: { start: "12:00", end: "19:00" },
+    });
+    const missed = task("missed", {
+      priority: 2, window: { start: "06:00", end: "12:00" },
+    });
+    const noTime = task("no-time", { priority: 2 });
+    expect(eligibleCandidates({
+      tasks: [noTime, lunch, missed], occurrences: [], now: at(13), seed: "s",
+    }).map((candidate) => candidate.task.id)).toEqual(["missed", "lunch", "no-time"]);
+  });
+
+  it("ordena las missed por la ventana que terminó primero", () => {
+    const early = task("early", {
+      priority: 2, window: { start: "06:00", end: "08:00" },
+    });
+    const late = task("late", {
+      priority: 2, window: { start: "10:00", end: "12:00" },
+    });
+    expect(eligibleCandidates({
+      tasks: [late, early], occurrences: [], now: at(13), seed: "s",
+    }).map((candidate) => candidate.task.id)).toEqual(["early", "late"]);
+  });
+
+  it("conserva el snapshot de una ocurrencia missed empezada", () => {
+    const original = task("original", {
+      priority: 3, durationMin: 15, window: { start: "06:00", end: "12:00" },
+    });
+    const edited = task("original", {
+      priority: 3, durationMin: 15, title: "Editada", window: { start: "15:00", end: "16:00" },
+    });
+    const partial = occurrence(original, {
+      status: "partial",
+      agreement: { task: original, rewardCapRc: 15, shortStepRc: null, lockedAt: NOW },
+    });
+    expect(chooseNextTask({
+      tasks: [edited], occurrences: [partial], now: at(13), seed: "s",
+    })).toMatchObject({ task: { title: "Lavar ropa" }, isMissed: true });
   });
 });
 

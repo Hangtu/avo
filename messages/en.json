@@ -16,7 +16,14 @@
     "minutes": "{count} min",
     "saving": "Saving…",
     "decrease": "Decrease by one minute",
-    "increase": "Increase by one minute"
+    "increase": "Increase by one minute",
+    "stillPossible": "Still possible",
+    "blocks": {
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "night": "Night",
+      "any": "No time"
+    }
   },
   "toast": {
     "undo": "Undo",
@@ -62,7 +69,20 @@
       "noSwaps": "You already swapped 3 times today.",
       "active": "Finish what you started first."
     },
-    "emptyHelpLabel": "What to do now"
+    "emptyHelpLabel": "What to do now",
+    "review": {
+      "title": "Before you finish",
+      "copy": "{count, plural, one {# item left to resolve.} other {# items left to resolve.}}",
+      "missedTitle": "Still possible",
+      "laterTitle": "Left for later",
+      "start": "Start",
+      "alreadyDone": "Already done",
+      "notToday": "Not today",
+      "endDay": "Finish for today",
+      "ending": "Finishing…",
+      "empty": "Nothing left to resolve.",
+      "back": "Back"
+    }
   },
   "countdown": {
     "starting": "Starting",
@@ -82,12 +102,13 @@
     "edit": "Edit habit ✏️",
     "chooseTask": "Choose",
     "otherOption": "Another option",
+    "endDay": "Finish for today",
     "confirm": {
       "alreadyDoneTitle": "Did you already do it?",
-      "alreadyDoneCopy": "It closes without the timer and no time is recorded.",
+      "alreadyDoneCopy": "Marked as done. Let's keep going.",
       "alreadyDoneConfirm": "Yes, it's done",
       "notTodayTitle": "Leave “{title}” for another day?",
-      "notTodayCopy": "It won't show again today and isn't marked as done. It doesn't use a change.",
+      "notTodayCopy": "It won't show today. Still pending.",
       "notTodayConfirm": "Yes, not today"
     }
   },
@@ -132,7 +153,7 @@
     "done": "I did it ✅",
     "remove": "Remove",
     "doneTitle": "Did you do it?",
-    "doneCopy": "It leaves your list without using the timer.",
+    "doneCopy": "It's off your list. Done.",
     "doneConfirm": "Yes, I did it",
     "removeTitle": "Remove this pending item?",
     "removeConfirm": "It leaves your list. You can undo it from the notice.",

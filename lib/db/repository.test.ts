@@ -529,6 +529,48 @@ describe("franjas y cierre del día", () => {
     expect(second.tasks).toHaveLength(3);
   });
 
+  it("mantiene una tarea missed en la franja y permite iniciarla tarde", async () => {
+    const db = await testDb();
+    const late = new Date(2026, 9, 26, 13, 0).getTime();
+    await createTask(db, "cafe", taskInput({
+      title: "Café", priority: 3, days: [1], window: { start: "06:00", end: "12:00" },
+    }), NOW);
+    await ensureOccurrence(db, "cafe", MONDAY, NOW);
+    await ensureDay(db, MONDAY, NOW);
+    const tasks = await listTasks(db);
+    const occurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
+    const franja = await ensureFranja(db, { date: MONDAY, now: late, seed: "s", tasks, occurrences });
+    expect(franja.tasks[0]).toMatchObject({
+      task: { id: "cafe" }, block: "morning", isMissed: true,
+    });
+
+    await expect(startSession(db, {
+      sessionId: "late-without-flag", taskId: "cafe", date: MONDAY, variant: "full", now: late,
+    })).rejects.toThrow("no es para este momento");
+
+    const session = await startSession(db, {
+      sessionId: "late", taskId: "cafe", date: MONDAY, variant: "full",
+      now: late, handId: franja.hand!.id, allowMissed: true,
+    });
+    expect(session).toMatchObject({ status: "running", taskSnapshot: { title: "Café" } });
+    const started = await db.events.where("type").equals("started").toArray();
+    expect(started).toHaveLength(1);
+    expect(started[0]!.context).toMatchObject({ variant: "full", late: true });
+  });
+
+  it("no adelanta una ventana futura aunque se pida un inicio tarde", async () => {
+    const db = await testDb();
+    const before = new Date(2026, 9, 26, 10, 0).getTime();
+    await createTask(db, "comida", taskInput({
+      title: "Comida", days: [1], window: { start: "12:00", end: "19:00" },
+    }), NOW);
+    await expect(startSession(db, {
+      sessionId: "early-with-late-flag", taskId: "comida", date: MONDAY,
+      variant: "full", now: before, allowMissed: true,
+    })).rejects.toThrow("no es para este momento");
+    expect(await db.sessions.count()).toBe(0);
+  });
+
   it("cierra la franja al resolver todas y abre la siguiente con ordinal nuevo", async () => {
     const { db, tasks, occurrences } = await readyTasks();
     const first = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });

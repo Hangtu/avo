@@ -14,6 +14,7 @@ html {
   --muted: #544e47;
   --accent: #c43d2e;
   --warning: #7a5200;
+  --missed: #9a3412;
   --line: #d8d2c6;
   --control: #8c8275;
 }
@@ -26,6 +27,7 @@ html {
   --muted: #c4bbad;
   --accent: #e0705f;
   --warning: #f2c14e;
+  --missed: #fb923c;
   --line: #463f35;
   --control: #9a8f80;
 }
@@ -87,6 +89,7 @@ select {
   --muted: #3b5457;
   --accent: #4f6bff;
   --warning: #7a5200;
+  --missed: #9a3412;
   --line: rgba(23, 37, 42, 0.1);
   --control: #6f8b8e;
   --primary: #3948c8;
@@ -122,6 +125,7 @@ select {
   --muted: #a9c0bf;
   --accent: #8aa0ff;
   --warning: #f2c14e;
+  --missed: #fb923c;
   --line: rgba(234, 247, 246, 0.08);
   --control: #7e9c9d;
   --primary: #8ea2ff;
@@ -811,7 +815,8 @@ body > * {
 }
 
 .task-done-badge,
-.task-skipped-badge {
+.task-skipped-badge,
+.task-missed-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.22rem;
@@ -833,6 +838,23 @@ body > * {
   border: 1px solid color-mix(in srgb, var(--warning) 42%, transparent);
   background: color-mix(in srgb, var(--warning) 12%, transparent);
   color: var(--warning);
+}
+
+.task-missed-badge {
+  border: 1px solid color-mix(in srgb, var(--missed) 45%, transparent);
+  background: color-mix(in srgb, var(--missed) 12%, transparent);
+  color: var(--missed);
+}
+
+.first-block,
+.peek-block {
+  margin-left: 0.35rem;
+}
+
+.first-missed,
+.peek-missed {
+  margin-left: 0.5rem;
+  vertical-align: middle;
 }
 
 @keyframes runo-done-in {
@@ -1670,6 +1692,7 @@ body > * {
 
 .runo-dialog-actions {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
@@ -1680,7 +1703,7 @@ body > * {
   display: block;
   margin-top: 0.7rem;
   padding-left: 0.7rem;
-  border-left: 2px solid var(--primary);
+  border-left: 2px solid var(--primary, var(--foreground));
   color: var(--foreground);
   font-size: 0.95rem;
   line-height: 1.5;
@@ -1703,15 +1726,132 @@ body > * {
 }
 
 .runo-dialog-confirm {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-fg);
+  border-color: var(--primary, var(--foreground));
+  background: var(--primary, var(--foreground));
+  color: var(--primary-fg, var(--background));
 }
 
 .runo-dialog-danger {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--background);
+}
+
+/* End-of-day review: a compact decision list, not a dashboard. */
+.runo-review {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: min(46rem, calc(100dvh - 2rem));
+  overflow: hidden;
+}
+
+.runo-review-body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 1rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.2rem;
+}
+
+.runo-review-group-title {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.runo-review-group-title-missed {
+  color: var(--missed);
+}
+
+.runo-review-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.runo-review-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.75rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.runo-review-item:first-child {
+  border-top: 0;
+}
+
+.runo-review-copy {
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.runo-review-title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.runo-review-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.runo-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.runo-review-action {
+  min-height: 2.75rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--control);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.runo-review-action-primary {
+  border-color: var(--primary, var(--foreground));
+  background: var(--primary, var(--foreground));
+  color: var(--primary-fg, var(--background));
+}
+
+.runo-review-action:hover:not(:disabled) {
+  border-color: var(--foreground);
+}
+
+.runo-review-action-primary:hover:not(:disabled) {
+  border-color: var(--primary, var(--foreground));
+}
+
+@media (max-width: 419px) {
+  .runo-review-item {
+    align-items: stretch;
+  }
+
+  .runo-review-actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -30,6 +30,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 
 import { HelpTip } from "./help-tip";
+import { MissedBadge } from "./missed-badge";
 import { SelectControl } from "./select-control";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
 import {
@@ -44,6 +45,7 @@ import {
 import {
   BLOCK_RANGES, blockForTime, taskTime, windowPreset, type BlockKey,
 } from "@/lib/domain/schedule";
+import { isMissedOccurrence } from "@/lib/domain/selection";
 import {
   buildTaskOrder, reorderTaskOrder, sortTasksForDisplay, type TaskOrder,
 } from "@/lib/domain/task-order";
@@ -342,6 +344,7 @@ function GripIcon() {
 interface TaskRowProps {
   task: Task;
   occurrence: Occurrence | undefined;
+  now: number;
   menuTaskId: string | null;
   onMenuChange: (taskId: string | null) => void;
   onEdit: (task: Task) => void;
@@ -351,7 +354,7 @@ interface TaskRowProps {
 }
 
 function TaskRow({
-  task, occurrence, menuTaskId, onMenuChange, onEdit, onDelete, onReactivate, reactivatingId,
+  task, occurrence, now, menuTaskId, onMenuChange, onEdit, onDelete, onReactivate, reactivatingId,
 }: TaskRowProps) {
   const t = useTranslations("editor");
   const common = useTranslations("common");
@@ -363,6 +366,7 @@ function TaskRow({
   const done = occurrence?.status === "completed" || occurrence?.status === "already_done";
   const skipped = occurrence?.status === "not_applicable";
   const resolved = done || skipped;
+  const missed = occurrence ? isMissedOccurrence(task, occurrence, now) : false;
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: reduceMotion ? undefined : transition,
@@ -403,6 +407,7 @@ function TaskRow({
                   {t("list.notApplicableToday")}
                 </span>
               ) : null}
+              {missed ? <MissedBadge /> : null}
             </span>
           </span>
         </div>
@@ -507,6 +512,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [todayOccurrences, setTodayOccurrences] = useState<Occurrence[]>([]);
   const [today] = useState(() => toLocalDate(Date.now()));
+  const [now, setNow] = useState(() => Date.now());
   const [reactivatingId, setReactivatingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -604,6 +610,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
           }
           setTasks(list);
           setTodayOccurrences(dayOccurrences);
+          setNow(Date.now());
           setLoadError(null);
           if (initialTaskId && !openedInitialTask.current) {
             const target = list.find((task) => task.id === initialTaskId);
@@ -1561,6 +1568,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                             key={task.id}
                             task={task}
                             occurrence={occurrence}
+                            now={now}
                             menuTaskId={menuTaskId}
                             onMenuChange={setMenuTaskId}
                             onEdit={startEdit}

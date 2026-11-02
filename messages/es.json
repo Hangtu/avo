@@ -16,7 +16,14 @@
     "minutes": "{count} min",
     "saving": "Guardando…",
     "decrease": "Bajar un minuto",
-    "increase": "Subir un minuto"
+    "increase": "Subir un minuto",
+    "stillPossible": "Aún puedes",
+    "blocks": {
+      "morning": "Mañana",
+      "afternoon": "Tarde",
+      "night": "Noche",
+      "any": "Sin hora"
+    }
   },
   "toast": {
     "undo": "Deshacer",
@@ -62,7 +69,20 @@
       "noSwaps": "Ya cambiaste 3 veces hoy.",
       "active": "Primero termina lo que ya empezaste."
     },
-    "emptyHelpLabel": "Qué hacer ahora"
+    "emptyHelpLabel": "Qué hacer ahora",
+    "review": {
+      "title": "Antes de terminar",
+      "copy": "{count, plural, one {Queda # sin resolver.} other {Quedan # sin resolver.}}",
+      "missedTitle": "Aún puedes",
+      "laterTitle": "Quedó para después",
+      "start": "Empezar",
+      "alreadyDone": "Ya está hecho",
+      "notToday": "Hoy no",
+      "endDay": "Terminar por hoy",
+      "ending": "Terminando…",
+      "empty": "No queda nada sin resolver.",
+      "back": "Volver"
+    }
   },
   "countdown": {
     "starting": "Empezando",
@@ -82,12 +102,13 @@
     "edit": "Editar hábito ✏️",
     "chooseTask": "Elegir",
     "otherOption": "Otra opción",
+    "endDay": "Terminar por hoy",
     "confirm": {
       "alreadyDoneTitle": "¿Ya la hiciste?",
-      "alreadyDoneCopy": "Se cierra sin timer y no se registra tiempo.",
+      "alreadyDoneCopy": "Queda como hecha y seguimos.",
       "alreadyDoneConfirm": "Sí, ya está hecha",
       "notTodayTitle": "¿Dejar «{title}» para otro día?",
-      "notTodayCopy": "No vuelve a aparecer hoy y no se marca como hecha. No gasta un cambio.",
+      "notTodayCopy": "Hoy ya no aparece. Sigue pendiente.",
       "notTodayConfirm": "Sí, hoy no"
     }
   },
@@ -132,7 +153,7 @@
     "done": "Ya lo hice ✅",
     "remove": "Quitar",
     "doneTitle": "¿Ya lo hiciste?",
-    "doneCopy": "Se quita de la lista sin usar el timer.",
+    "doneCopy": "Se quita de la lista. Listo.",
     "doneConfirm": "Sí, ya lo hice",
     "removeTitle": "¿Quitar este pendiente?",
     "removeConfirm": "Se quita de la lista. Puedes deshacerlo desde el aviso.",

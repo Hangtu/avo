@@ -23,6 +23,7 @@ import {
 } from "@/lib/db/repository";
 import { seedDatabase } from "@/lib/db/seed";
 import { intlLocales } from "@/lib/i18n/config";
+import { buildDayReview, type DayReview, type DayReviewItem } from "@/lib/domain/day-review";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
 import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
 import { voicePhrasesFromMessages } from "@/lib/i18n/voice";
@@ -30,6 +31,7 @@ import type { Occurrence, Pending, Session, Task } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
 import { ConfirmDialog } from "./confirm-dialog";
 import { HelpTip } from "./help-tip";
+import { MissedBadge } from "./missed-badge";
 import { PendingView } from "./pending-view";
 import { QuickTaskForm } from "./quick-task-form";
 import { SessionView } from "./session-view";
@@ -41,19 +43,8 @@ import { WalletView } from "./wallet-view";
 import { SettingsView } from "./settings-view";
 import { RunoToaster } from "./runo-toaster";
 import { useThemePreference } from "./use-theme-preference";
-
-interface FranjaTask {
-  id: string;
-  occurrenceId: string;
-  title: string;
-  durationMin: number;
-  category: string;
-  shortStepTitle?: string;
-  shortStepMin?: number;
-  shortStepDone: boolean;
-  remainingMin: number;
-  remainingRc: number;
-}
+import { EndDayReview, type ReviewGroups, type ReviewTask } from "./end-day-review";
+import type { FranjaTask } from "./franja-task";
 
 type View =
   | { kind: "loading" }
@@ -90,6 +81,44 @@ function newSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function toReviewTask(item: DayReviewItem): ReviewTask {
+  const { task, occurrence, block, missed, canStart } = item;
+  return {
+    task: {
+      id: task.id,
+      occurrenceId: occurrence.id,
+      title: task.title,
+      durationMin: task.durationMin,
+      category: task.category,
+      shortStepTitle: task.shortStep?.title,
+      shortStepMin: task.shortStep?.durationMin,
+      shortStepDone: occurrence.shortStepCompleted,
+      remainingMin: Math.max(
+        1,
+        Math.ceil((task.durationMin * 60 - occurrence.timerElapsedSec) / 60),
+      ),
+      remainingRc: Math.max(0, task.durationMin - occurrence.creditedRc),
+      block,
+      isMissed: missed,
+    },
+    canStart,
+  };
+}
+
+function toReviewGroups(review: DayReview): ReviewGroups {
+  return {
+    missed: review.missed.map(toReviewTask),
+    later: review.later.map(toReviewTask),
+  };
+}
+
+function withoutReviewOccurrence(groups: ReviewGroups, occurrenceId: string): ReviewGroups {
+  return {
+    missed: groups.missed.filter((item) => item.task.occurrenceId !== occurrenceId),
+    later: groups.later.filter((item) => item.task.occurrenceId !== occurrenceId),
+  };
+}
+
 export function RunoHome() {
   const t = useTranslations();
   const locale = useLocale();
@@ -97,7 +126,7 @@ export function RunoHome() {
   const [pendingStart, setPendingStart] = useState<{
     task: FranjaTask;
     variant: "full" | "short";
-    handId: string;
+    handId: string | null;
   } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showBreak, setShowBreak] = useState(false);
@@ -117,6 +146,9 @@ export function RunoHome() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
   const [correctingId, setCorrectingId] = useState<string | null>(null);
+  const [endDayReview, setEndDayReview] = useState<ReviewGroups | null>(null);
+  const [reviewBusyId, setReviewBusyId] = useState<string | null>(null);
+  const [endingDay, setEndingDay] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
   const quickBusyRef = useRef(false);
   const pendingBusyRef = useRef(false);
@@ -185,7 +217,9 @@ export function RunoHome() {
             dateLabel,
             handId: franja.hand.id,
             ordinal: franja.hand.ordinal,
-            tasks: franja.tasks.map(({ task, occurrenceId, shortStepCompleted, remainingMin, remainingRc }) => ({
+            tasks: franja.tasks.map(({
+              task, occurrenceId, shortStepCompleted, remainingMin, remainingRc, block, isMissed,
+            }) => ({
               id: task.id,
               occurrenceId,
               title: task.title,
@@ -196,6 +230,8 @@ export function RunoHome() {
               shortStepDone: shortStepCompleted,
               remainingMin,
               remainingRc,
+              block,
+              isMissed,
             })),
             pendingToday: franja.pendingToday,
             remainingEligible: franja.remainingEligible,
@@ -364,6 +400,7 @@ export function RunoHome() {
     !showWallet &&
     !showSettings &&
     !showPending &&
+    endDayReview === null &&
     pendingStart === null &&
     correctingId === null &&
     (view.kind === "ready" || view.kind === "empty" || view.kind === "session");
@@ -426,6 +463,8 @@ export function RunoHome() {
   }, []);
 
   const endDay = useCallback(async () => {
+    if (endingDay || reviewBusyId !== null) return;
+    setEndingDay(true);
     setShowBreak(false);
     setQuickFormOpen(false);
     setNotice(null);
@@ -436,12 +475,87 @@ export function RunoHome() {
       } finally {
         db.close();
       }
+      setEndDayReview(null);
       refreshView(null);
     } catch (error) {
       console.error("No se pudo cerrar el día", error);
+      setEndDayReview(null);
+      setNotice(t("errors.closeDay"));
+    } finally {
+      setEndingDay(false);
+    }
+  }, [endingDay, refreshView, reviewBusyId, t]);
+
+  const openEndDayReview = useCallback(async () => {
+    if (endingDay) return;
+    setShowBreak(false);
+    setQuickFormOpen(false);
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      let review: DayReview;
+      try {
+        const now = Date.now();
+        const tasks = await listTasks(db);
+        const occurrences = await db.occurrences
+          .where("date").equals(toLocalDate(now)).toArray();
+        review = buildDayReview({ tasks, occurrences, now });
+      } finally {
+        db.close();
+      }
+      if (review.missed.length === 0 && review.later.length === 0) {
+        await endDay();
+        return;
+      }
+      setEndDayReview(toReviewGroups(review));
+    } catch (error) {
+      console.error("No se pudo revisar el día", error);
       setNotice(t("errors.closeDay"));
     }
-  }, [refreshView, t]);
+  }, [endDay, endingDay, t]);
+
+  const correctReviewTask = useCallback(async (
+    task: FranjaTask,
+    kind: "already_done" | "not_applicable",
+  ) => {
+    if (reviewBusyId !== null) return;
+    setReviewBusyId(task.occurrenceId);
+    setNotice(null);
+    try {
+      const db = await openDatabase();
+      try {
+        const now = Date.now();
+        if (kind === "already_done") {
+          await markOccurrenceAlreadyDoneDirect(db, task.occurrenceId, now, "review");
+        } else {
+          await markOccurrenceNotApplicableDirect(db, task.occurrenceId, now, "review");
+        }
+      } finally {
+        db.close();
+      }
+      setEndDayReview((current) => current
+        ? withoutReviewOccurrence(current, task.occurrenceId)
+        : current);
+      refreshView(null);
+    } catch (error) {
+      console.error("No se pudo corregir la tarea del cierre", error);
+      setEndDayReview(null);
+      setNotice(t("errors.correctTask"));
+    } finally {
+      setReviewBusyId(null);
+    }
+  }, [refreshView, reviewBusyId, t]);
+
+  const startReviewTask = useCallback((task: FranjaTask) => {
+    const handId = view.kind === "ready" &&
+      view.tasks.some((item) => item.occurrenceId === task.occurrenceId)
+      ? view.handId
+      : null;
+    setEndDayReview(null);
+    setShowBreak(false);
+    setQuickFormOpen(false);
+    setPendingStart({ task, variant: "full", handId });
+  }, [view]);
 
   const correctTask = useCallback(async (
     task: FranjaTask,
@@ -600,7 +714,7 @@ export function RunoHome() {
   const beginSession = useCallback(async (
     task: FranjaTask,
     variant: "full" | "short",
-    handId: string,
+    handId: string | null,
   ) => {
     setShowBreak(false);
     setNotice(null);
@@ -614,7 +728,8 @@ export function RunoHome() {
           date: toLocalDate(now),
           variant,
           now,
-          handId,
+          ...(handId ? { handId } : {}),
+          allowMissed: task.isMissed,
         });
         setQuickFormOpen(false);
         setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
@@ -814,13 +929,14 @@ export function RunoHome() {
                   onAlreadyDone={(task) => void correctTask(task, "already_done")}
                   onNotApplicable={(task) => void correctTask(task, "not_applicable")}
                   onEdit={(task) => openEditorForTask(task.id)}
+                  onEndDay={() => void openEndDayReview()}
                   swapping={swapping}
                   correctingId={correctingId}
                   tone={voice.tone ?? 0}
                 />
               ) : null}
               {view.kind === "empty" ? (
-                <EmptyState onEndDay={endDay} />
+                <EmptyState onEndDay={() => void openEndDayReview()} />
               ) : null}
               {view.kind === "closed" ? <DayClosed view={view} /> : null}
             </>
@@ -877,6 +993,22 @@ export function RunoHome() {
         </nav>
       </div>
     </main>
+    {endDayReview ? (
+      <EndDayReview
+        open
+        onOpenChange={(open) => {
+          if (!open) setEndDayReview(null);
+        }}
+        review={endDayReview}
+        tone={voice.tone ?? 0}
+        busyId={reviewBusyId}
+        ending={endingDay}
+        onStart={startReviewTask}
+        onAlreadyDone={(task) => void correctReviewTask(task, "already_done")}
+        onNotApplicable={(task) => void correctReviewTask(task, "not_applicable")}
+        onEndDay={() => void endDay()}
+      />
+    ) : null}
     <RunoToaster />
     </Toast.Provider>
     </MotionConfig>
@@ -926,8 +1058,8 @@ function Countdown({
 }: {
   task: FranjaTask;
   variant: "full" | "short";
-  handId: string;
-  onDone: (task: FranjaTask, variant: "full" | "short", handId: string) => void | Promise<void>;
+  handId: string | null;
+  onDone: (task: FranjaTask, variant: "full" | "short", handId: string | null) => void | Promise<void>;
   onCancel: () => void;
 }) {
   const t = useTranslations("countdown");
@@ -1031,6 +1163,7 @@ function Franja({
   onAlreadyDone,
   onNotApplicable,
   onEdit,
+  onEndDay,
   swapping,
   correctingId,
   tone,
@@ -1042,12 +1175,14 @@ function Franja({
   onAlreadyDone: (task: FranjaTask) => void;
   onNotApplicable: (task: FranjaTask) => void;
   onEdit: (task: FranjaTask) => void;
+  onEndDay: () => void;
   swapping: boolean;
   correctingId: string | null;
   tone: VoiceTone;
 }) {
   const t = useTranslations("franja");
   const common = useTranslations("common");
+  const blocks = useTranslations("common.blocks");
   const messages = useMessages();
   const voicePhrases = useMemo(() => voicePhrasesFromMessages(messages), [messages]);
   const [primaryIndex, setPrimaryIndex] = useState(0);
@@ -1124,7 +1259,15 @@ function Franja({
         >
         <p className="first-eyebrow">{t("eyebrow")}</p>
         <h2 id="first-title" className="first-title">{primary.title}</h2>
-        <p id="first-duration" className="first-duration">{common("minutes", { count: remaining })}</p>
+        <p id="first-duration" className="first-duration">
+          {common("minutes", { count: remaining })}
+          {primary.isMissed ? (
+            <>
+              <span className="first-block">· {blocks(primary.block)}</span>
+              <MissedBadge className="first-missed" />
+            </>
+          ) : null}
+        </p>
 
         <div className="first-actions">
           <motion.button
@@ -1210,6 +1353,16 @@ function Franja({
                   >
                     {t("edit")}
                   </Menu.Item>
+                  <Menu.Item
+                    className="first-menu-item"
+                    disabled={busy}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onEndDay();
+                    }}
+                  >
+                    {t("endDay")}
+                  </Menu.Item>
                 </Menu.Popup>
               </Menu.Positioner>
             </Menu.Portal>
@@ -1241,6 +1394,12 @@ function Franja({
           <span id="peek-back-title" className="peek-back-title">{secondary.title}</span>
           <span id="peek-back-duration" className="peek-back-duration">
             {common("minutes", { count: secondary.remainingMin })}
+            {secondary.isMissed ? (
+              <>
+                <span className="peek-block">· {blocks(secondary.block)}</span>
+                <MissedBadge className="peek-missed" />
+              </>
+            ) : null}
           </span>
         </motion.button>
         ) : null}

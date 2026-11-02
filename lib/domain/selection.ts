@@ -22,11 +22,33 @@ export interface Candidate {
   task: Task;
   occurrenceId: string;
   isDueAnchor: boolean;
+  /** A due task whose window already ended but is still unresolved today. */
+  isMissed: boolean;
 }
 
 /** A frozen, already-started occurrence retains its agreement; archiving still hides it. */
 function taskForOccurrence(task: Task, occurrence: Occurrence | undefined): Task {
   return occurrence?.agreement?.task ?? task;
+}
+
+/**
+ * Missed is derived from the clock, never stored as an occurrence status. It
+ * keeps the task available for an explicit late start, without pretending the
+ * window is still open or marking it as not applicable for the user.
+ */
+export function isMissedOccurrence(
+  task: Task, occurrence: Occurrence | undefined, now: number,
+): boolean {
+  const date = toLocalDate(now);
+  const current = occurrence?.taskId === task.id && occurrence.date === date ? occurrence : undefined;
+  if (task.archivedAt !== null) return false;
+  if (current &&
+    (TERMINAL_OCCURRENCE_STATUSES.has(current.status) || current.status === "in_progress")) {
+    return false;
+  }
+  const effective = taskForOccurrence(task, current);
+  if (!effective.days.includes(weekdayOf(date)) || !effective.window) return false;
+  return localClockMinutes(now) >= clockMinutes(effective.window.end);
 }
 
 /** Windows are [start, end); fixed times cannot be consumed early. No hidden clock. */
@@ -83,11 +105,13 @@ export function eligibleCandidates(input: SelectionInput): Candidate[] {
     if (excluded.has(occurrenceId)) continue;
     const occurrence = byTask.get(task.id);
     const availability = availabilityOf(task, occurrence, input.now);
-    if (!availability.eligible) continue;
+    const missed = isMissedOccurrence(task, occurrence, input.now);
+    if (!availability.eligible && !missed) continue;
     candidates.push({
       task: taskForOccurrence(task, occurrence),
       occurrenceId,
-      isDueAnchor: availability.isDueAnchor,
+      isDueAnchor: availability.eligible ? availability.isDueAnchor : false,
+      isMissed: missed,
     });
   }
   return candidates.sort((a, b) => {
@@ -95,8 +119,14 @@ export function eligibleCandidates(input: SelectionInput): Candidate[] {
     if (anchor) return anchor;
     const priority = b.task.priority - a.task.priority;
     if (priority) return priority;
-    // A task whose editable time window is active now is more relevant than
-    // an equally important task with no time context.
+    // Same priority: an unresolved earlier window goes first, then the window
+    // that is active now, and finally a task with no time context.
+    const missed = Number(b.isMissed) - Number(a.isMissed);
+    if (missed) return missed;
+    if (a.isMissed && b.isMissed && a.task.window && b.task.window) {
+      const ended = clockMinutes(a.task.window.end) - clockMinutes(b.task.window.end);
+      if (ended) return ended;
+    }
     const relevance = Number(b.task.window !== undefined) - Number(a.task.window !== undefined);
     if (relevance) return relevance;
     const diversity = Number(a.task.category === input.previousCategory) -
