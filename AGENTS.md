@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Runo — reglas de trabajo
 
-App personal (un usuario, español de México) de hábitos, pendientes y timer con presión configurable. El objetivo es ayudar a actuar y volver a la vida, no maximizar uso.
+App personal por cuenta (español de México) de hábitos, pendientes y timer con presión configurable; el invitado usa datos locales. El objetivo es ayudar a actuar y volver a la vida, no maximizar uso.
 
 ## Fuentes de verdad
 
@@ -37,8 +37,8 @@ Si la petición es de análisis o documentación, hacer eso; no implementar sin 
 - Franjas de hasta 3, una abierta; 3 cambios por día; correcciones neutrales con confirmación y salida siempre disponible.
 - Pausa persistente y una sola sesión activa. Cero no completa ni paga.
 - Audio apagado al inicio; presión normal 1, techo 2; sin castigos; lenguaje llano; ayuda contextual; ES/EN.
-- Local-first con Dexie. Neon/Drizzle solo en servidor y sin sync. Sin LLM ni analítica de terceros en el MVP.
-- No ampliar a RC visibles, sync, cuentas, rachas, `.ics`, push, dashboards ni motor 2D sin decisión explícita.
+- Local-first con Dexie; Neon/Drizzle solo en servidor. E4: login opcional con Better Auth y sync multiusuario aprobados. Sin LLM ni analítica de terceros.
+- No ampliar a RC visibles, organizaciones, cuentas compartidas, sync en tiempo real, rachas, `.ics`, push, dashboards ni motor 2D sin decisión explícita. E4 (cuentas/sync) ya está aprobado.
 
 ## Implementación
 
@@ -47,7 +47,7 @@ Si la petición es de análisis o documentación, hacer eso; no implementar sin 
 - Respetar `cacheComponents` y `partialPrefetching`; leer la guía antes de cambiar flags o añadir librerías.
 - Tailwind v4 con tokens en variables y `@theme`; no agregar configuración v3.
 - Eventos tipados con el vocabulario del dominio. Distinguir exposición, cambio, vida real, resultado parcial y hecho fuera de la app.
-- Neon/Drizzle solo en servidor: `DATABASE_URL`, `RUNO_PASSCODE` y `RUNO_SESSION_SECRET` nunca en el cliente. Migraciones generadas, revisadas y aplicadas primero en desarrollo; no `push` a producción.
+- Neon/Drizzle solo en servidor: `DATABASE_URL`, `BETTER_AUTH_SECRET`, credenciales OAuth y, hasta cerrar E4.1, `RUNO_PASSCODE`/`RUNO_SESSION_SECRET` nunca en el cliente. Migraciones generadas, revisadas y aplicadas primero en desarrollo; no `push` a producción.
 - Respetar los bloques gestionados por Next en este archivo.
 
 ## Verificación

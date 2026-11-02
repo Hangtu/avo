@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { AccountControl } from "./account-control";
 import { useChangeLocale } from "./i18n-provider";
 import { HelpTip } from "./help-tip";
 import { SelectControl } from "./select-control";
@@ -35,6 +36,7 @@ export function SettingsView({
   onThemeChange: (mode: ThemeMode) => void;
 }) {
   const t = useTranslations("settings");
+  const account = useTranslations("account");
   const errors = useTranslations("errors");
   const locale = useLocale();
   const setLocale = useChangeLocale();
@@ -99,6 +101,13 @@ export function SettingsView({
       <h2 id="settings-title" className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
         {t("title")}
       </h2>
+
+      <div className="mt-7 border-t border-line pt-5">
+        <h3 className="text-lg font-semibold">{account("sectionTitle")}</h3>
+        <div className="mt-3">
+          <AccountControl />
+        </div>
+      </div>
 
       <div className="mt-7 border-t border-line pt-5">
         <div className="flex items-center gap-2">

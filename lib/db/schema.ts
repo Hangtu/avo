@@ -85,6 +85,75 @@ export const users = pgTable("runo_users", {
   createdAt: createdAt(),
 });
 
+/**
+ * Better Auth owns identity. Keep these tables prefixed so they can coexist in
+ * a shared Neon project; `runo_users` remains the app profile (same id).
+ */
+export const authUsers = pgTable("runo_auth_users", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const authSessions = pgTable(
+  "runo_auth_sessions",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    token: text("token").notNull().unique(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index("runo_auth_sessions_user_id_idx").on(table.userId)],
+);
+
+export const authAccounts = pgTable(
+  "runo_auth_accounts",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true, mode: "date" }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true, mode: "date" }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("runo_auth_accounts_user_id_idx").on(table.userId),
+    uniqueIndex("runo_auth_accounts_provider_account_idx").on(table.providerId, table.accountId),
+  ],
+);
+
+export const authVerifications = pgTable(
+  "runo_auth_verifications",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index("runo_auth_verifications_identifier_idx").on(table.identifier)],
+);
+
 export const settings = pgTable(
   "runo_settings",
   {

@@ -7,6 +7,10 @@ import * as schema from "./schema";
 describe("Postgres schema", () => {
   it("keeps the domain tables and enum vocabulary aligned", () => {
     const tables = [
+      schema.authUsers,
+      schema.authSessions,
+      schema.authAccounts,
+      schema.authVerifications,
       schema.users,
       schema.settings,
       schema.tasks,
@@ -22,6 +26,10 @@ describe("Postgres schema", () => {
     ].map((table) => getTableConfig(table).name);
 
     expect(tables).toEqual([
+      "runo_auth_users",
+      "runo_auth_sessions",
+      "runo_auth_accounts",
+      "runo_auth_verifications",
       "runo_users",
       "runo_settings",
       "runo_tasks",

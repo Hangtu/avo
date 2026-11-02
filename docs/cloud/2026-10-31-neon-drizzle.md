@@ -1,3 +1,5 @@
+> **Actualización 2026-11-01:** E4 usará **Better Auth self-hosted** con Google/Facebook y sync multiusuario. La recomendación de “Neon Auth si se agregan cuentas” en §7 queda superada; la cuenta nueva empieza limpia y los datos de E3 son de testing, no se migran. Ver [`plan.md`](../../plan.md).
+
 # Runo en la nube — plan de Neon + Drizzle
 
 **Fecha:** 2026-10-31  

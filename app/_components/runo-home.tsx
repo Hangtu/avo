@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
 import { Menu } from "@base-ui/react/menu";
 import { Toast } from "@base-ui/react/toast";
@@ -35,6 +36,7 @@ import { MissedBadge } from "./missed-badge";
 import { PendingView } from "./pending-view";
 import { QuickTaskForm } from "./quick-task-form";
 import { SessionView } from "./session-view";
+import { AccountGreeting } from "./account-greeting";
 import { AnchorView } from "./anchor-view";
 import { useAnchorWatcher } from "./use-anchor-watcher";
 import { TaskEditor } from "./task-editor";
@@ -761,6 +763,13 @@ export function RunoHome() {
               : view.kind === "anchor"
                 ? `anchor:${view.occurrence.id}`
                 : view.kind;
+  const showTodayGreeting =
+    !showEditor &&
+    !showWallet &&
+    !showSettings &&
+    !showPending &&
+    pendingStart === null &&
+    (view.kind === "ready" || view.kind === "empty" || view.kind === "closed");
 
   return (
     <MotionConfig reducedMotion="user">
@@ -774,15 +783,23 @@ export function RunoHome() {
       >
         <header className="runo-header flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-              Runo
-              <span aria-hidden className="ml-2 inline-block h-2 w-2 bg-accent align-middle" />
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+              <Image
+                src="/icon-192.png"
+                alt=""
+                width={28}
+                height={28}
+                unoptimized
+                className="size-18 shrink-0"
+              />
+              <span>Runo</span>
             </p>
             <h1 className={`runo-tagline mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet || showPending ? "hidden" : ""}`}>
               {t("header.tagline")}
             </h1>
           </div>
           <div className="runo-header-controls flex flex-wrap items-center justify-end gap-3 pb-1">
+            {showTodayGreeting ? <AccountGreeting /> : null}
             {!showEditor && !showWallet && !showSettings && !showPending && view.kind !== "session" && view.kind !== "anchor" ? (
               <div className="flex flex-wrap items-center gap-2">
                 <button

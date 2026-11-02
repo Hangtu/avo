@@ -1,11 +1,11 @@
 # Runo
 
-App personal de hábitos y sesiones de enfoque, local-first y sin login.
+App personal de hábitos y sesiones de enfoque, local-first, con login opcional (Better Auth, E4.1).
 El MVP se está construyendo por partes: el bloque B (bucle completo), A1/A2 (PWA/offline),
 C1–C6 (ledger, monedero, contraste, Vigía, audio y voz), D1 (ancla), D2
 (fallbacks de plataforma), D3 (una mano y tema cálido) y la validación local
 de D4 (12/16 criterios) están listos técnicamente, con **Liquid Focus** y la
-carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1–E3** dejó aplicado el esquema Neon/Drizzle, las diez plantillas y una copia manual protegida desde Ajustes; la app sigue local-first y sin sync. El origen HTTPS es **https://runo-mu.vercel.app**, actualizado con E1–E3 el 2026-10-31.
+carta **Ahora** como base, más sesión rápida, pendientes de una vez e interfaz **ES/EN** con `next-intl`; sonido, voz, tema y visibilidad del Monedero viven en Ajustes. La fase **E1–E3** dejó aplicado el esquema Neon/Drizzle, las diez plantillas y una copia manual protegida desde Ajustes; la app sigue local-first; E4.1 agrega la base de auth y E4.2–E4.3 harán la carga y el sync. El origen HTTPS es **https://runo-mu.vercel.app**, actualizado con E1–E3 el 2026-10-31.
 Falta la instalación/prueba en teléfono y el cierre móvil de G01/G02/G03/G13.
 
 ## Antes de trabajar
@@ -47,9 +47,14 @@ npm run db:seed       # dueño, preferencias y plantillas idempotentes
 npm run db:health     # confirma lectura contra Neon
 npm run db:verify     # tablas, migraciones, dueño, settings y conteos
 
-# Para la copia manual, agrega a .env.local:
-# RUNO_PASSCODE="una-frase-larga"
-# RUNO_SESSION_SECRET="32-bytes-aleatorios"
+# Auth opcional (E4.1): completa estas variables en .env.local
+# BETTER_AUTH_SECRET="openssl rand -base64 32"
+# BETTER_AUTH_URL="http://localhost:3000"
+# BETTER_AUTH_TRUSTED_ORIGINS="http://localhost:3000,http://127.0.0.1:3000,https://runo-mu.vercel.app"
+# GOOGLE_CLIENT_ID="..."
+# GOOGLE_CLIENT_SECRET="..."
+# FACEBOOK_CLIENT_ID="..."
+# FACEBOOK_CLIENT_SECRET="..."
 npm run db:studio     # inspección local
 ```
 
@@ -84,7 +89,7 @@ tinta oscura, un acento bermellón y reglas finas sin sombras. Referencias y reg
 
 La app sigue usando IndexedDB por origen mediante Dexie, con esquema versionado.
 Cerrar una conexión no borra sus registros; borrar el almacenamiento del navegador sí.
-Hay una copia manual en Neon protegida por passcode; no hay restauración ni sincronización entre dispositivos todavía.
+Hay una base de auth opcional con Better Auth (E4.1). La copia manual de E3 sigue como puente con passcode; la carga de cuenta y el sync llegan en E4.2–E4.3. No hay restauración ni sincronización entre dispositivos todavía.
 
 La producción actualizada está en **https://runo-mu.vercel.app**. El deploy no migra IndexedDB entre `localhost` y Vercel; son orígenes distintos.
 

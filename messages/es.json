@@ -400,13 +400,13 @@
       "tick": "Tic-tac"
     },
     "voice": {
-      "title": "Voz",
-      "helpLabel": "Cómo funciona la voz",
-      "help": "La voz normal es tranquila. La voz fuerte solo si tú la eliges.",
-      "label": "Voz",
-      "silence": "Silencio",
-      "normal": "Normal",
-      "strong": "Fuerte"
+      "title": "Tono de los mensajes",
+      "helpLabel": "Sobre el tono de los mensajes",
+      "help": "Ajusta el estilo de las frases de acompañamiento que Runo muestra. No es audio: Runo no habla ni lee los menús en voz alta.",
+      "label": "Estilo",
+      "silence": "Sin frases",
+      "normal": "Tranquilo",
+      "strong": "Más directo"
     },
     "language": {
       "title": "Idioma",
@@ -515,5 +515,21 @@
     "themeSave": "No pude guardar tu color.",
     "voiceRead": "No pude abrir tu voz.",
     "voiceSave": "No pude guardar tu voz."
+  },
+  "account": {
+    "titleSignedIn": "Sesión iniciada",
+    "copy": "Estás usando Runo sin cuenta. Puedes seguir así o iniciar sesión con Google o Facebook.",
+    "continueGoogle": "Continuar con Google",
+    "continueFacebook": "Continuar con Facebook",
+    "signOut": "Cerrar sesión",
+    "signingOut": "Cerrando…",
+    "opening": "Abriendo…",
+    "checking": "Comprobando sesión…",
+    "error": "No pude completar la acción. Inténtalo de nuevo.",
+    "sectionTitle": "Cuenta",
+    "confirmSignOutTitle": "¿Quieres cerrar sesión?",
+    "confirmSignOutDescription": "Solo se cerrará esta sesión; no se eliminará tu cuenta.",
+    "greeting": "Hola, {name}",
+    "greetingFallback": "Hola"
   }
 }

@@ -1737,6 +1737,51 @@ body > * {
   color: var(--background);
 }
 
+/* Optional account controls in Settings. */
+.runo-account-providers {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.runo-account-provider {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 3rem;
+  padding: 0 1rem;
+  border: 1px solid var(--control);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.runo-account-provider > span {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.runo-account-provider:hover:not(:disabled) {
+  border-color: var(--foreground);
+}
+
+.runo-account-error {
+  margin: 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--accent);
+  color: var(--foreground);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
 /* End-of-day review: a compact decision list, not a dashboard. */
 .runo-review {
   width: min(32rem, calc(100vw - 2rem));

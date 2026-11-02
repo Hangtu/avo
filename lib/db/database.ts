@@ -6,6 +6,33 @@ import type {
 export const DATABASE_NAME = "runo";
 export const DATABASE_VERSION = 4;
 
+/**
+ * Guest and account data never share an IndexedDB database. Keeping the
+ * original name as the guest scope preserves data from before E4.
+ */
+export function databaseNameForUser(userId: string | null | undefined): string {
+  return userId ? `runo-user-${encodeURIComponent(userId)}` : DATABASE_NAME;
+}
+
+let activeDatabaseName = DATABASE_NAME;
+
+export function currentDatabaseName(): string {
+  return activeDatabaseName;
+}
+
+export function setActiveDatabaseName(name: string): void {
+  if (!name.trim()) throw new Error("El nombre de la base local no es válido.");
+  activeDatabaseName = name;
+}
+
+export function setActiveUserDatabase(userId: string | null | undefined): void {
+  setActiveDatabaseName(databaseNameForUser(userId));
+}
+
+export function resetActiveDatabaseName(): void {
+  activeDatabaseName = DATABASE_NAME;
+}
+
 const STORES_V2 = {
   tasks: "id, archivedAt, *days",
   occurrences: "id, &[taskId+date], taskId, date, status",
@@ -56,7 +83,7 @@ export class RunoDatabase extends Dexie {
   }
 }
 
-export async function openDatabase(name = DATABASE_NAME): Promise<RunoDatabase> {
+export async function openDatabase(name = currentDatabaseName()): Promise<RunoDatabase> {
   if (typeof indexedDB === "undefined") {
     throw new Error("Este entorno no permite guardar datos locales con IndexedDB.");
   }

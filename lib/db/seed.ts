@@ -8,44 +8,13 @@ const EVERY_DAY: TaskInput["days"] = [0, 1, 2, 3, 4, 5, 6];
 
 interface SeedTask { id: string; input: TaskInput }
 const INITIAL_TASKS: SeedTask[] = [
-  { id: "seed:creatine-vitamin-d", input: {
-    title: "Creatina + Vitamina D", days: EVERY_DAY, durationMin: 2, priority: 3, category: "personal",
-  } },
-  { id: "seed:elian-vitamins", input: {
-    title: "Darle las vitaminas a Elian", days: EVERY_DAY, durationMin: 3, priority: 3, category: "familia",
-  } },
   { id: "seed:brush-teeth", input: {
     title: "Cepillarme los dientes", days: EVERY_DAY, durationMin: 3, priority: 3, category: "personal",
     shortStep: { title: "Preparar el cepillo", durationMin: 1 },
   } },
-  { id: "seed:coffee", input: {
-    title: "Hacerme un café", days: EVERY_DAY, durationMin: 5, priority: 3, category: "personal",
-    window: { start: "06:00", end: "12:00" },
-  } },
   { id: "seed:shower", input: {
     title: "Bañarme", days: EVERY_DAY, durationMin: 15, priority: 2, category: "personal",
     shortStep: { title: "Preparar ropa y toalla", durationMin: 1 },
-  } },
-  { id: "seed:breakfast", input: {
-    title: "Desayuno", days: EVERY_DAY, durationMin: 15, priority: 2, category: "personal",
-    window: { start: "06:00", end: "12:00" },
-    shortStep: { title: "Preparar ingredientes", durationMin: 1 },
-  } },
-  { id: "seed:elian-care", input: {
-    title: "Sacar mocos a Elian", days: EVERY_DAY, durationMin: 3, priority: 2, category: "familia",
-  } },
-  { id: "seed:laundry", input: {
-    title: "Lavar ropa", days: [1], durationMin: 15, priority: 2, category: "casa",
-    shortStep: { title: "Meter ropa a la lavadora", durationMin: 1 },
-  } },
-  { id: "seed:cleaning", input: {
-    title: "Aseo de la casa", days: [1], durationMin: 30, priority: 2, category: "casa",
-    shortStep: { title: "Recoger cinco cosas", durationMin: 1 },
-  } },
-  { id: "seed:gym-prep", input: {
-    title: "Prepararme para el gym", days: [1, 2, 3, 4, 5], durationMin: 30, priority: 3, category: "gym",
-    fixedTime: "18:00", window: { start: "18:00", end: "18:30" },
-    shortStep: { title: "Preparar ropa del gym", durationMin: 1 },
   } },
 ];
 

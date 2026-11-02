@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 const extras = [
   "/",
   "/manifest.webmanifest",
+  "/favicon.ico",
   "/icon-192.png",
   "/icon-512.png",
   "/icon-maskable-512.png",
@@ -62,6 +63,8 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname === "/sw.js") return;
+  // Auth and sync responses are private: never let the cache serve them offline.
+  if (url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith((async () => {

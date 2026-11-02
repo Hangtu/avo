@@ -400,13 +400,13 @@
       "tick": "Tick-tock"
     },
     "voice": {
-      "title": "Voice",
-      "helpLabel": "How voice works",
-      "help": "The normal voice is calm. The strong voice only if you choose it.",
-      "label": "Voice",
-      "silence": "Silence",
-      "normal": "Normal",
-      "strong": "Strong"
+      "title": "Tone of Runo’s messages",
+      "helpLabel": "About message tone",
+      "help": "Adjust the style of the written prompts Runo shows. This isn't audio: Runo doesn't speak or read menus aloud.",
+      "label": "Style",
+      "silence": "No phrases",
+      "normal": "Calm",
+      "strong": "More direct"
     },
     "language": {
       "title": "Language",
@@ -515,5 +515,21 @@
     "themeSave": "I couldn't save your color.",
     "voiceRead": "I couldn't open your voice.",
     "voiceSave": "I couldn't save your voice."
+  },
+  "account": {
+    "titleSignedIn": "Signed in",
+    "copy": "You’re using Runo without an account. You can keep using it this way or sign in with Google or Facebook.",
+    "continueGoogle": "Continue with Google",
+    "continueFacebook": "Continue with Facebook",
+    "signOut": "Sign out",
+    "signingOut": "Signing out…",
+    "opening": "Opening…",
+    "checking": "Checking session…",
+    "error": "I couldn't complete that action. Try again.",
+    "sectionTitle": "Account",
+    "confirmSignOutTitle": "Sign out?",
+    "confirmSignOutDescription": "This ends the session on this browser; it won't delete your account.",
+    "greeting": "Hi, {name}",
+    "greetingFallback": "Hi"
   }
 }
