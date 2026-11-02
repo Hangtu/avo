@@ -5,10 +5,11 @@
 ## Ahora
 
 - **B16 (segunda carta asomada) 🧪:** implementado y verificado localmente; falta la revisión visual del dueño.
+- **B19 (confirmaciones de sesión) 🧪:** «Terminé» y «Hoy no» piden confirmación; se retiró «El bebé». Verificado en build de producción: no aparece «El bebé», ambos botones abren el modal y cancelar conserva la sesión. Falta la revisión del dueño.
 - **B18 (sonidos para el timer) 🧪:** ruido rosa, lluvia y olas agregados junto a ruido suave y tic-tac; audio sintetizado localmente, apagado por defecto y con volumen bajo. Evidencia y límites en [`docs/reviews/2026-11-01-sonidos.md`](./docs/reviews/2026-11-01-sonidos.md). Falta probarlos en teléfono.
 - **B17 (missed y cierre con revisión) 🧪:** implementado y verificado localmente; falta la revisión visual del dueño. Criterio: una tarea con ventana terminada sigue viva hoy, se etiqueta «Aún puedes» con su turno visible, puede empezar tarde y se ordena antes que la ventana activa dentro de su prioridad; «Terminar por hoy» revisa lo no resuelto sin cambiar estados por su cuenta.
 - **Sin commit ni deploy:** los cambios viven en el working tree. Producción (`https://runo-mu.vercel.app`) sigue con la carta única de E3.
-- **Últimos ajustes:** confirmaciones de «Ya está hecho», «Hoy no» (con frase local), «Ya lo hice» y «Quitar»; contador de Pendientes elevado en el dock; «Hoy no aplica» tachado y con distintivo ámbar; tareas missed con etiqueta naranja «Aún puedes»; revisión de cierre; confirmaciones directas en «Ya está hecho», «Hoy no» y pendiente hecho; tres sonidos nuevos: ruido rosa, lluvia y olas.
+- **Últimos ajustes:** confirmaciones de «Ya está hecho», «Hoy no» (con frase local), «Ya lo hice» y «Quitar»; contador de Pendientes elevado en el dock; «Hoy no aplica» tachado y con distintivo ámbar; tareas missed con etiqueta naranja «Aún puedes»; revisión de cierre; confirmaciones directas en «Ya está hecho», «Hoy no» y pendiente hecho; tres sonidos nuevos: ruido rosa, lluvia y olas; «Terminé» y «Hoy no» con confirmación y sin «El bebé».
 
 ## Hecho
 
@@ -24,7 +25,7 @@
 
 ## Siguiente
 
-1. Reiniciar `npm run dev` y revisar en `http://localhost:3000`: B16, B17, las confirmaciones, el contador del dock, «Hoy no aplica» tachado en ámbar, el flujo missed/cierre y los 5 sonidos.
+1. Reiniciar `npm run dev` y revisar en `http://localhost:3000`: B16, B17, las confirmaciones, el contador del dock, «Hoy no aplica» tachado en ámbar, el flujo missed/cierre, los 5 sonidos y B19.
 2. Decidir commit y deploy (no hechos).
 3. Probar en teléfono `https://runo-mu.vercel.app`: instalar, abrir standalone, reabrir en modo avión y cubrir G01/G02/G03/G13, C5 (audio real), D2 (vibración/iPhone) y D3 (accesibilidad/zoom).
 

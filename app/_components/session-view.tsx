@@ -18,6 +18,7 @@ import type { Session } from "@/lib/domain/types";
 import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
 import { intlLocales } from "@/lib/i18n/config";
 import { voicePhrasesFromMessages } from "@/lib/i18n/voice";
+import { ConfirmDialog } from "./confirm-dialog";
 import { HelpTip } from "./help-tip";
 import { pulse } from "@/lib/platform/haptics";
 import { useSessionAudio } from "./use-session-audio";
@@ -54,6 +55,7 @@ export function SessionView({
   tone: VoiceTone;
 }) {
   const t = useTranslations("session");
+  const confirm = useTranslations("franja.confirm");
   const common = useTranslations("common");
   const reduceMotion = useReducedMotion();
   const locale = useLocale();
@@ -68,6 +70,7 @@ export function SessionView({
   const [expiryError, setExpiryError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showNoOptions, setShowNoOptions] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"finish" | "not_applicable" | null>(null);
   const [retryId, setRetryId] = useState(() => newActionId());
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<string | null>(null);
@@ -95,6 +98,37 @@ export function SessionView({
   const phrase = chooseVoicePhrase(
     tone, "work", `${current.id}:${current.startedAt ?? current.updatedAt}`, voicePhrases,
   );
+  const finishTitle = isShort
+    ? t("finishStepConfirmTitle")
+    : isPending
+      ? t("finishPendingConfirmTitle")
+      : isQuick
+        ? t("finishQuickConfirmTitle")
+        : t("finishConfirmTitle");
+  const finishCopy = isShort
+    ? t("finishStepConfirmCopy")
+    : isPending
+      ? t("finishPendingConfirmCopy")
+      : isQuick
+        ? t("finishQuickConfirmCopy")
+        : t("finishConfirmCopy");
+  const notApplicableTitle = isPending
+    ? t("laterConfirmTitle")
+    : confirm("notTodayTitle", { title: current.taskSnapshot.title });
+  const notApplicableCopy = isPending
+    ? t("laterConfirmCopy")
+    : confirm("notTodayCopy");
+  const notApplicableConfirm = isPending
+    ? t("laterConfirm")
+    : confirm("notTodayConfirm");
+  const notApplicableNote = confirmAction === "not_applicable" && !isPending && tone > 0
+    ? chooseVoicePhrase(
+        tone,
+        "work",
+        `${current.occurrenceId}:not-today-session`,
+        voicePhrases,
+      )
+    : null;
 
   useWakeLock(current.status === "running");
   const { ringBell } = useSessionAudio(current.status === "running");
@@ -114,6 +148,7 @@ export function SessionView({
       try {
         const expired = await expireSession(db, current.id, Date.now());
         setCurrent(expired);
+        setConfirmAction(null);
         setExpiryError(null);
         pulse("timer");
         ringBell();
@@ -229,11 +264,11 @@ export function SessionView({
     });
   }
 
-  async function pauseNow(reason?: "baby") {
+  async function pauseNow() {
     await runAction(async () => {
       const db = await openDatabase();
       try {
-        const paused = await pauseSession(db, current.id, Date.now(), reason);
+        const paused = await pauseSession(db, current.id, Date.now());
         setCurrent(paused);
       } finally {
         db.close();
@@ -320,7 +355,7 @@ export function SessionView({
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <motion.button
                 type="button"
-                onClick={() => void complete()}
+                onClick={() => setConfirmAction("finish")}
                 disabled={busy}
                 className="min-h-12 rounded-none bg-foreground px-7 text-base font-semibold text-background disabled:opacity-60"
                 whileTap={reduceMotion ? undefined : { scale: 0.98 }}
@@ -335,14 +370,6 @@ export function SessionView({
                 className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
               >
                 {t("pause")}
-              </button>
-              <button
-                type="button"
-                onClick={() => void pauseNow("baby")}
-                disabled={busy}
-                className="min-h-12 rounded-none border border-control px-6 text-sm font-semibold disabled:opacity-60"
-              >
-                {t("baby")}
               </button>
             </div>
           </motion.div>
@@ -429,7 +456,7 @@ export function SessionView({
                   </button>
                   <button
                     type="button"
-                    onClick={() => void notApplicable()}
+                    onClick={() => setConfirmAction("not_applicable")}
                     disabled={busy}
                     className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
                   >
@@ -475,7 +502,7 @@ export function SessionView({
               </motion.button>
               <button
                 type="button"
-                onClick={() => void notApplicable()}
+                onClick={() => setConfirmAction("not_applicable")}
                 disabled={busy}
                 className="min-h-12 flex-1 rounded-none border border-control px-5 text-sm font-semibold disabled:opacity-60"
               >
@@ -504,6 +531,25 @@ export function SessionView({
           </button>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmAction(null);
+        }}
+        title={confirmAction === "finish" ? finishTitle : notApplicableTitle}
+        description={confirmAction === "finish" ? finishCopy : notApplicableCopy}
+        note={confirmAction === "not_applicable" ? notApplicableNote : null}
+        confirmLabel={confirmAction === "finish"
+          ? isShort ? t("yesStep") : t("yesTask")
+          : notApplicableConfirm}
+        onConfirm={() => {
+          const action = confirmAction;
+          setConfirmAction(null);
+          if (action === "finish") void complete();
+          else if (action === "not_applicable") void notApplicable();
+        }}
+      />
     </motion.section>
   );
 }
