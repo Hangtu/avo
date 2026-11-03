@@ -14,6 +14,7 @@ App personal local-first de hábitos, pendientes y timer; ES/EN, Next.js 16.4.3,
 - [`STATUS.md`](./STATUS.md): estado, evidencia y siguiente paso.
 - [`plan.md`](./plan.md): contrato y pendientes E4.
 - [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md): decisiones de auth/migración.
+- [`docs/cloud/github-actions-migrations.md`](./docs/cloud/github-actions-migrations.md): flujo protegido para migraciones de producción desde GitHub Actions.
 
 ## Desarrollo
 
@@ -51,4 +52,4 @@ npm run start
 
 Las pruebas locales usan Vitest/fake IndexedDB y PGlite; no certifican Neon, OAuth, navegador o móvil. Para build local se puede usar un `DATABASE_URL` ficticio solo si Next lo exige; eso no valida una conexión. Better Auth usa variables servidoras descritas en `.env.example`. El audit runtime informa 4 moderadas de Drizzle Kit/esbuild: revisar antes de publicar, sin `audit fix --force`.
 
-Producción existente (dominio legado que conserva `runo`): <https://runo-mu.vercel.app>. No representa la rama ni el esquema local; no desplegar en este trabajo.
+El dominio previsto para producción es <https://avo.frutit.app/>. Aún no se ha configurado ni verificado. El despliegue existente permanece en <https://runo-mu.vercel.app>; no se ha cambiado Vercel, DNS ni OAuth. Para Better Auth, `BETTER_AUTH_URL` debe usar el origen `https://avo.frutit.app` (sin ruta); los callbacks de proveedores deberán actualizarse al mismo dominio cuando se configure.

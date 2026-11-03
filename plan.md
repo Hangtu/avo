@@ -2,7 +2,7 @@
 
 App personal local-first de hábitos, pendientes y timer; español de México con ES/EN. Ayuda a actuar y volver a la vida, no a maximizar uso.
 
-**Marca visible:** Avo, el aguacate administrador del tiempo. Se conserva `runo` en las claves, bases locales y dominio legado para proteger los datos y evitar cambios de infraestructura. E4 autoriza login opcional Google/Facebook y recuperación selectiva; no autoriza migraciones reales, contratación ni publicación sin permiso específico.
+**Marca visible:** Avo, el aguacate administrador del tiempo. Se conservan las claves y bases locales `runo` para proteger los datos. El dominio previsto de producción es `https://avo.frutit.app/`; el dominio legado desplegado sigue siendo `https://runo-mu.vercel.app` hasta que el nuevo se configure y verifique. E4 autoriza login opcional Google/Facebook y recuperación selectiva; no autoriza migraciones reales, contratación ni publicación sin permiso específico.
 
 ## Contrato de producto
 

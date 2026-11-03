@@ -1,0 +1,87 @@
+name: Production database migrations
+
+on:
+  pull_request:
+    paths:
+      - "drizzle/*.sql"
+      - "drizzle/meta/**"
+      - "drizzle.config.ts"
+      - "lib/db/schema.ts"
+      - "lib/db/auth-schema.ts"
+      - "lib/db/account-migration.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/production-migrations.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "drizzle/*.sql"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify migration and application
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://local:local@127.0.0.1:5432/avo_ci
+      BETTER_AUTH_SECRET: synthetic-ci-secret-only-never-use-in-production-123456789
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Check types
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Check migration journal
+        run: npm run db:check
+      - name: Build production app with synthetic credentials
+        run: npm run build
+
+  migrate-production:
+    name: Apply pending production migrations
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.ENABLE_PRODUCTION_MIGRATIONS == 'true'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production-migrations
+    concurrency:
+      group: avo-production-database-migrations
+      cancel-in-progress: false
+    timeout-minutes: 15
+    env:
+      DATABASE_URL_UNPOOLED: ${{ secrets.NEON_PRODUCTION_MIGRATION_URL }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Confirm migration credential is configured
+        shell: bash
+        run: |
+          if [[ -z "$DATABASE_URL_UNPOOLED" ]]; then
+            echo "Missing the NEON_PRODUCTION_MIGRATION_URL secret in the production-migrations environment." >&2
+            exit 1
+          fi
+      - name: Apply reviewed pending migrations
+        run: npm run db:migrate

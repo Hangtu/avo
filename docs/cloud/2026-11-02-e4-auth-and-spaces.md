@@ -44,7 +44,9 @@ La ruta estándar de Better Auth es `/api/auth` y ya existe en el árbol integra
 | Local Google | `http://localhost:3000` | `/api/auth/callback/google` |
 | Local Facebook | Origen HTTPS de desarrollo registrado y autorizado | `/api/auth/callback/facebook` |
 | Desarrollo integrado | Host HTTPS estable de desarrollo, por confirmar | `/api/auth/callback/google` y `/api/auth/callback/facebook` |
-| Producción, después de autorización | `https://runo-mu.vercel.app` | `/api/auth/callback/google` y `/api/auth/callback/facebook` |
+| Producción prevista, aún no configurada | `https://avo.frutit.app` | `https://avo.frutit.app/api/auth/callback/google` y `https://avo.frutit.app/api/auth/callback/facebook` |
+
+El dominio anterior `https://runo-mu.vercel.app` es el despliegue existente; documentar el nuevo dominio no configura Vercel/DNS ni cambia credenciales OAuth. Antes de usarlo, confirmar dominio y HTTPS en Vercel, establecer `BETTER_AUTH_URL=https://avo.frutit.app` y registrar los callbacks completos exactos en Google y Meta.
 
 Registrar URLs completas y exactas en cada consola; no usar previews efímeros como callbacks públicos. La documentación de Better Auth muestra localhost para Facebook, pero no sustituye los requisitos HTTPS/modo desarrollo y revisión que imponga Meta a la app concreta. No se creó un túnel ni se configuró una consola. Usar credenciales/secretos distintos por entorno; las claves E3 no eran secretos OAuth y ya se retiraron del código local. Los requisitos de aviso y eliminación de Meta siguen en F01.
 
