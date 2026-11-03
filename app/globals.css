@@ -1746,6 +1746,7 @@ body > * {
 .runo-account-provider {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.65rem;
   min-height: 3rem;
   padding: 0 1rem;
@@ -1755,11 +1756,12 @@ body > * {
   color: var(--foreground);
   font-size: 0.9rem;
   font-weight: 600;
-  text-align: left;
+  text-align: center;
 }
 
 .runo-account-provider > span {
   display: inline-grid;
+  flex-shrink: 0;
   place-items: center;
   width: 1.6rem;
   height: 1.6rem;

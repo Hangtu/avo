@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { SUPPORT_EMAIL } from "@/lib/legal";
+
 export const metadata: Metadata = {
   title: "Aviso de privacidad | Avo",
-  description: "Aviso de privacidad de Avo y opciones para ejercer tus derechos sobre datos personales.",
+  description: "Cómo Avo usa y protege tus datos, y cómo solicitar su eliminación.",
 };
 
 const controllerName = process.env.NEXT_PUBLIC_PRIVACY_CONTROLLER_NAME?.trim();
 const controllerAddress = process.env.NEXT_PUBLIC_PRIVACY_CONTROLLER_ADDRESS?.trim();
-const privacyEmail = process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL?.trim();
-const privacyDetailsComplete = Boolean(controllerName && controllerAddress && privacyEmail);
 
 export default function PrivacyPage() {
   return (
@@ -19,7 +19,7 @@ export default function PrivacyPage() {
           Avo
         </Link>
         <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-          Privacidad
+          Tus datos
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
           Aviso de privacidad
@@ -27,152 +27,90 @@ export default function PrivacyPage() {
         <p className="mt-3 text-sm text-muted">Última actualización: 2 de noviembre de 2026.</p>
       </header>
 
-      {!privacyDetailsComplete ? (
-        <aside className="mt-6 rounded-2xl border border-accent/50 bg-surface-2 p-4 text-sm leading-6">
-          <p className="font-semibold">Antes de publicar este aviso</p>
-          <p className="mt-1">
-            Completa el nombre legal, domicilio y correo de contacto del responsable en las
-            variables <code>NEXT_PUBLIC_PRIVACY_CONTROLLER_NAME</code>, <code>NEXT_PUBLIC_PRIVACY_CONTROLLER_ADDRESS</code> y
-            <code> NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL</code>. Mientras falte alguno, este texto es un borrador y no debe
-            presentarse como aviso legal final.
-          </p>
-        </aside>
-      ) : null}
-
-      <article className="mt-8 space-y-8 text-sm leading-7">
+      <article className="mt-7 space-y-6 text-sm leading-7">
         <section>
-          <h2 className="text-xl font-semibold">1. Responsable y contacto</h2>
+          <h2 className="text-xl font-semibold">Contacto</h2>
+          {controllerName ? (
+            <p className="mt-2">
+              Responsable del tratamiento de datos: {controllerName}.
+            </p>
+          ) : null}
+          {controllerAddress ? <p className="mt-2">Domicilio: {controllerAddress}.</p> : null}
           <p className="mt-2">
-            El responsable del tratamiento de datos personales de Avo es{" "}
-            <strong>{controllerName || "[FALTA NOMBRE LEGAL O DENOMINACIÓN]"}</strong>, con domicilio en{" "}
-            <strong>{controllerAddress || "[FALTA DOMICILIO COMPLETO]"}</strong>.
-            {" "}Para consultas y solicitudes de privacidad: {privacyEmail ? (
-              <a className="font-semibold underline underline-offset-4" href={`mailto:${privacyEmail}`}>
-                {privacyEmail}
-              </a>
-            ) : (
-              <strong>[FALTA CORREO DE CONTACTO]</strong>
-            )}
+            Para consultas sobre Avo o tus datos personales, escribe a{" "}
+            <a className="font-semibold underline underline-offset-4" href={`mailto:${SUPPORT_EMAIL}`}>
+              {SUPPORT_EMAIL}
+            </a>.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold">2. Datos y finalidades</h2>
+          <h2 className="text-xl font-semibold">Qué datos usamos y para qué</h2>
           <p className="mt-2">
-            Avo es una aplicación personal de hábitos, pendientes y sesiones de enfoque. No requiere crear una cuenta ni
-            proporcionar nombre, teléfono o correo para usar sus funciones locales. Los datos que tú escribas pueden
-            incluir nombres y categorías de hábitos o pendientes, horarios, duración, progreso y resultados de sesiones,
-            preferencias de la aplicación y, si usas esa función, movimientos del monedero. Se usan para mostrar y guardar
-            tus hábitos, organizar el día y operar las funciones que solicitas.
+            Puedes usar Avo sin cuenta. Tus hábitos, pendientes, preferencias y sesiones de enfoque se guardan en tu
+            navegador para organizar tu día y operar el timer.
           </p>
           <p className="mt-2">
-            La aplicación no incorpora inicio de sesión de Facebook/Meta, Facebook Pixel, SDK de Meta ni llamadas a la
-            Graph API. No recibe datos de tu perfil de Facebook mediante esas integraciones y no vende datos personales
-            ni los usa para publicidad dirigida.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-xl font-semibold">3. Dónde se guardan y cuándo salen del dispositivo</h2>
-          <p className="mt-2">
-            Por diseño, tus datos principales se guardan localmente en el almacenamiento del navegador (IndexedDB y
-            preferencias del navegador). No hay sincronización automática. Solo si tú configuras y solicitas una copia
-            desde Ajustes, la aplicación envía una instantánea de tus datos a la base de datos de Avo administrada en
-            Neon. La copia permanece allí hasta que la elimines desde Ajustes → Copia en la nube.
+            Si eliges iniciar sesión con Google o Facebook, recibimos los datos que autorices, como nombre, correo,
+            imagen de perfil e identificador de tu cuenta. Guardamos la información y los tokens necesarios para
+            autenticarte, así como datos técnicos de sesión, como IP y tipo de navegador. No recibimos tu contraseña
+            de Google ni de Facebook.
           </p>
           <p className="mt-2">
-            El sitio se sirve mediante Vercel. Como cualquier servicio web, los proveedores de alojamiento pueden procesar
-            datos técnicos de conexión necesarios para entregar y proteger el servicio; sus propias políticas y periodos
-            de retención también pueden aplicar. La copia opcional en Neon puede procesarse fuera de México según la
-            configuración regional de los proveedores. Antes de ofrecer Avo a terceros, el responsable debe confirmar las
-            ubicaciones, transferencias y condiciones vigentes de esos proveedores.
-          </p>
-          <p className="mt-2">
-            Si conectas la copia en la nube, Avo utiliza una cookie de sesión protegida, de duración limitada, para
-            autorizar esa función. No se usa para publicidad. El navegador también mantiene preferencias locales, como
-            idioma y tema.
+            Usamos estos datos para ofrecer las funciones que solicitas, mantener tu sesión, proteger el servicio y
+            atender solicitudes de soporte. No vendemos tus datos ni usamos publicidad dirigida, analítica de terceros
+            o modelos de inteligencia artificial.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold">4. Conservación y eliminación</h2>
+          <h2 className="text-xl font-semibold">Almacenamiento y proveedores</h2>
           <p className="mt-2">
-            Los datos locales permanecen en ese navegador hasta que los elimines o borres los datos del sitio. Para borrar
-            la base local y las preferencias de este navegador, visita la{" "}
+            Los datos de uso se guardan principalmente en este dispositivo. Iniciar sesión no activa por sí solo la
+            sincronización ni garantiza recuperar datos de otro navegador. Si guardaste una copia en la nube en una
+            versión anterior, esa copia es independiente y puede seguir almacenada hasta que solicites su eliminación.
+          </p>
+          <p className="mt-2">
+            Usamos Vercel para alojar la app y Neon para almacenar datos de cuenta y copias remotas existentes. Estos
+            proveedores pueden procesar datos técnicos y almacenar información fuera de tu país. Google y Meta
+            procesan el inicio de sesión según sus propias políticas. Avo usa cookies de sesión y almacenamiento
+            del navegador para funciones necesarias, no para seguimiento publicitario.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold">Conservación, derechos y eliminación</h2>
+          <p className="mt-2">
+            Los datos locales permanecen hasta que los borres o el navegador los elimine. Los datos de cuenta se
+            conservan mientras sean necesarios para prestar el servicio o cumplir obligaciones legales. Puedes
+            solicitar acceso, corrección, eliminación u oposición al uso de tus datos, y revocar tu consentimiento
+            cuando proceda, escribiendo a {SUPPORT_EMAIL}. Verificaremos de forma razonable que la solicitud te
+            corresponde y responderemos conforme a los plazos legales aplicables.
+          </p>
+          <p className="mt-2">
+            Consulta la{" "}
             <Link className="font-semibold underline underline-offset-4" href="/data-deletion">
               página de eliminación de datos
-            </Link>.
-            {" "}El almacenamiento de cada navegador, perfil u origen es independiente. Si guardaste una copia en la nube,
-            elimínala también desde Ajustes → Copia en la nube; borrar los datos locales no borra la copia remota.
-          </p>
-          <p className="mt-2">
-            Las solicitudes se atienden conforme a la legislación aplicable. Los registros técnicos o copias de respaldo
-            que mantengan los proveedores pueden sujetarse a sus propios ciclos de retención y a obligaciones legales.
+            </Link>{" "}
+            para borrar tu copia local o solicitar la eliminación de tu cuenta. Borrar una no borra la otra. Los
+            respaldos técnicos pueden permanecer hasta que se renueven según los ciclos de los proveedores o las
+            obligaciones legales aplicables.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold">5. Derechos y solicitudes</h2>
+          <h2 className="text-xl font-semibold">Uso responsable</h2>
           <p className="mt-2">
-            Si la legislación mexicana aplica, puedes ejercer los derechos de acceso, rectificación, cancelación y
-            oposición (ARCO), así como revocar el consentimiento cuando proceda y solicitar la limitación del uso o
-            divulgación. Presenta la solicitud al contacto del apartado 1 e indica qué derecho ejerces y cómo podemos
-            verificar de manera razonable que los datos te corresponden. No envíes contraseñas ni información sensible
-            innecesaria. Responderemos dentro de los plazos legales aplicables.
+            Avo es una herramienta de organización personal, no un servicio médico, psicológico ni de emergencia.
+            Tú decides cómo usarla y eres responsable de la información que guardas y de tus decisiones. Evita
+            ingresar datos sensibles o datos de otras personas sin autorización. No garantizamos resultados
+            específicos ni disponibilidad ininterrumpida. Esto no limita tus derechos ni nuestras obligaciones
+            legales en materia de protección de datos.
           </p>
           <p className="mt-2">
-            Cuando el Reglamento General de Protección de Datos de la Unión Europea (GDPR/RGPD) resulte aplicable,
-            también podrás ejercer los derechos que reconoce, incluidos acceso, rectificación, supresión, limitación,
-            portabilidad y oposición, y presentar una reclamación ante la autoridad de control competente.
+            Si actualizamos este aviso, publicaremos la nueva versión en esta página con su fecha de actualización.
           </p>
         </section>
-
-        <section>
-          <h2 className="text-xl font-semibold">6. Seguridad y cambios</h2>
-          <p className="mt-2">
-            Avo aplica medidas técnicas razonables, como HTTPS para las comunicaciones y acceso protegido a la copia
-            opcional en la nube. Ninguna transmisión o almacenamiento puede garantizarse como absolutamente seguro.
-            Evita escribir datos sensibles que no sean necesarios para tus hábitos o pendientes.
-          </p>
-          <p className="mt-2">
-            Este aviso puede actualizarse si cambian Avo, sus proveedores o la legislación. La versión vigente se
-            publicará en esta URL con su fecha de actualización.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-xl font-semibold">7. Marco de referencia</h2>
-          <ul className="mt-2 list-disc space-y-2 pl-5">
-            <li>
-              México: Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP), en su
-              texto vigente. {" "}
-              <a
-                className="font-semibold underline underline-offset-4"
-                href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPDPPP.pdf"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Consultar texto oficial en la Cámara de Diputados
-              </a>.
-            </li>
-            <li>
-              Unión Europea, cuando resulte aplicable: Reglamento (UE) 2016/679 (GDPR/RGPD). {" "}
-              <a
-                className="font-semibold underline underline-offset-4"
-                href="https://eur-lex.europa.eu/eli/reg/2016/679/oj"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Consultar texto oficial en EUR-Lex
-              </a>.
-            </li>
-          </ul>
-        </section>
-
-        <p className="border-t border-line pt-5 text-xs text-muted">
-          Este documento es un borrador informativo preparado según las funciones actuales de Avo; no sustituye la
-          revisión de un profesional del derecho ni determina por sí mismo qué normas aplican a cada operación.
-        </p>
       </article>
 
       <nav aria-label="Enlaces legales" className="mt-8 flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-5 text-sm">

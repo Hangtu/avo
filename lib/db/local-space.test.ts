@@ -47,6 +47,29 @@ describe("local space names and browser preferences", () => {
     expect(() => databaseNameForSpace({ kind: "account", userId })).toThrow(/ID de cuenta/);
   });
 
+  it("removes only guest preferences without clearing account copies or unrelated storage", () => {
+    const stores = { local: memoryStorage(), session: memoryStorage() };
+    for (const storage of Object.values(stores)) {
+      storage.setItem("another-app:important", "keep");
+      storage.setItem("runo:unmanaged", "keep");
+      for (const key of Object.values(SPACE_STORAGE_KEYS)) {
+        writeSpaceStorage(storage, GUEST_SPACE, key, "guest");
+        writeSpaceStorage(storage, A, key, "A");
+        writeSpaceStorage(storage, B, key, "B");
+      }
+    }
+    removeSpaceStorage(GUEST_SPACE, stores);
+    for (const storage of Object.values(stores)) {
+      expect(storage.getItem("another-app:important")).toBe("keep");
+      expect(storage.getItem("runo:unmanaged")).toBe("keep");
+      for (const key of Object.values(SPACE_STORAGE_KEYS)) {
+        expect(readSpaceStorage(storage, GUEST_SPACE, key)).toBeNull();
+        expect(readSpaceStorage(storage, A, key)).toBe("A");
+        expect(readSpaceStorage(storage, B, key)).toBe("B");
+      }
+    }
+  });
+
   it("keeps every preference/draft separate and cleans only the selected Runo space", () => {
     const stores = { local: memoryStorage(), session: memoryStorage() };
     for (const storage of Object.values(stores)) {

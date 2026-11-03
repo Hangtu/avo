@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
-const RUNO_DATABASE_NAME = "runo";
+import { GUEST_SPACE, LEGACY_DATABASE_NAME, removeSpaceStorage } from "@/lib/db/local-space";
 
 type DeleteError = "unavailable" | "blocked" | "failed";
 
@@ -16,7 +16,7 @@ function deleteLocalDatabase(): Promise<void> {
 
     let request: IDBOpenDBRequest;
     try {
-      request = indexedDB.deleteDatabase(RUNO_DATABASE_NAME);
+      request = indexedDB.deleteDatabase(LEGACY_DATABASE_NAME);
     } catch {
       reject(new Error("failed" satisfies DeleteError));
       return;
@@ -41,8 +41,10 @@ export function LocalDataDeletion() {
     setError(null);
     try {
       await deleteLocalDatabase();
-      window.localStorage.clear();
-      window.sessionStorage.clear();
+      removeSpaceStorage(GUEST_SPACE, {
+        local: window.localStorage,
+        session: window.sessionStorage,
+      });
       setDone(true);
       setConfirming(false);
     } catch (cause) {

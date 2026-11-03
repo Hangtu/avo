@@ -473,17 +473,17 @@
     }
   },
   "dataDeletion": {
-    "localTitle": "Delete data in this browser",
-    "localCopy": "Deletes Avo's local database and preferences saved in this browser. It does not delete the optional cloud backup or data on other devices.",
-    "startButton": "Delete data in this browser",
-    "confirmCopy": "This deletes local data and preferences in this browser. This can't be undone.",
+    "localTitle": "Delete local guest data",
+    "localCopy": "Deletes habits, to-dos, sessions, and preferences in this browser's guest space. If you share it, this affects everyone using that same space. It does not delete your account, separate local account copies, or data on servers.",
+    "startButton": "Delete local guest data",
+    "confirmCopy": "This deletes the entire local guest space in this browser. It does not delete your account or data on servers. This can't be undone.",
     "confirmButton": "Yes, delete my local data",
     "cancel": "Keep my data",
     "deleting": "Deleting…",
-    "done": "Avo's local data and preferences in this browser were deleted.",
-    "unavailableError": "This browser can't delete local storage from here. Clear this site's data in your browser settings.",
+    "done": "Local guest data and preferences were deleted from this browser.",
+    "unavailableError": "This browser can't delete this data from here. You can clear all site data in its settings; this also removes local account copies.",
     "blockedError": "Avo is still open in another tab or window. Close other Avo sessions and try again.",
-    "failedError": "The data couldn't be deleted. Try again or clear this site's data in your browser settings."
+    "failedError": "The data couldn't be deleted. Close other Avo tabs and try again. If the problem continues, contact support."
   },
   "wallet": {
     "eyebrow": "Wallet",

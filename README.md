@@ -5,7 +5,7 @@ App personal local-first de hábitos, pendientes y timer; ES/EN, Next.js 16.4.3,
 - Sin cuenta, los datos operativos permanecen en IndexedDB.
 - Better Auth tiene rutas/UI básicas; Facebook se confirmó en local. Google, sesión/logout verificados, espacios de cuenta, recuperación y sync selectivo siguen pendientes.
 - `0003_account_spaces.sql` es una migración local no aplicada a Neon. No desplegar código que la requiere sobre un esquema anterior.
-- Los borradores `/privacy` y `/data-deletion` no están publicados; el borrado local actual es global, no por cuenta.
+- `/privacy` y `/data-deletion` tienen texto MVP y contacto fijo `support@frutit.app`; no se publicaron en este trabajo. El botón local borra solo el espacio invitado y sus preferencias; cuenta/servidores se solicitan por correo. Antes de producción, confirmar responsable legal/domicilio y probar la atención y eliminación segura por cuenta.
 
 ## Fuente de verdad
 

@@ -83,7 +83,7 @@ Registrar URLs completas y exactas en cada consola; no usar previews efímeros c
 - Cada DB contiene sus propias tablas de dominio/runtime/metadata; no hay singleton global de cuenta. Abrir un espacio no importa ni siembra.
 - Preferencias/borradores con claves de espacio; limpieza por lista explícita de claves Runo, nunca `Storage.clear()` ni barrer un prefijo amplio.
 - **Compatibilidad sin migración destructiva:** no se mueve/renombra la DB invitada ni cambia su versión 4. Por ello no hace falta copiarla para este corte. E4.4 deberá crear el punto de recuperación/recibo antes de cualquier incorporación o transformación posterior.
-- Son primitivas preparatorias, **la UI todavía usa el invitado**. El selector autenticado, cierre seguro de conexiones al cambiar cuenta, bloqueo tras logout y sustitución del borrado global del borrador F01 siguen pendientes. No afirmar aislamiento de UI entre usuarios ya implementado.
+- Son primitivas preparatorias, **la UI todavía usa el invitado**. El selector autenticado, cierre seguro de conexiones al cambiar cuenta, bloqueo tras logout y borrado por cuenta siguen pendientes. En F01 se acotó el botón público a la DB invitada y sus claves explícitas, sin `Storage.clear()`; esto no implementa eliminación de cuentas ni aislamiento de UI entre usuarios.
 
 ## 4. Evidencia local y límite
 

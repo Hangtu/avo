@@ -473,17 +473,17 @@
     }
   },
   "dataDeletion": {
-    "localTitle": "Borrar los datos de este navegador",
-    "localCopy": "Elimina la base local de Avo y las preferencias guardadas en este navegador. No borra la copia opcional en la nube ni otros dispositivos.",
-    "startButton": "Borrar datos de este navegador",
-    "confirmCopy": "Se borrarán los datos locales y las preferencias de este navegador. Esta acción no se puede deshacer.",
+    "localTitle": "Borrar datos locales de invitado",
+    "localCopy": "Borra los hábitos, pendientes, sesiones y preferencias del espacio de invitado de este navegador. Si lo compartes, afecta a quienes usen ese mismo espacio. No elimina tu cuenta, las copias locales de cuentas ni los datos en servidores.",
+    "startButton": "Borrar datos locales de invitado",
+    "confirmCopy": "Se borrará todo el espacio local de invitado de este navegador. No se eliminará tu cuenta ni los datos en servidores. Esta acción no se puede deshacer.",
     "confirmButton": "Sí, borrar mis datos locales",
     "cancel": "Conservar mis datos",
     "deleting": "Borrando…",
-    "done": "Los datos locales de Avo y las preferencias de este navegador se eliminaron.",
-    "unavailableError": "Este navegador no permite eliminar el almacenamiento local desde aquí. Borra los datos del sitio en los ajustes del navegador.",
+    "done": "Los datos locales de invitado y sus preferencias se eliminaron de este navegador.",
+    "unavailableError": "Este navegador no permite borrar estos datos desde aquí. Puedes borrar todos los datos del sitio en sus ajustes; esto también elimina las copias locales de cuentas.",
     "blockedError": "No se pudo borrar porque Avo sigue abierto en otra pestaña o ventana. Cierra las otras sesiones de Avo y vuelve a intentarlo.",
-    "failedError": "No se pudieron borrar los datos. Inténtalo de nuevo o elimina los datos del sitio desde los ajustes del navegador."
+    "failedError": "No se pudieron borrar los datos. Cierra las otras pestañas de Avo y vuelve a intentarlo. Si el problema continúa, contacta a soporte."
   },
   "wallet": {
     "eyebrow": "Monedero",

@@ -34,7 +34,7 @@ Una sola fase 🟡 global. El detalle técnico de auth/migraciones está en [`do
 | **E4.5.1** | Completar pendiente único conserva una entrada estable con título/fecha; reintentos no duplican ni reabren; otro dispositivo la recupera. |
 | **E4.6** | Cambio A/invitado/B, expiración, logout y eliminación no cruzan datos ni reenvían colas ajenas. |
 | **E4.7** | Retirar rutas/clave E3 de dueño fijo de forma segura; preservar `owner`, sin asignarlo automáticamente ni borrar datos. |
-| **F01** | Actualizar aviso, retención y eliminación para OAuth/proveedores; completar responsable y probar eliminación por cuenta antes de publicar. |
+| **F01** | Aviso y eliminación MVP actualizados para OAuth/proveedores, contacto fijo `support@frutit.app` y borrado local de invitado acotado. Confirmar responsable/domicilio, atención del correo, retención y eliminación segura por cuenta antes de publicar. |
 | **E4.8** | Regresión integrada de auth, importación, offline/conflictos, seguridad y PWA con evidencia real de navegador/dispositivo. |
 
 Después de E4.1, seguir el orden de la tabla, un ID en curso. No desplegar código que requiera 0003 antes de validar/aplicar esa migración en desarrollo. Producción, Meta, credenciales y datos reales requieren autorización.
