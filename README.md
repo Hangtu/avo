@@ -19,7 +19,7 @@ App personal local-first de hábitos, pendientes y timer; ES/EN, Next.js 16.4.3,
 
 ```bash
 npm ci
-test -f .env.local || cp .env.example .env.local # no sobrescribas tu configuración
+test -f .env || cp .env.example .env # no sobrescribas tu configuración
 npm run dev
 ```
 

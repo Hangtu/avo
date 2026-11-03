@@ -9,7 +9,7 @@ import * as schema from "./schema";
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error(
-    "Falta DATABASE_URL. Copia .env.example a .env.local y usa la cadena pooled de Neon.",
+    "Falta DATABASE_URL. Copia .env.example a .env y usa la cadena pooled de Neon.",
   );
 }
 

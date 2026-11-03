@@ -129,7 +129,7 @@ Todas las tablas usan el prefijo `runo_` para poder convivir con otros proyectos
 ## 8. Comandos
 
 ```bash
-cp .env.example .env.local   # completar credenciales
+cp .env.example .env   # completar credenciales
 npm run db:generate         # generar SQL desde schema (no conecta)
 npm run db:check            # revisar migraciones
 npm run db:migrate          # aplicar con DATABASE_URL_UNPOOLED

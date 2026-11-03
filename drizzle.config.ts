@@ -1,9 +1,8 @@
 import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
-// Next loads .env.local automatically; Drizzle Kit runs outside Next.
-config({ path: ".env.local" });
-config();
+// Drizzle Kit runs outside Next.js, so load the project's local .env explicitly.
+config({ path: ".env" });
 
 const databaseUrl =
   process.env.DATABASE_URL_UNPOOLED ??

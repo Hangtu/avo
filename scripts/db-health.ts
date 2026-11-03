@@ -1,8 +1,7 @@
 import { config } from "dotenv";
 import { sql } from "drizzle-orm";
 
-config({ path: ".env.local" });
-config();
+config({ path: ".env" });
 
 async function main() {
   const { db, pool } = await import("../lib/db/client");
