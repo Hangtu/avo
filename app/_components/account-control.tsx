@@ -4,23 +4,30 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { ConfirmDialog } from "./confirm-dialog";
-import { authClient } from "@/lib/auth-client";
+import { authClient, signOutAccount } from "@/lib/auth-client";
+import { beginAccountSignIn } from "@/lib/sync/access";
+import { useWorkspace } from "./account-workspace";
 
 export function AccountControl() {
   const t = useTranslations("account");
+  const sync = useTranslations("sync");
   const { data: session, isPending } = authClient.useSession();
   const [busy, setBusy] = useState<"google" | "facebook" | "signout" | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const user = session?.user;
+  const workspace = useWorkspace();
+  const user = workspace.available ? (workspace.status === "expired" || workspace.status === "offline" ? null : workspace.identity) : session?.user;
 
   async function signIn(provider: "google" | "facebook") {
     setBusy(provider);
     setError(null);
     try {
+      beginAccountSignIn();
       const result = await authClient.signIn.social({
         provider,
         callbackURL: "/",
+        // Never lose the reason: Better Auth otherwise redirects to /error.
+        errorCallbackURL: "/",
       });
       if (result.error) setError(result.error.message ?? t("error"));
     } catch {
@@ -34,7 +41,7 @@ export function AccountControl() {
     setBusy("signout");
     setError(null);
     try {
-      const result = await authClient.signOut();
+      const result = await signOutAccount();
       if (result.error) setError(result.error.message ?? t("error"));
     } catch {
       setError(t("error"));
@@ -71,6 +78,7 @@ export function AccountControl() {
       ) : (
         <>
           <p className="text-sm leading-6 text-muted">{t("copy")}</p>
+          {session?.user && workspace.available ? <button type="button" className="min-h-11 text-sm font-semibold underline" onClick={workspace.unlock}>{sync("verifyExisting")}</button> : null}
           <div className="runo-account-providers">
             <button
               type="button"

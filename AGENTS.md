@@ -24,7 +24,7 @@ App local-first de hábitos, pendientes y timer (ES/EN, español de México). Bu
 - Una carta en foco y una alternativa; sin dashboard durante timer. Franjas de hasta 3, una abierta, tres cambios al día y correcciones neutrales confirmables.
 - Pausa persistente; una sola sesión en el espacio local; cero no completa ni paga. Audio apagado, presión normal 1/techo 2, sin castigos.
 - Invitado Dexie sin cuenta/red. Cuenta opcional; datos personales aislados. Solo persistir definiciones/preferencias duraderas y finalización de pendientes de una vez; timer, sesiones/eventos y resultados de rutinas recurrentes quedan locales.
-- Google/Facebook no se fusionan por texto de email; exigir prueba de control. Sin LLM ni analítica de terceros.
+- Google/Facebook se vinculan a una sola cuenta por el correo que entrega el proveedor, sin verificación propia (decisión MVP 2026-11-03); la verificación de correo/prueba de control queda para una versión posterior. Sin LLM ni analítica de terceros.
 
 ## Implementación y verificación
 

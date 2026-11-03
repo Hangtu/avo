@@ -3,12 +3,14 @@
 import { useTranslations } from "next-intl";
 
 import { authClient } from "@/lib/auth-client";
+import { useWorkspace } from "./account-workspace";
 import { firstNameFromFullName } from "@/lib/domain/person-name";
 
 export function AccountGreeting() {
   const t = useTranslations("account");
   const { data: session, isPending } = authClient.useSession();
-  const user = session?.user;
+  const workspace = useWorkspace();
+  const user = workspace.available ? (workspace.status === "expired" || workspace.status === "offline" ? null : workspace.identity) : session?.user;
 
   if (isPending || !user) return null;
 

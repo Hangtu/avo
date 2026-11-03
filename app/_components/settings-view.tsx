@@ -5,11 +5,14 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 
 import { AccountControl } from "./account-control";
+import { AccountSyncPanel } from "./account-sync-panel";
 import { useChangeLocale } from "./i18n-provider";
 import { HelpTip } from "./help-tip";
 import { SelectControl } from "./select-control";
-import { openDatabase } from "@/lib/db/database";
-import { getSettings, saveSettings } from "@/lib/db/repository";
+import { currentDatabaseName, openDatabase } from "@/lib/db/database";
+import { getSettings } from "@/lib/db/repository";
+import { writePreferences } from "@/lib/sync/preference-writer";
+import { useWorkspace } from "./workspace-context";
 import type { Settings } from "@/lib/domain/types";
 import type { ThemeMode } from "@/lib/domain/theme";
 import type { Locale } from "@/lib/i18n/config";
@@ -41,6 +44,7 @@ export function SettingsView({
   const errors = useTranslations("errors");
   const locale = useLocale();
   const setLocale = useChangeLocale();
+  const { revision } = useWorkspace();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,23 +69,15 @@ export function SettingsView({
       cancelled = true;
       db?.close();
     };
-  }, [errors]);
+  }, [errors, revision]);
 
   async function update(patch: Partial<Settings>) {
     if (!settings || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const db = await openDatabase();
-      try {
-        const now = Date.now();
-        const current = await getSettings(db, now);
-        const next: Settings = { ...current, ...patch, updatedAt: now };
-        await saveSettings(db, next);
-        setSettings(next);
-      } finally {
-        db.close();
-      }
+      const next = await writePreferences(currentDatabaseName(), patch);
+      setSettings(next);
     } catch (cause) {
       console.error("No se pudieron guardar los ajustes", cause);
       setError(errors("saveSettings"));
@@ -107,6 +103,7 @@ export function SettingsView({
         <h3 className="text-lg font-semibold">{account("sectionTitle")}</h3>
         <div className="mt-3">
           <AccountControl />
+          <AccountSyncPanel />
         </div>
       </div>
 

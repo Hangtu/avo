@@ -1,4 +1,5 @@
 import type { ClockTime, LocalDate, Weekday } from "./time";
+import type { TaskOrder } from "./task-order";
 
 export interface TaskInput {
   title: string;
@@ -156,6 +157,9 @@ export type SoundKey = (typeof SOUND_KEYS)[number];
 
 export interface Settings {
   id: "preferences";
+  /** Portable browser preferences; absent in legacy local records. */
+  locale?: "es" | "en";
+  taskOrder?: TaskOrder;
   audioEnabled: boolean;
   sound: SoundKey;
   maxTone: 0 | 1 | 2;

@@ -1,16 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Lexend } from "next/font/google";
 import "./globals.css";
-import { I18nProvider } from "./_components/i18n-provider";
+import { ShellI18nProvider } from "./_components/shell-i18n-provider";
 import { ServiceWorkerRegister } from "./_components/service-worker-register";
 import { defaultLocale, messages } from "@/lib/i18n/config";
-import {
-  DARK_THEME_COLOR,
-  LIGHT_THEME_COLOR,
-  NIGHT_END_HOUR,
-  NIGHT_START_HOUR,
-  THEME_STORAGE_KEY,
-} from "@/lib/domain/theme";
+import { themeBootScript } from "@/lib/domain/theme-boot";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -32,7 +26,7 @@ export const metadata: Metadata = {
   },
 };
 
-const themeScript = `(function(){try{var mode=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(mode!=="light"&&mode!=="dark"&&mode!=="auto"){mode="auto";}var hour=new Date().getHours();var dark=mode==="dark"||(mode==="auto"&&(hour>=${NIGHT_START_HOUR}||hour<${NIGHT_END_HOUR}));var theme=dark?"dark":"light";document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme;var meta=document.querySelector('meta[name="theme-color"]');if(meta){meta.setAttribute("content",dark?${JSON.stringify(DARK_THEME_COLOR)}:${JSON.stringify(LIGHT_THEME_COLOR)});}}catch(e){}})();`;
+const themeScript = themeBootScript();
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -51,10 +45,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <I18nProvider>
+        <ShellI18nProvider>
           <ServiceWorkerRegister />
           {children}
-        </I18nProvider>
+        </ShellI18nProvider>
       </body>
     </html>
   );

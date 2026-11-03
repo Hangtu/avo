@@ -1,6 +1,9 @@
 import { assertTimestamp, clockMinutes, parseClockTime } from "./time";
 import { SOUND_KEYS, type PendingInput, type Settings, type TaskInput } from "./types";
 
+export const MAX_TITLE_LENGTH = 1024;
+export const MAX_CATEGORY_LENGTH = 256;
+
 export class DomainError extends Error {
   constructor(
     public readonly code: "validation" | "not_found" | "conflict" | "invalid_transition",
@@ -28,10 +31,10 @@ export function validateTaskInput(
   input: TaskInput,
   options: { allowEmptyDays?: boolean } = {},
 ): TaskInput {
-  if (typeof input.title !== "string" || !input.title.trim()) {
+  if (typeof input.title !== "string" || !input.title.trim() || input.title.length > MAX_TITLE_LENGTH) {
     throw new DomainError("validation", "Escribe el nombre de la tarea.");
   }
-  if (typeof input.category !== "string" || !input.category.trim()) {
+  if (typeof input.category !== "string" || !input.category.trim() || input.category.length > MAX_CATEGORY_LENGTH) {
     throw new DomainError("validation", "Elige un tipo.");
   }
   positiveMinutes(input.durationMin);
@@ -76,7 +79,7 @@ export function validateTaskInput(
     }
   }
   if (input.shortStep) {
-    if (typeof input.shortStep.title !== "string" || !input.shortStep.title.trim()) {
+    if (typeof input.shortStep.title !== "string" || !input.shortStep.title.trim() || input.shortStep.title.length > MAX_TITLE_LENGTH) {
       throw new DomainError("validation", "Escribe qué harás en el primer paso.");
     }
     positiveMinutes(input.shortStep.durationMin);
@@ -93,7 +96,7 @@ export function validateTaskInput(
 
 /** Title and integer minutes are the whole input for a one-off pending item. */
 export function validatePendingInput(input: PendingInput): PendingInput {
-  if (typeof input.title !== "string" || !input.title.trim()) {
+  if (typeof input.title !== "string" || !input.title.trim() || input.title.length > MAX_TITLE_LENGTH) {
     throw new DomainError("validation", "Escribe el nombre del pendiente.");
   }
   positiveMinutes(input.durationMin);
@@ -121,7 +124,11 @@ export function validateSettings(settings: Settings): Settings {
     !SOUND_KEYS.includes(settings.sound) ||
     ![0, 1, 2].includes(settings.maxTone) ||
     !["auto", "light", "dark"].includes(settings.theme) ||
-    typeof settings.showWallet !== "boolean"
+    typeof settings.showWallet !== "boolean" ||
+    (settings.locale !== undefined && !["es", "en"].includes(settings.locale)) ||
+    (settings.taskOrder !== undefined && (!settings.taskOrder || typeof settings.taskOrder !== "object" ||
+      Array.isArray(settings.taskOrder) || Object.entries(settings.taskOrder).some(([key, value]) =>
+        !key.trim() || ["__proto__", "prototype", "constructor"].includes(key) || !Number.isSafeInteger(value) || value < 0)))
   ) {
     throw new DomainError("validation", "La configuración no es válida.");
   }

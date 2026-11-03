@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { openDatabase } from "@/lib/db/database";
-import { getSettings, saveSettings } from "@/lib/db/repository";
+import { currentDatabaseName, openDatabase } from "@/lib/db/database";
+import { getSettings } from "@/lib/db/repository";
+import { writePreferences } from "@/lib/sync/preference-writer";
 import type { Settings } from "@/lib/domain/types";
+import { useWorkspace } from "./workspace-context";
 
 function createBrownBuffer(ctx: AudioContext, seconds = 2): AudioBuffer {
   const length = Math.floor(ctx.sampleRate * seconds);
@@ -247,6 +249,7 @@ function startTick(ctx: AudioContext): () => void {
 
 export function useSessionAudio(running: boolean) {
   const t = useTranslations("errors");
+  const { revision } = useWorkspace();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
@@ -275,7 +278,7 @@ export function useSessionAudio(running: boolean) {
       cancelled = true;
       db?.close();
     };
-  }, [t]);
+  }, [t, revision]);
 
   useEffect(() => () => {
     void contextRef.current?.close().catch(() => {});
@@ -296,19 +299,11 @@ export function useSessionAudio(running: boolean) {
     }
   }, []);
 
+  /** Patch only the fields this screen owns; never resend a stale snapshot. */
   const persistAudio = useCallback(async (
-    audioEnabled: boolean, sound: Settings["sound"],
+    patch: { audioEnabled?: boolean; sound?: Settings["sound"] },
   ): Promise<Settings> => {
-    const db = await openDatabase();
-    try {
-      const now = Date.now();
-      const current = await getSettings(db, now);
-      const next: Settings = { ...current, audioEnabled, sound, updatedAt: now };
-      await saveSettings(db, next);
-      return next;
-    } finally {
-      db.close();
-    }
+    return writePreferences(currentDatabaseName(), patch);
   }, []);
 
   const toggle = useCallback(async () => {
@@ -325,7 +320,7 @@ export function useSessionAudio(running: boolean) {
       }
     }
     try {
-      const next = await persistAudio(nextEnabled, settings.sound);
+      const next = await persistAudio({ audioEnabled: nextEnabled });
       setSettings(next);
     } catch (cause) {
       console.error("No se pudo guardar el audio", cause);
@@ -337,7 +332,7 @@ export function useSessionAudio(running: boolean) {
     if (!settings || settings.sound === sound) return;
     setError(null);
     try {
-      const next = await persistAudio(settings.audioEnabled, sound);
+      const next = await persistAudio({ sound });
       setSettings(next);
     } catch (cause) {
       console.error("No se pudo guardar el sonido", cause);

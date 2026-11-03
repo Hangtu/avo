@@ -21,23 +21,23 @@ App personal local-first de hábitos, pendientes y timer; español de México co
 
 ## Estado y pasos pendientes
 
-Una sola fase 🟡 global. El detalle técnico de auth/migraciones está en [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md); estado/evidencia en [`STATUS.md`](./STATUS.md).
+Un solo ID en curso. El dueño autorizó completar las conexiones tras el incidente de pendientes: E4.1 queda pausada con sus revisiones reales pendientes y E4.2 concentra el trabajo. Código y límites de la conexión en [`docs/cloud/2026-11-02-selective-account-sync.md`](./docs/cloud/2026-11-02-selective-account-sync.md); decisiones de auth en [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md); evidencia en [`STATUS.md`](./STATUS.md).
 
 | ID | Pendiente verificable |
 |---|---|
-| **E4.1 🟡** | Revisar sesión/logout con sesión real y configurar/probar Google. Better Auth y Facebook local ya existen; esto no prueba recuperación de datos. |
-| **E4.2** | Conectar sesión con espacios locales; snapshot/bootstrap autenticados; probar aislamiento/recuperación. Validar `0003_account_spaces.sql` en Neon dev identificado, con autorización y punto de recuperación. |
-| **E4.3** | Autorizar datos solo desde sesión verificada; invitado sigue utilizable sin auth/red. |
-| **E4.3.1** | Vincular/reingresar con Google y Facebook en ambos órdenes; cubrir email ausente/no verificado, cambio de email y falta de prueba de control sin crear fusiones/cuentas inseguras. |
-| **E4.4** | Recuperación e incorporación con consentimiento; cancelación, conflictos y reintentos no pierden ni duplican datos. |
-| **E4.5** | Outbox durable, revisiones y resolución explícita de conflictos; tráfico del timer recurrente: cero mutaciones remotas. |
-| **E4.5.1** | Completar pendiente único conserva una entrada estable con título/fecha; reintentos no duplican ni reabren; otro dispositivo la recupera. |
-| **E4.6** | Cambio A/invitado/B, expiración, logout y eliminación no cruzan datos ni reenvían colas ajenas. |
+| **E4.1** | Google local confirmado con login real (2026-11-03); faltan sesión/logout reales y la prueba de Google en el entorno desplegado. Better Auth y Facebook local existen. |
+| **E4.2 🟡** | Conexión de espacios, API autenticada y bootstrap selectivo implementados/probados localmente. `development` y `prod` tienen las 4 migraciones y el esquema requerido completo (verificado con `db:verify[:prod]`). La sesión real de Google ya sincronizó 2 pendientes/3 recibos en `development`; falta la recuperación en otro navegador y el punto de recuperación. |
+| **E4.3** | Implementado: sesión consultada en DB, dueño interno y precondición de cuenta; invitado usable offline. Falta verificación integrada en el entorno autorizado. |
+| **E4.3.1** | Reingresar y vincular con Google y Facebook en ambos órdenes. Decisión del dueño (2026-11-03): el MVP **no verifica correos**; mismo correo entregado por el proveedor = misma cuenta, y un correo distinto = otra cuenta. Queda cubrir correo ausente (p. ej. Facebook sin permiso) y cambio de correo en el proveedor. |
+| **E4.4** | Implementadas recuperación e incorporación con resumen/consentimiento, copia de recuperación y origen conservado. Cubiertas cancelación/reintentos/conflictos locales; falta aceptación con cuenta real. |
+| **E4.5** | Outbox atómica, recibos canónicos, rechazos aislados, patches/merge de preferencias y versiones explícitas probados localmente; cero mutaciones runtime. Falta Neon real y decidir ventana offline/retención/límite de recibos antes de producción. |
+| **E4.5.1** | Implementado/probado en SQL local: finalización terminal con entrada/título/fecha estables, sin duplicar/reabrir, recuperable en caché vacía. Falta otro dispositivo con cuenta real. |
+| **E4.6** | A/invitado/B, expiración y logout aislados/probados con cuentas sintéticas, incluso otra pestaña y fallo de revocación. Falta sesión real y eliminación verificada por cuenta; nunca reenviar colas ajenas. |
 | **E4.7** | Retiro local autorizado del respaldo E3: rutas/UI, clave compartida y seed remoto eliminados; `owner` y sus datos preservados. Falta verificar la ausencia de rutas/variables en el despliegue autorizado; no implica recuperación ni sync E4. |
 | **F01** | Aviso y eliminación MVP actualizados para OAuth/proveedores, contacto fijo `support@frutit.app` y borrado local de invitado acotado. Confirmar responsable/domicilio, atención del correo, retención y eliminación segura por cuenta antes de publicar. |
-| **E4.8** | Regresión integrada de auth, importación, offline/conflictos, seguridad y PWA con evidencia real de navegador/dispositivo. |
+| **E4.8** | Regresión local ampliada a 392 tests y Chromium sobre build de producción, incluidas carreras UI/timer y PWA offline. Falta recuperación en otro navegador, Facebook real, Safari, dispositivo físico y entorno desplegado. Ver correcciones 2026-11-03. |
 
-Después de E4.1, seguir el orden de la tabla, un ID en curso. No desplegar código que requiera 0003 antes de validar/aplicar esa migración en desarrollo. Producción, Meta, credenciales y datos reales requieren autorización.
+E4.2 permanece como único ID en curso; los avances de código en los demás IDs no cierran sus criterios externos. No desplegar código que requiera 0003 antes de validar/aplicar esa migración en desarrollo y confirmar el destino autorizado. Producción, Meta, credenciales y datos reales requieren autorización específica.
 
 ## Fuera de alcance
 

@@ -49,8 +49,9 @@ export async function exportLocalSnapshot(
 }
 
 /**
- * Replaces the local database from a snapshot the server already validated.
- * Used by account bootstrap/download; it is intentionally not a merge.
+ * Legacy full local restore for migration fixtures; intentionally not a merge.
+ * Never use for account sync: lib/sync/local.ts merges only durable entities
+ * and preserves runtime, pending local edits and their outbox.
  */
 export async function importLocalSnapshot(
   db: RunoDatabase,

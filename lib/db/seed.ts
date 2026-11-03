@@ -32,7 +32,8 @@ export async function seedDatabase(
     if (!await db.settings.get("preferences")) {
       await db.settings.add(defaultSettings(now));
     }
-    if (await db.metadata.get(SEED_MARKER)) return { createdTaskCount: 0 };
+    // Accounts start empty; defaults are suggestions for guests, not owner data.
+    if (db.accountId || await db.metadata.get(SEED_MARKER)) return { createdTaskCount: 0 };
 
     const tasks: Task[] = [];
     for (const template of initialTaskTemplates()) {

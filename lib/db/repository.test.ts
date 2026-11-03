@@ -24,15 +24,15 @@ describe("schema versionado y almacenamiento local", () => {
     db.close();
   });
 
-  it("crea las diez entidades y un marcador interno de migración", async () => {
+  it("crea las entidades locales, metadata, outbox y revisiones", async () => {
     const db = await testDb();
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
     expect(db.tables.map((table) => table.name).sort()).toEqual([
-      "days", "events", "hands", "ledger", "metadata", "occurrences", "pendings", "sessions", "settings", "tasks",
+      "days", "events", "hands", "ledger", "metadata", "occurrences", "outbox", "pendings", "sessions", "settings", "syncRecords", "tasks",
     ]);
   });
 
-  it("migra una base v2 a v4 sin perder datos y programa las tareas sin día", async () => {
+  it("migra una base v2 a v5 sin perder datos y programa las tareas sin día", async () => {
     const name = `runo-migrate-${crypto.randomUUID()}`;
     const old = new Dexie(name);
     old.version(2).stores({
@@ -59,7 +59,7 @@ describe("schema versionado y almacenamiento local", () => {
     old.close();
 
     const db = await openDatabase(name);
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
     expect(await db.tasks.count()).toBe(2);
     expect((await db.tasks.get("sin-dia"))!.days).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect((await db.days.get(MONDAY))!.swapsUsed).toBe(2);
@@ -68,7 +68,7 @@ describe("schema versionado y almacenamiento local", () => {
     await Dexie.delete(name);
   });
 
-  it("migra una base v3 a v4 y programa las tareas sin día", async () => {
+  it("migra una base v3 a v5 y programa las tareas sin día", async () => {
     const name = `runo-migrate-v3-${crypto.randomUUID()}`;
     const old = new Dexie(name);
     old.version(3).stores({
@@ -90,7 +90,7 @@ describe("schema versionado y almacenamiento local", () => {
     old.close();
 
     const db = await openDatabase(name);
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(5);
     expect((await db.tasks.get("sin-dia"))!.days).toEqual([0, 1, 2, 3, 4, 5, 6]);
     db.close();
     await Dexie.delete(name);

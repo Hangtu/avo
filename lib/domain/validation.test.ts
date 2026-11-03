@@ -45,6 +45,16 @@ describe("validación de tareas", () => {
   });
 });
 
+describe("límites compartidos con el protocolo de cuenta", () => {
+  it("acepta los límites y rechaza títulos/categorías que el sync no puede representar", () => {
+    expect(validateTaskInput(taskInput({ title: "x".repeat(1024), category: "x".repeat(256) })).title).toHaveLength(1024);
+    expect(validatePendingInput({ title: "x".repeat(1024), durationMin: 25 }).title).toHaveLength(1024);
+    expect(() => validateTaskInput(taskInput({ title: "x".repeat(1025) }))).toThrow();
+    expect(() => validateTaskInput(taskInput({ category: "x".repeat(257) }))).toThrow();
+    expect(() => validatePendingInput({ title: "x".repeat(1025), durationMin: 25 })).toThrow();
+  });
+});
+
 describe("validación de pendientes", () => {
   it("recorta el nombre y conserva los minutos enteros", () => {
     const input = { title: "  Pagar las cuentas  ", durationMin: 25 };

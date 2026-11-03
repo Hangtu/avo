@@ -14,6 +14,7 @@ beforeEach(() => {
   vi.stubEnv("BETTER_AUTH_SECRET", "synthetic-test-secret-never-a-production-secret-123456789");
   vi.stubEnv("BETTER_AUTH_URL", undefined);
   vi.stubEnv("BETTER_AUTH_TRUSTED_ORIGINS", undefined);
+  vi.stubEnv("AVO_DEV_AUTH_ORIGINS", undefined);
   for (const key of ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET"]) {
     vi.stubEnv(key, undefined);
   }
@@ -29,6 +30,19 @@ describe("auth without legacy cloud configuration — no database or OAuth netwo
     expect((await auth.$context).trustedOrigins).toEqual(["http://localhost:3000"]);
   });
 
+  it("shares the explicit development allowlist with Better Auth, without disabling CSRF", async () => {
+    vi.stubEnv("NODE_ENV", "development"); vi.stubEnv("AVO_DEV_AUTH_ORIGINS", "http://192.168.68.109:3000");
+    const { auth } = await import("./auth");
+    expect((await auth.$context).trustedOrigins).toEqual(["http://localhost:3000", "http://192.168.68.109:3000"]);
+    expect(auth.options).not.toHaveProperty("advanced.disableOriginCheck", true);
+    expect(auth.options).not.toHaveProperty("advanced.disableCSRFCheck", true);
+  });
+  it("ignores the development allowlist in production", async () => {
+    vi.stubEnv("NODE_ENV", "production"); vi.stubEnv("AVO_DEV_AUTH_ORIGINS", "http://192.168.68.109:3000");
+    vi.stubEnv("BETTER_AUTH_URL", "https://avo.example.test");
+    const { auth } = await import("./auth");
+    expect((await auth.$context).trustedOrigins).toEqual(["https://avo.example.test"]);
+  });
   it("trusts only the configured base origin and still rejects a foreign origin", async () => {
     vi.stubEnv("BETTER_AUTH_URL", "https://avo.example.test");
     const { auth } = await import("./auth");
@@ -66,9 +80,31 @@ describe("auth without legacy cloud configuration — no database or OAuth netwo
     await auth.options.databaseHooks.user.create.after(user);
     expect(database.values).toHaveBeenCalledWith({
       id: user.id,
+      authUserId: user.id,
       timeZone: "America/Mexico_City",
     });
     expect(database.onConflictDoNothing).toHaveBeenCalledOnce();
+  });
+
+  it("links the second provider with the same email, in either order, without our own email verification", async () => {
+    const { auth } = await import("./auth");
+    expect(auth.options.account.accountLinking).toMatchObject({
+      enabled: true,
+      // Pattern 1: the same email links the second provider into the existing user.
+      disableImplicitLinking: false,
+      // Facebook does not assert a verified email in this library version.
+      trustedProviders: ["facebook"],
+      updateUserInfoOnLink: false,
+    });
+    const before = auth.options.databaseHooks.user.create.before;
+    const base = {
+      id: "synthetic-account-id", name: "Synthetic", email: "synthetic@example.test",
+      createdAt: new Date(0), updatedAt: new Date(0),
+    };
+    // Facebook first: the local user must count as verified so Google can link later.
+    expect(await before({ ...base, emailVerified: false })).toEqual({ data: { emailVerified: true } });
+    expect(await before({ ...base, emailVerified: true })).toBeUndefined();
+    expect(await before({ ...base, email: "", emailVerified: false })).toBeUndefined();
   });
 
   it("enables only social providers with a complete credential pair", async () => {

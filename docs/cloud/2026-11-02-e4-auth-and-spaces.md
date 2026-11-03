@@ -2,6 +2,10 @@
 
 **Fecha:** 2026-11-02. El dueño autorizó comenzar la implementación. Este registro cierra las decisiones técnicas de E4.1 y documenta el trabajo E4.2. Después se integró `main`, que ya contiene la base de Better Auth, rutas/UI y una prueba local de Facebook confirmada por el dueño; esta nota se actualiza para distinguirlo de la recuperación, el aislamiento UI y el sync aún no implementados. Mandan los criterios de `plan.md`; no se autoriza deploy ni operación sobre datos reales por este documento.
 
+> **Actualización posterior:** la conexión de espacios, recuperación/API y outbox ya tienen implementación local; el estado anterior de esta nota describe el corte preparatorio. Consultar [`2026-11-02-selective-account-sync.md`](./2026-11-02-selective-account-sync.md) y `STATUS.md`. Verificado el 2026-11-03: `prod` tiene las 4 migraciones y el esquema completo; `development` también quedó en 4 al aplicar `0003` con autorización. Esto no acredita Facebook real, recuperación en otro navegador ni el entorno desplegado.
+
+> **Revisión de vinculación (2026-11-03):** el punto 3 de abajo queda **sustituido** por la decisión del dueño: una cuenta por persona y vinculación por el **mismo correo que entrega el proveedor**, sin verificación propia (patrón 1, MVP). `disableImplicitLinking` es `false`, `trustedProviders` incluye `facebook` —el punto 5 confirma que Facebook no acredita `email_verified` en `better-auth@1.7.15`— y un usuario local creado por un proveedor con correo se registra como verificado para permitir el vínculo en ambos órdenes. Un correo distinto sigue creando otra cuenta. No se verifica el buzón; queda para una versión posterior. Detalle y evidencia en [`2026-11-03-sync-review-corrections.md`](./2026-11-03-sync-review-corrections.md).
+
 ## 1. Decisión de E4.1
 
 Usar **Better Auth 1.7.15 autohospedado en el servidor Next**, con **`@better-auth/drizzle-adapter` 1.7.15** y Postgres/Neon. La ruta, la configuración básica, controles UI y `/api/account/me` ya están en `main`; los paquetes son dependencias runtime y permanecen fijados en `package.json`/lockfile. Esto no implementa la selección/aislamiento de espacios, recuperación ni sync. IndexedDB sigue siendo la capa operativa; el invitado no necesita auth ni red.
@@ -72,7 +76,7 @@ Registrar URLs completas y exactas en cada consola; no usar previews efímeros c
 - Los IDs de eventos siguen siendo etiquetas históricas sin FKs; no autorizan joins. `occurrences.task_id` sigue sin FK por sus IDs sintéticos. Estas excepciones no convierten runtime en datos sincronizables.
 - Referencias opcionales `sessions.hand_id` y `ledger.occurrence_id`: pasan a `NO ACTION` en su FK compuesta. Antes de borrar solo el destino se debe limpiar explícitamente la referencia; `SET NULL` compuesto borraría también `user_id`. Los fixtures de aislamiento eliminan hijos primero y se prueban así; no hay una API de respaldo/eliminación E3 activa.
 
-`drizzle/0003_account_spaces.sql` se generó después de la migración `0002_dry_lethal_legion.sql` de Better Auth que ya forma parte de `main`; **0003 no se aplicó a Neon**. Revisión necesaria respecto de la salida de Kit:
+`drizzle/0003_account_spaces.sql` se generó después de la migración `0002_dry_lethal_legion.sql` de Better Auth que ya forma parte de `main`; al escribir esta nota, `0003` aún no se había aplicado a Neon. **Actualización 2026-11-03:** verificado con `npm run db:verify:prod` que `prod` tiene 4 migraciones y el esquema completo; `development` también llegó a 4 al aplicar `0003` con autorización (conteos previos conservados). Revisión necesaria respecto de la salida de Kit:
 
 1. Resolver las siete PK inline desde `pg_constraint`, limitándose al esquema/tablas/columnas esperadas y abortando ante drift. Kit dejó placeholders que por sí solos producirían dos PK.
 2. Añadir `hand_items.user_id` nullable, rellenar desde su franja conservando filas y exigir NOT NULL **antes** de crear su nueva PK. La salida original creaba la PK antes de la columna y añadía NOT NULL sin backfill.
@@ -100,7 +104,7 @@ Registrar URLs completas y exactas en cada consola; no usar previews efímeros c
 
 **Bloqueo detectado solo por metadatos:** `describe_project({})` del conector disponible devuelve **Invitto**, no el proyecto Runo descrito por E1/E2. No se listaron ramas/tablas ni se consultaron datos de esa aplicación. No usar ese contexto para esta migración; hace falta acceso al proyecto Runo y una rama de desarrollo confirmada. La consulta no modificó recursos.
 
-1. Identificar proyecto/rama/DB correctos y confirmar que es desarrollo; el endpoint no demuestra la rama. Revisar el journal real: `0000`–`0002` constan como aplicadas en dev en `STATUS.md`; verificarlo en la rama y revisar `0003_account_spaces.sql` antes de cualquier operación.
+1. Confirmar que `.env` apunta a `development` y `.env.prod` a `prod`, y revisar el journal real en cada rama (`npm run db:verify` para desarrollo; SQL/consultas de solo lectura para `prod`). Revisar `0003_account_spaces.sql` antes de cualquier operación.
 2. Obtener autorización para esa operación y disponer de punto de recuperación probado (rama/backup), fuera de datos personales de pruebas destructivas. No crear servicios/rama con costo ni tocar producción por inferencia.
 3. Revisar nombres/columnas/PK/FKs y joins legacy con consultas solo lectura; detenerse si difieren. Revisar el SQL completo y hacer respaldo/recuperación según el entorno autorizado.
 4. Usar migraciones Drizzle por conexión directa en transacción; nunca `push`. El script remoto `db:seed` de dueño fijo fue eliminado; no sembrar ni adoptar datos personales en cuentas nuevas.

@@ -38,6 +38,8 @@ import { SessionView } from "./session-view";
 import { AccountGreeting } from "./account-greeting";
 import { AnchorView } from "./anchor-view";
 import { useAnchorWatcher } from "./use-anchor-watcher";
+import { PersistenceNotice } from "./account-sync-panel";
+import { useWorkspace } from "./workspace-context";
 import { TaskEditor } from "./task-editor";
 import { useVoicePreference } from "./use-voice-preference";
 import { WalletView } from "./wallet-view";
@@ -124,6 +126,7 @@ function withoutReviewOccurrence(groups: ReviewGroups, occurrenceId: string): Re
 export function RunoHome() {
   const t = useTranslations();
   const locale = useLocale();
+  const { revision } = useWorkspace();
   const [view, setView] = useState<View>({ kind: "loading" });
   const [pendingStart, setPendingStart] = useState<{
     task: FranjaTask;
@@ -262,7 +265,7 @@ export function RunoHome() {
       cancelled = true;
       db?.close();
     };
-  }, [refreshKey, locale, t]);
+  }, [refreshKey, locale, t, revision]);
 
   const refreshView = useCallback((message: string | null) => {
     setNotice(message);
@@ -828,6 +831,7 @@ export function RunoHome() {
             ) : null}
           </div>
         </header>
+        {!showPending && !showSettings && view.kind !== "session" && view.kind !== "anchor" ? <PersistenceNotice /> : null}
 
         <div className="runo-content flex flex-1 flex-col justify-center py-8">
           <AnimatePresence mode="wait" initial={false}>

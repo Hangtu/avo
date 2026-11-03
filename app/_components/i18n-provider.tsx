@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -13,11 +14,14 @@ import {
   defaultLocale,
   intlLocales,
   isLocale,
-  localeStorageKey,
   messages,
   timeZone,
   type Locale,
 } from "@/lib/i18n/config";
+
+import { activeStorageKey, currentDatabaseName, openDatabase } from "@/lib/db/database";
+import { SPACE_STORAGE_KEYS } from "@/lib/db/local-space";
+import { preferenceWriteState, retryPreferenceWrites, subscribePreferenceWrites, writePreferences } from "@/lib/sync/preference-writer";
 
 interface LocaleContextValue {
   setLocale: (locale: Locale) => void;
@@ -25,15 +29,43 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
-export function I18nProvider({ children }: { children: ReactNode }) {
+export function I18nProvider({ children, revision = 0 }: { children: ReactNode; revision?: number }) {
   const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+  const [storageKey] = useState(() => activeStorageKey(SPACE_STORAGE_KEYS.locale));
+  const [databaseName] = useState(currentDatabaseName);
+  const optimistic = useRef<Locale | null>(null);
+  const [localeDirty, setLocaleDirty] = useState(false);
+  const [writeState, setWriteState] = useState(() => preferenceWriteState(databaseName));
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(localeStorageKey);
+    let stored: string | null = null;
+    try { stored = window.localStorage.getItem(storageKey); } catch {}
     // localStorage is browser-only; read it after mount instead of during SSR.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (isLocale(stored)) setLocaleState(stored);
-  }, []);
+    if (!optimistic.current && isLocale(stored)) setLocaleState(stored);
+  }, [storageKey, revision]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      const state = preferenceWriteState(databaseName);
+      setWriteState(state);
+      if (state.pending || state.failed) return;
+      optimistic.current = null;
+      setLocaleDirty(false);
+      void openDatabase(databaseName).then(async db => {
+        try {
+          const stored = (await db.settings.get("preferences"))?.locale;
+          if (!cancelled && !optimistic.current && isLocale(stored)) {
+            setLocaleState(stored);
+            try { localStorage.setItem(storageKey, stored); } catch {}
+          }
+        } finally { db.close(); }
+      }).catch(() => {});
+    };
+    load();
+    const unsubscribe = subscribePreferenceWrites(databaseName, load);
+    return () => { cancelled = true; unsubscribe(); };
+  }, [databaseName, storageKey, revision]);
 
   useEffect(() => {
     document.documentElement.lang = intlLocales[locale];
@@ -48,9 +80,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {
+    optimistic.current = next;
+    setLocaleDirty(true);
     setLocaleState(next);
-    window.localStorage.setItem(localeStorageKey, next);
-  }, []);
+    void writePreferences(databaseName, { locale: next }).then(() => {
+      try { window.localStorage.setItem(storageKey, next); } catch {}
+    }).catch(() => {});
+  }, [databaseName, storageKey]);
 
   return (
     <LocaleContext.Provider value={{ setLocale }}>
@@ -59,6 +95,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         messages={messages[locale]}
         timeZone={timeZone}
       >
+        {writeState.failed > 0 && localeDirty ? <div role="alert" className="mx-auto max-w-3xl px-5 pt-4 text-sm leading-6">
+          <p>{messages[locale].sync.localeSaveError}</p>
+          <button type="button" className="min-h-11 underline" onClick={() => void retryPreferenceWrites(databaseName).catch(() => {})}>{messages[locale].sync.retryLocal}</button>
+        </div> : null}
         {children}
       </NextIntlClientProvider>
     </LocaleContext.Provider>

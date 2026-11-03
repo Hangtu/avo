@@ -16,7 +16,9 @@
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
     "db:health": "tsx --conditions=react-server scripts/db-health.ts",
-    "db:verify": "tsx --conditions=react-server scripts/db-verify.ts"
+    "db:health:prod": "tsx --conditions=react-server scripts/db-health.ts .env.prod",
+    "db:verify": "tsx --conditions=react-server scripts/db-verify.ts",
+    "db:verify:prod": "tsx --conditions=react-server scripts/db-verify.ts .env.prod"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

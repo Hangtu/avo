@@ -32,7 +32,9 @@ import { useTranslations } from "next-intl";
 import { HelpTip } from "./help-tip";
 import { MissedBadge } from "./missed-badge";
 import { SelectControl } from "./select-control";
-import { openDatabase, type RunoDatabase } from "@/lib/db/database";
+import { activeStorageKey, currentDatabaseName, openDatabase, type RunoDatabase } from "@/lib/db/database";
+import { writePreferences } from "@/lib/sync/preference-writer";
+import { useWorkspace } from "./workspace-context";
 import {
   archiveTask,
   createTasks,
@@ -78,10 +80,10 @@ const DRAFT_KEY = "runo:task-editor-draft:v1";
 const CLOSED_SECTIONS_KEY = "runo:task-editor-closed-sections:v1";
 const TASK_ORDER_KEY = "runo:task-editor-order:v1";
 
-function readTaskOrder(): TaskOrder {
+function readTaskOrder(storageKey?: string): TaskOrder {
   try {
     if (typeof window === "undefined") return {};
-    const raw = window.localStorage.getItem(TASK_ORDER_KEY);
+    const raw = window.localStorage.getItem(storageKey ?? activeStorageKey(TASK_ORDER_KEY));
     if (!raw) return {};
     const value = JSON.parse(raw) as unknown;
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -96,12 +98,8 @@ function readTaskOrder(): TaskOrder {
   }
 }
 
-function writeTaskOrder(order: TaskOrder): void {
-  try {
-    window.localStorage.setItem(TASK_ORDER_KEY, JSON.stringify(order));
-  } catch {
-    // The order still works for this visit if storage is unavailable.
-  }
+async function writeTaskOrder(order: TaskOrder): Promise<void> {
+  await writePreferences(currentDatabaseName(), { taskOrder: order });
 }
 
 interface FormState {
@@ -202,7 +200,7 @@ interface EditorDraft {
 
 function readDraft(): EditorDraft | null {
   try {
-    const raw = window.sessionStorage.getItem(DRAFT_KEY);
+    const raw = window.sessionStorage.getItem(activeStorageKey(DRAFT_KEY));
     if (!raw) return null;
     const draft = JSON.parse(raw) as Partial<EditorDraft>;
     if (!draft.form || typeof draft.form.title !== "string" || !Array.isArray(draft.form.days)) {
@@ -226,7 +224,7 @@ function readDraft(): EditorDraft | null {
 
 function writeDraft(draft: EditorDraft): void {
   try {
-    window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    window.sessionStorage.setItem(activeStorageKey(DRAFT_KEY), JSON.stringify(draft));
   } catch {
     // Storage can be unavailable in private modes; the form still works.
   }
@@ -234,7 +232,7 @@ function writeDraft(draft: EditorDraft): void {
 
 function clearDraft(): void {
   try {
-    window.sessionStorage.removeItem(DRAFT_KEY);
+    window.sessionStorage.removeItem(activeStorageKey(DRAFT_KEY));
   } catch {
     // Nothing to clear.
   }
@@ -243,7 +241,7 @@ function clearDraft(): void {
 function readClosedSections(): Record<string, boolean> {
   try {
     if (typeof window === "undefined") return {};
-    const raw = window.localStorage.getItem(CLOSED_SECTIONS_KEY);
+    const raw = window.localStorage.getItem(activeStorageKey(CLOSED_SECTIONS_KEY));
     if (!raw) return {};
     const value = JSON.parse(raw) as unknown;
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -257,7 +255,7 @@ function readClosedSections(): Record<string, boolean> {
 
 function writeClosedSections(value: Record<string, boolean>): void {
   try {
-    window.localStorage.setItem(CLOSED_SECTIONS_KEY, JSON.stringify(value));
+    window.localStorage.setItem(activeStorageKey(CLOSED_SECTIONS_KEY), JSON.stringify(value));
   } catch {
     // Storage can be unavailable; collapsing still works for this visit.
   }
@@ -545,6 +543,9 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [draftReady, setDraftReady] = useState(false);
   const [closedSections, setClosedSections] = useState<Record<string, boolean>>(readClosedSections);
   const [taskOrder, setTaskOrder] = useState<TaskOrder>(readTaskOrder);
+  const [taskOrderStorageKey] = useState(() => activeStorageKey(TASK_ORDER_KEY));
+  const orderRef = useRef(taskOrder);
+  const { revision, preferences } = useWorkspace();
   const retryBatch = useRef<{ signature: string; ids: string[] } | null>(null);
 
   useEffect(() => {
@@ -562,11 +563,20 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
   useEffect(() => {
     const onChange = (event: StorageEvent) => {
-      if (event.key === TASK_ORDER_KEY) setTaskOrder(readTaskOrder());
+      if (event.key === taskOrderStorageKey) {
+        const next = readTaskOrder(taskOrderStorageKey); orderRef.current = next; setTaskOrder(next);
+      }
     };
     window.addEventListener("storage", onChange);
     return () => window.removeEventListener("storage", onChange);
-  }, []);
+  }, [taskOrderStorageKey]);
+
+  useEffect(() => {
+    if (preferences.pending || preferences.failed) return;
+    const next = readTaskOrder(taskOrderStorageKey); orderRef.current = next;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTaskOrder(next);
+  }, [taskOrderStorageKey, revision, preferences.pending, preferences.failed]);
 
   useEffect(() => {
     if (!fieldErrors.days) return;
@@ -641,7 +651,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       cancelled = true;
       db?.close();
     };
-  }, [initialTaskId, reloadKey, t, today]);
+  }, [initialTaskId, reloadKey, t, today, revision]);
 
   function closeForm() {
     setForm(null);
@@ -981,13 +991,13 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const occurrenceByTask = new Map(todayOccurrences.map((occurrence) => [occurrence.taskId, occurrence]));
 
   function reorderSection(activeId: string, overId: string, visibleIds: string[]) {
-    setTaskOrder((current) => {
-      const base = buildTaskOrder(active, current);
-      const next = reorderTaskOrder(active, visibleIds, activeId, overId, base);
-      if (next === base) return current;
-      writeTaskOrder(next);
-      return next;
-    });
+    const base = buildTaskOrder(active, orderRef.current);
+    const next = reorderTaskOrder(active, visibleIds, activeId, overId, base);
+    if (next === base) return;
+    orderRef.current = next;
+    setTaskOrder(next);
+    void writeTaskOrder(next)
+      .catch(() => setNotice(t("notices.saveError")));
   }
 
   return (

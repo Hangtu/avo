@@ -3,9 +3,9 @@
 App personal local-first de hábitos, pendientes y timer; ES/EN, Next.js 16.4.3, React 19.3, Dexie, Tailwind v4 y Neon/Drizzle del lado servidor. El objetivo es ayudar a actuar y volver a la vida, no maximizar el uso.
 
 - Sin cuenta, los datos operativos permanecen en IndexedDB.
-- Better Auth tiene rutas/UI básicas; Facebook se confirmó en local. Google, sesión/logout verificados, espacios de cuenta, recuperación y sync selectivo siguen pendientes.
+- Implementados espacios por cuenta, guardado selectivo con outbox durable y recuperación desde PostgreSQL: hábitos, pendientes/finalización y preferencias. Sesiones/timer/resultados recurrentes permanecen locales. La UI distingue guardado local y respaldo confirmado; invitado solo se incorpora con consentimiento. Ver [alcance, evidencia y límites](./docs/cloud/2026-11-02-selective-account-sync.md). Aún no está validado con Facebook real, recuperación en otro navegador ni el entorno desplegado. Google ya se validó localmente contra Neon `development` (sesión real y sync de pendientes); no se desplegó por este trabajo.
 - El respaldo manual E3 fue retirado: ya no hay rutas `/api/cloud/*`, clave compartida ni seed remoto de dueño fijo. Los datos existentes y las claves técnicas `runo` se conservan; los snapshots locales y fixtures de migración no habilitan respaldo ni sync remoto.
-- `0003_account_spaces.sql` es una migración local no aplicada a Neon. No desplegar código que la requiere sobre un esquema anterior.
+- El código de cuenta requiere el esquema 0000–0003. Hay dos ramas Neon (`development` y `prod`) con su entorno cada una: `.env` (desarrollo) y `.env.prod` (producción). Se migran con `npm run db:migrate` y `npm run db:migrate:prod` (este último lee solo `DATABASE_URL_UNPOOLED` de `.env.prod` y rechaza la URL pooled). Verificado el 2026-11-03: `prod` y `development` tienen las 4 migraciones y el esquema completo (`0003` se aplicó en `development` con autorización). Dexie v5 añade cola/revisiones locales sin borrar ni renombrar datos.
 - `/privacy` y `/data-deletion` tienen texto MVP y contacto fijo `support@frutit.app`; no se publicaron en este trabajo. El botón local borra solo el espacio invitado y sus preferencias; cuenta/servidores se solicitan por correo. Antes de producción, confirmar responsable legal/domicilio y probar la atención y eliminación segura por cuenta.
 
 ## Fuente de verdad
@@ -15,6 +15,8 @@ App personal local-first de hábitos, pendientes y timer; ES/EN, Next.js 16.4.3,
 - [`plan.md`](./plan.md): contrato y pendientes E4.
 - [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md): decisiones de auth/migración.
 - [`docs/cloud/github-actions-migrations.md`](./docs/cloud/github-actions-migrations.md): flujo protegido para migraciones de producción desde GitHub Actions.
+- [`docs/cloud/2026-11-02-selective-account-sync.md`](./docs/cloud/2026-11-02-selective-account-sync.md): protocolo, guardado/recuperación, aislamiento y pasos de activación.
+- [`docs/cloud/2026-11-03-sync-review-corrections.md`](./docs/cloud/2026-11-03-sync-review-corrections.md): correcciones de timer/UI, preferencias, recuperación de cola, pruebas actuales y límites.
 
 ## Desarrollo
 
@@ -35,9 +37,11 @@ npm run dev
 
 Solo se regenera caché de compilación; no borres IndexedDB ni datos del sitio. Si el módulo tampoco se resuelve con Node, ejecuta `npm ci` con el servidor detenido.
 
-Nunca publiques secretos. `DATABASE_URL` es para runtime; `DATABASE_URL_UNPOOLED` para Drizzle. No ejecutes `db:migrate`, operaciones Neon ni deploy sin confirmar destino, recuperación y autorización.
+Nunca publiques secretos. `DATABASE_URL` es para runtime; `DATABASE_URL_UNPOOLED` para Drizzle. Desarrollo usa `.env` (`npm run db:migrate`); producción usa `.env.prod` (`npm run db:migrate:prod`), que exige conexión directa y rechaza hosts `-pooler`. Ambos archivos están ignorados por git (`.env*` salvo `.env.example`). Verificación de solo lectura: `npm run db:health` / `db:health:prod` (conexión) y `npm run db:verify` / `db:verify:prod` (tablas, columnas requeridas, migraciones y conteos). No ejecutes `db:migrate`, operaciones Neon ni deploy sin confirmar destino, recuperación y autorización.
 
 Para el servidor actual configura `DATABASE_URL`, `BETTER_AUTH_SECRET` (generado con `openssl rand -base64 32`) y `BETTER_AUTH_URL` (origen HTTPS exacto en producción, sin rutas). Añade el par ID/secreto de cada proveedor que habilites y registra sus callbacks exactos en Google/Meta. Better Auth confía automáticamente en el origen de su base URL: ya no configuramos una lista adicional de orígenes ni variables `RUNO_*`. Retira las variables antiguas de Vercel; este cambio no modifica la configuración remota. La zona inicial sigue siendo `America/Mexico_City`.
+
+Para auth/sync por LAN en desarrollo, `AVO_DEV_AUTH_ORIGINS` permite orígenes completos explícitos (ejemplo `http://192.168.68.109:3000`); API y Better Auth comparten esa lista. Solo se usa con `NODE_ENV=development`: producción la ignora. `allowedDevOrigins` de Next autoriza HMR/recursos, no sesiones. Esto no registra callbacks ni evita restricciones HTTPS del proveedor; no prueba OAuth real desde un teléfono.
 
 ## Verificación
 

@@ -1,4 +1,5 @@
 import type { RunoDatabase } from "./database";
+import { enqueue, syncTables } from "@/lib/sync/local";
 import { appendEvent, eventIdFor, taskEventContext } from "./events";
 import { appendLedgerEntry, creditSourceKey } from "./ledger";
 import { occurrenceIdFor } from "@/lib/domain/occurrence";
@@ -41,7 +42,7 @@ export async function createTasks(
     return { id: item.id, input: validateTaskInput(item.input) };
   });
 
-  return db.transaction("rw", db.tasks, db.events, async () => {
+  return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
     const created: Task[] = [];
     for (const item of values) {
       const { inserted } = await appendEvent(db, {
@@ -58,6 +59,7 @@ export async function createTasks(
         ...item.input, id: item.id, createdAt: now, updatedAt: now, archivedAt: null,
       };
       await db.tasks.add(task);
+      await enqueue(db, "task", task);
       created.push(task);
     }
     return created;
@@ -78,7 +80,7 @@ export async function updateTask(
   assertId(actionId);
   assertTimestamp(now);
   const values = validateTaskInput(input);
-  return db.transaction("rw", db.tasks, db.events, async () => {
+  return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
     const previous = await db.tasks.get(id);
     if (!previous) throw new DomainError("not_found", "Esa tarea ya no está.");
     const { inserted } = await appendEvent(db, {
@@ -92,6 +94,7 @@ export async function updateTask(
     delete task.shortStep;
     Object.assign(task, values);
     await db.tasks.put(task);
+    await enqueue(db, "task", task);
     return task;
   });
 }
@@ -99,7 +102,7 @@ export async function updateTask(
 export async function archiveTask(db: RunoDatabase, id: string, now: number): Promise<void> {
   assertId(id);
   assertTimestamp(now);
-  await db.transaction("rw", db.tasks, db.events, async () => {
+  await db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
     const task = await db.tasks.get(id);
     if (!task) throw new DomainError("not_found", "Esa tarea ya no está.");
     if (task.archivedAt !== null) return;
@@ -108,6 +111,7 @@ export async function archiveTask(db: RunoDatabase, id: string, now: number): Pr
       taskId: id, context: {},
     });
     await db.tasks.update(id, { archivedAt: now, updatedAt: now });
+    await enqueue(db, "task", { ...task, archivedAt: now, updatedAt: now });
   });
 }
 
@@ -117,7 +121,7 @@ export async function restoreArchivedTask(
 ): Promise<Task> {
   assertId(id);
   assertTimestamp(now);
-  return db.transaction("rw", db.tasks, db.events, async () => {
+  return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
     const task = await db.tasks.get(id);
     if (!task) throw new DomainError("not_found", "Esa tarea ya no está.");
     if (task.archivedAt === null) return task;
@@ -130,6 +134,7 @@ export async function restoreArchivedTask(
     });
     const restored: Task = { ...task, archivedAt: null, updatedAt: now };
     await db.tasks.put(restored);
+    await enqueue(db, "task", restored);
     return restored;
   });
 }
@@ -145,7 +150,7 @@ export async function createPending(
   assertId(id);
   assertTimestamp(now);
   const values = validatePendingInput(input);
-  return db.transaction("rw", db.pendings, async () => {
+  return db.transaction("rw", [db.pendings, ...syncTables(db)], async () => {
     const previous = await db.pendings.get(id);
     if (previous) {
       if (previous.title !== values.title || previous.durationMin !== values.durationMin) {
@@ -158,6 +163,7 @@ export async function createPending(
       completedAt: null, deletedAt: null,
     };
     await db.pendings.add(pending);
+    await enqueue(db, "pending", pending);
     return pending;
   });
 }
@@ -179,7 +185,7 @@ export async function completePendingDirect(
 ): Promise<Pending> {
   assertId(pendingId);
   assertTimestamp(now);
-  return db.transaction("rw", db.pendings, db.sessions, db.events, async () => {
+  return db.transaction("rw", [db.pendings, db.sessions, db.events, ...syncTables(db)], async () => {
     const pending = await db.pendings.get(pendingId);
     if (!pending || pending.deletedAt !== null) {
       throw new DomainError("not_found", "Ese pendiente ya no está.");
@@ -198,6 +204,7 @@ export async function completePendingDirect(
     });
     const updated: Pending = { ...pending, completedAt: now, updatedAt: now };
     await db.pendings.put(updated);
+    await enqueue(db, "pending", updated);
     return updated;
   });
 }
@@ -209,7 +216,7 @@ export async function restorePending(
 ): Promise<Pending> {
   assertId(pendingId);
   assertTimestamp(now);
-  return db.transaction("rw", db.pendings, async () => {
+  return db.transaction("rw", [db.pendings, ...syncTables(db)], async () => {
     const pending = await db.pendings.get(pendingId);
     if (!pending) throw new DomainError("not_found", "Ese pendiente ya no está.");
     if (pending.completedAt !== null) {
@@ -218,6 +225,7 @@ export async function restorePending(
     if (pending.deletedAt === null) return pending;
     const restored: Pending = { ...pending, deletedAt: null, updatedAt: now };
     await db.pendings.put(restored);
+    await enqueue(db, "pending", restored);
     return restored;
   });
 }
@@ -227,7 +235,7 @@ export async function deletePending(
 ): Promise<void> {
   assertId(pendingId);
   assertTimestamp(now);
-  await db.transaction("rw", db.pendings, db.sessions, async () => {
+  await db.transaction("rw", [db.pendings, db.sessions, ...syncTables(db)], async () => {
     const pending = await db.pendings.get(pendingId);
     if (!pending) throw new DomainError("not_found", "Ese pendiente ya no está.");
     if (pending.deletedAt !== null) return;
@@ -239,6 +247,7 @@ export async function deletePending(
       throw new DomainError("conflict", "Primero termina el tiempo de este pendiente.");
     }
     await db.pendings.update(pendingId, { deletedAt: now, updatedAt: now });
+    await enqueue(db, "pending", { ...pending, deletedAt: now, updatedAt: now });
   });
 }
 
@@ -259,8 +268,26 @@ export async function getSettings(db: RunoDatabase, now: number): Promise<Settin
   });
 }
 
+export type SettingsPatch = Partial<Omit<Settings, "id" | "updatedAt">>;
+/** Read/patch/write/enqueue share one transaction: unrelated writers cannot clobber fields. */
+export async function updateSettings(db: RunoDatabase, patch: SettingsPatch, now = Date.now()): Promise<Settings> {
+  assertTimestamp(now);
+  return db.transaction("rw", [db.settings, ...syncTables(db)], async () => {
+    const existing = await db.settings.get("preferences");
+    const current = validateSettings({ ...defaultSettings(now), ...existing });
+    const next = validateSettings({ ...current, ...patch, id: "preferences", updatedAt: now });
+    await db.settings.put(next);
+    await enqueue(db, "settings", next);
+    return next;
+  });
+}
+
 export async function saveSettings(db: RunoDatabase, settings: Settings): Promise<void> {
-  await db.settings.put(validateSettings(settings));
+  const value = validateSettings(settings);
+  await db.transaction("rw", [db.settings, ...syncTables(db)], async () => {
+    await db.settings.put(value);
+    await enqueue(db, "settings", value);
+  });
 }
 
 /** Claims one due anchor for the date; repeated calls return null. */
@@ -854,7 +881,7 @@ export async function completeSessionWithCredit(
   assertId(sessionId);
   assertTimestamp(now);
   return db.transaction(
-    "rw", db.sessions, db.occurrences, db.events, db.ledger, db.pendings,
+    "rw", [db.sessions, db.occurrences, db.events, db.ledger, db.pendings, ...syncTables(db)],
     async () => {
     const session = await db.sessions.get(sessionId);
     if (!session) throw new DomainError("not_found", "Ese tiempo ya no existe.");
@@ -862,9 +889,9 @@ export async function completeSessionWithCredit(
       if (session.pendingId) {
         const pending = await db.pendings.get(session.pendingId);
         if (pending && pending.completedAt === null) {
-          await db.pendings.update(session.pendingId, {
-            completedAt: now, updatedAt: now,
-          });
+          const completedPending = { ...pending, completedAt: now, updatedAt: now };
+          await db.pendings.put(completedPending);
+          await enqueue(db, "pending", completedPending);
         }
       }
       const occurrence = await db.occurrences.get(session.occurrenceId);
@@ -927,7 +954,10 @@ export async function completeSessionWithCredit(
     const completed = closedSession(session, "completed", elapsedSec, now);
     await db.sessions.put(completed);
     if (session.pendingId) {
-      await db.pendings.update(session.pendingId, { completedAt: now, updatedAt: now });
+      const pending = (await db.pendings.get(session.pendingId))!;
+      const completedPending = { ...pending, completedAt: now, updatedAt: now };
+      await db.pendings.put(completedPending);
+      await enqueue(db, "pending", completedPending);
     }
     return { session: completed, creditedRc, totalCreditedRc };
   });

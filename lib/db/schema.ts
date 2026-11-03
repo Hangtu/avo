@@ -21,12 +21,10 @@ import type { TaskOrder } from "@/lib/domain/task-order";
 import { authUsers } from "./auth-schema";
 
 /**
- * Server-side Postgres schema for the future online layer.
- *
- * IndexedDB remains the source of truth while the app is offline and until the
- * remote repository/sync phase lands. These tables intentionally preserve the
- * current domain IDs and append-only event/ledger identities so a future
- * importer can map local rows without inventing new business identities.
+ * Server-side Postgres schema. Account sync exposes only tasks, pendings and
+ * portable settings; runtime tables remain legacy-compatible, not synchronized.
+ * IndexedDB is the operational layer offline. Composite domain IDs and legacy
+ * event/ledger identities are preserved without distributing owner data.
  */
 
 const createdAt = () => timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow();

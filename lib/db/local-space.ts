@@ -30,8 +30,16 @@ export function databaseNameForSpace(space: LocalSpace): string {
   return space.kind === "guest" ? LEGACY_DATABASE_NAME : `runo-user-${encodedAccountId(space.userId)}`;
 }
 
+/** Shared with the pre-paint script so both build the same key. Keep the exact shape. */
+export const ACCOUNT_STORAGE_PREFIX = "runo:account:v1:";
+export const ACCOUNT_STORAGE_INFIX = ":storage:";
+
+export function accountStorageKey(userId: string, key: string): string {
+  return `${ACCOUNT_STORAGE_PREFIX}${encodedAccountId(userId)}${ACCOUNT_STORAGE_INFIX}${key}`;
+}
+
 export function storageKeyForSpace(space: LocalSpace, key: SpaceStorageKey): string {
-  return space.kind === "guest" ? key : `runo:account:v1:${encodedAccountId(space.userId)}:storage:${key}`;
+  return space.kind === "guest" ? key : accountStorageKey(space.userId, key);
 }
 
 export type SpaceStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;

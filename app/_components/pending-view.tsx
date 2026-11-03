@@ -20,6 +20,8 @@ import {
 import type { Pending } from "@/lib/domain/types";
 import { ConfirmDialog } from "./confirm-dialog";
 import { HelpTip } from "./help-tip";
+import { useWorkspace } from "./workspace-context";
+import { PersistenceNotice } from "./account-sync-panel";
 
 function newPendingId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -40,6 +42,8 @@ export function PendingView({
   onCountChange?: (count: number) => void;
 }) {
   const t = useTranslations("pending");
+  const persistence = useTranslations("sync");
+  const { revision } = useWorkspace();
   const reduceMotion = useReducedMotion();
   const errors = useTranslations("errors");
   const common = useTranslations("common");
@@ -92,7 +96,7 @@ export function PendingView({
     return () => {
       cancelled = true;
     };
-  }, [loadKey, errors]);
+  }, [loadKey, errors, revision]);
 
   useEffect(() => {
     if (loading || loadError !== null) return;
@@ -149,7 +153,7 @@ export function PendingView({
         setTitle("");
         setMinutes("25");
         setShowComposer(false);
-        toastManager.add({ title: t("added"), type: "success", timeout: 3500 });
+        toastManager.add({ title: persistence("localAdded"), type: "success", timeout: 3500 });
       } finally {
         db.close();
       }
@@ -282,6 +286,8 @@ export function PendingView({
           </button>
         ) : null}
       </div>
+
+      <PersistenceNotice />
 
       {message ? (
         <p role="status" className="mt-4 border-l-2 border-accent pl-4 text-sm leading-6">

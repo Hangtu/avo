@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { openDatabase } from "@/lib/db/database";
-import { getSettings, saveSettings } from "@/lib/db/repository";
+import { currentDatabaseName, openDatabase } from "@/lib/db/database";
+import { getSettings } from "@/lib/db/repository";
+import { writePreferences } from "@/lib/sync/preference-writer";
+import { useWorkspace } from "./workspace-context";
 import type { VoiceTone } from "@/lib/domain/voice";
 
 export function useVoicePreference() {
   const t = useTranslations("errors");
+  const { revision } = useWorkspace();
   const [tone, setToneState] = useState<VoiceTone | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,19 +38,12 @@ export function useVoicePreference() {
       cancelled = true;
       db?.close();
     };
-  }, [t]);
+  }, [t, revision]);
 
   const setTone = useCallback(async (next: VoiceTone) => {
     setError(null);
     try {
-      const db = await openDatabase();
-      try {
-        const now = Date.now();
-        const current = await getSettings(db, now);
-        await saveSettings(db, { ...current, maxTone: next, updatedAt: now });
-      } finally {
-        db.close();
-      }
+      await writePreferences(currentDatabaseName(), { maxTone: next });
       setToneState(next);
     } catch (cause) {
       console.error("No se pudo guardar la voz", cause);

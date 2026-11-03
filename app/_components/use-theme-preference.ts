@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { openDatabase } from "@/lib/db/database";
-import { getSettings, saveSettings } from "@/lib/db/repository";
+import { activeStorageKey, currentDatabaseName, openDatabase } from "@/lib/db/database";
+import { getSettings } from "@/lib/db/repository";
+import { writePreferences } from "@/lib/sync/preference-writer";
+import { useWorkspace } from "./workspace-context";
 import {
   DARK_THEME_COLOR,
   LIGHT_THEME_COLOR,
@@ -23,7 +25,9 @@ function applyTheme(resolved: ResolvedTheme): void {
 
 export function useThemePreference() {
   const t = useTranslations("errors");
+  const { revision } = useWorkspace();
   const [mode, setMode] = useState<ThemeMode | null>(null);
+  const [storageKey] = useState(() => activeStorageKey(THEME_STORAGE_KEY));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,12 +56,12 @@ export function useThemePreference() {
       cancelled = true;
       db?.close();
     };
-  }, [t]);
+  }, [t, revision]);
 
   useEffect(() => {
     if (!mode) return;
     try {
-      localStorage.setItem(THEME_STORAGE_KEY, mode);
+      localStorage.setItem(storageKey, mode);
     } catch {
       // Private browsing can reject storage; the in-memory theme still works.
     }
@@ -78,22 +82,15 @@ export function useThemePreference() {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [mode]);
+  }, [mode, storageKey]);
 
   const setTheme = useCallback(async (next: ThemeMode) => {
     if (!mode || mode === next || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const db = await openDatabase();
-      try {
-        const now = Date.now();
-        const current = await getSettings(db, now);
-        await saveSettings(db, { ...current, theme: next, updatedAt: now });
-        setMode(next);
-      } finally {
-        db.close();
-      }
+      await writePreferences(currentDatabaseName(), { theme: next });
+      setMode(next);
     } catch (cause) {
       console.error("No se pudo guardar el tema", cause);
       setError(t("themeSave"));
