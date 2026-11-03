@@ -249,7 +249,7 @@ export function RunoHome() {
         }
       } catch (error) {
         if (cancelled) return;
-        console.error("No se pudo preparar Runo", error);
+        console.error("No se pudo preparar Avo", error);
         setView({
           kind: "error",
           message: t("home.errorMessage"),
@@ -792,7 +792,7 @@ export function RunoHome() {
                 unoptimized
                 className="size-18 shrink-0"
               />
-              <span>Runo</span>
+              <span>Avo</span>
             </p>
             <h1 className={`runo-tagline mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet || showPending ? "hidden" : ""}`}>
               {t("header.tagline")}

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Aviso de privacidad | Runo",
-  description: "Aviso de privacidad de Runo y opciones para ejercer tus derechos sobre datos personales.",
+  title: "Aviso de privacidad | Avo",
+  description: "Aviso de privacidad de Avo y opciones para ejercer tus derechos sobre datos personales.",
 };
 
 const controllerName = process.env.NEXT_PUBLIC_PRIVACY_CONTROLLER_NAME?.trim();
@@ -16,7 +16,7 @@ export default function PrivacyPage() {
     <main className="mx-auto w-full max-w-3xl px-5 pb-16 pt-10 sm:px-8">
       <header className="border-b border-line pb-6">
         <Link href="/" className="text-sm font-semibold underline underline-offset-4">
-          Runo
+          Avo
         </Link>
         <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-muted">
           Privacidad
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-semibold">1. Responsable y contacto</h2>
           <p className="mt-2">
-            El responsable del tratamiento de datos personales de Runo es{" "}
+            El responsable del tratamiento de datos personales de Avo es{" "}
             <strong>{controllerName || "[FALTA NOMBRE LEGAL O DENOMINACIÓN]"}</strong>, con domicilio en{" "}
             <strong>{controllerAddress || "[FALTA DOMICILIO COMPLETO]"}</strong>.
             {" "}Para consultas y solicitudes de privacidad: {privacyEmail ? (
@@ -59,7 +59,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-semibold">2. Datos y finalidades</h2>
           <p className="mt-2">
-            Runo es una aplicación personal de hábitos, pendientes y sesiones de enfoque. No requiere crear una cuenta ni
+            Avo es una aplicación personal de hábitos, pendientes y sesiones de enfoque. No requiere crear una cuenta ni
             proporcionar nombre, teléfono o correo para usar sus funciones locales. Los datos que tú escribas pueden
             incluir nombres y categorías de hábitos o pendientes, horarios, duración, progreso y resultados de sesiones,
             preferencias de la aplicación y, si usas esa función, movimientos del monedero. Se usan para mostrar y guardar
@@ -77,18 +77,18 @@ export default function PrivacyPage() {
           <p className="mt-2">
             Por diseño, tus datos principales se guardan localmente en el almacenamiento del navegador (IndexedDB y
             preferencias del navegador). No hay sincronización automática. Solo si tú configuras y solicitas una copia
-            desde Ajustes, la aplicación envía una instantánea de tus datos a la base de datos de Runo administrada en
+            desde Ajustes, la aplicación envía una instantánea de tus datos a la base de datos de Avo administrada en
             Neon. La copia permanece allí hasta que la elimines desde Ajustes → Copia en la nube.
           </p>
           <p className="mt-2">
             El sitio se sirve mediante Vercel. Como cualquier servicio web, los proveedores de alojamiento pueden procesar
             datos técnicos de conexión necesarios para entregar y proteger el servicio; sus propias políticas y periodos
             de retención también pueden aplicar. La copia opcional en Neon puede procesarse fuera de México según la
-            configuración regional de los proveedores. Antes de ofrecer Runo a terceros, el responsable debe confirmar las
+            configuración regional de los proveedores. Antes de ofrecer Avo a terceros, el responsable debe confirmar las
             ubicaciones, transferencias y condiciones vigentes de esos proveedores.
           </p>
           <p className="mt-2">
-            Si conectas la copia en la nube, Runo utiliza una cookie de sesión protegida, de duración limitada, para
+            Si conectas la copia en la nube, Avo utiliza una cookie de sesión protegida, de duración limitada, para
             autorizar esa función. No se usa para publicidad. El navegador también mantiene preferencias locales, como
             idioma y tema.
           </p>
@@ -130,12 +130,12 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-semibold">6. Seguridad y cambios</h2>
           <p className="mt-2">
-            Runo aplica medidas técnicas razonables, como HTTPS para las comunicaciones y acceso protegido a la copia
+            Avo aplica medidas técnicas razonables, como HTTPS para las comunicaciones y acceso protegido a la copia
             opcional en la nube. Ninguna transmisión o almacenamiento puede garantizarse como absolutamente seguro.
             Evita escribir datos sensibles que no sean necesarios para tus hábitos o pendientes.
           </p>
           <p className="mt-2">
-            Este aviso puede actualizarse si cambian Runo, sus proveedores o la legislación. La versión vigente se
+            Este aviso puede actualizarse si cambian Avo, sus proveedores o la legislación. La versión vigente se
             publicará en esta URL con su fecha de actualización.
           </p>
         </section>
@@ -170,7 +170,7 @@ export default function PrivacyPage() {
         </section>
 
         <p className="border-t border-line pt-5 text-xs text-muted">
-          Este documento es un borrador informativo preparado según las funciones actuales de Runo; no sustituye la
+          Este documento es un borrador informativo preparado según las funciones actuales de Avo; no sustituye la
           revisión de un profesional del derecho ni determina por sí mismo qué normas aplican a cada operación.
         </p>
       </article>
@@ -180,7 +180,7 @@ export default function PrivacyPage() {
           Eliminación de datos
         </Link>
         <Link className="font-semibold underline underline-offset-4" href="/">
-          Volver a Runo
+          Volver a Avo
         </Link>
       </nav>
     </main>

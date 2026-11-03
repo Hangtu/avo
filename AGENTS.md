@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Runo — reglas de trabajo
+# Avo — reglas de trabajo
 
 App local-first de hábitos, pendientes y timer (ES/EN, español de México). Busca ayudar a actuar y volver a la vida.
 

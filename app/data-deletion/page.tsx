@@ -4,8 +4,8 @@ import Link from "next/link";
 import { LocalDataDeletion } from "@/app/_components/local-data-deletion";
 
 export const metadata: Metadata = {
-  title: "Eliminación de datos | Runo",
-  description: "Instrucciones para eliminar los datos locales y la copia opcional en la nube de Runo.",
+  title: "Eliminación de datos | Avo",
+  description: "Instrucciones para eliminar los datos locales y la copia opcional en la nube de Avo.",
 };
 
 const privacyEmail = process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL?.trim();
@@ -15,7 +15,7 @@ export default function DataDeletionPage() {
     <main className="mx-auto w-full max-w-3xl px-5 pb-16 pt-10 sm:px-8">
       <header className="border-b border-line pb-6">
         <Link href="/" className="text-sm font-semibold underline underline-offset-4">
-          Runo
+          Avo
         </Link>
         <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-muted">
           Tus datos
@@ -24,8 +24,8 @@ export default function DataDeletionPage() {
           Eliminación de datos de usuario
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted">
-          Runo no usa Facebook Login ni recibe datos de perfil de Facebook/Meta. Esta página explica cómo borrar los
-          datos que tú guardaste en Runo.
+          Avo no usa Facebook Login ni recibe datos de perfil de Facebook/Meta. Esta página explica cómo borrar los
+          datos que tú guardaste en Avo.
         </p>
       </header>
 
@@ -35,7 +35,7 @@ export default function DataDeletionPage() {
         <section>
           <h2 className="text-xl font-semibold">Borrar la copia opcional en la nube</h2>
           <ol className="mt-2 list-decimal space-y-2 pl-5">
-            <li>Abre Runo y entra a Ajustes → Copia en la nube.</li>
+            <li>Abre Avo y entra a Ajustes → Copia en la nube.</li>
             <li>Conecta con tu clave de la nube si todavía no está conectada.</li>
             <li>Elige «Eliminar copia en la nube» y confirma. Se elimina la copia activa del servidor y se cierra esa sesión.</li>
           </ol>
@@ -55,9 +55,9 @@ export default function DataDeletionPage() {
         <section>
           <h2 className="text-xl font-semibold">Qué significa eliminar</h2>
           <p className="mt-2">
-            La acción remota elimina los datos activos de Runo asociados a la copia. Los registros técnicos o copias de
+            La acción remota elimina los datos activos de Avo asociados a la copia. Los registros técnicos o copias de
             respaldo que mantengan los proveedores de alojamiento pueden seguir sus propios periodos de retención y las
-            obligaciones legales aplicables. La eliminación no desinstala Runo ni borra datos guardados fuera de Runo.
+            obligaciones legales aplicables. La eliminación no desinstala Avo ni borra datos guardados fuera de Avo.
           </p>
         </section>
       </article>
@@ -67,7 +67,7 @@ export default function DataDeletionPage() {
           Aviso de privacidad
         </Link>
         <Link className="font-semibold underline underline-offset-4" href="/">
-          Volver a Runo
+          Volver a Avo
         </Link>
       </nav>
     </main>

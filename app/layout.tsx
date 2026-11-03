@@ -19,13 +19,13 @@ const lexend = Lexend({
 });
 
 export const metadata: Metadata = {
-  applicationName: "Runo",
-  title: "Runo",
+  applicationName: "Avo",
+  title: "Avo",
   description: messages[defaultLocale].meta.description,
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Runo",
+    title: "Avo",
   },
   formatDetection: {
     telephone: false,

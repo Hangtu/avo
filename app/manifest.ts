@@ -3,8 +3,8 @@ import { defaultLocale, messages } from "@/lib/i18n/config";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Runo",
-    short_name: "Runo",
+    name: "Avo",
+    short_name: "Avo",
     description: messages[defaultLocale].meta.description,
     start_url: "/",
     scope: "/",

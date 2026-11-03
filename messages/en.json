@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Runo",
+    "title": "Avo",
     "description": "Habits, to-dos, and time for you."
   },
   "common": {
@@ -265,7 +265,7 @@
   "anchor": {
     "eyebrow": "At {time}",
     "helpLabel": "Why this is here",
-    "help": "It's time for this task. You decide if you start or leave it for later. It only appears if Runo is open.",
+    "help": "It's time for this task. You decide if you start or leave it for later. It only appears if Avo is open.",
     "duration": "{minutes} min",
     "start": "Start",
     "later": "Leave for later",
@@ -400,9 +400,9 @@
       "tick": "Tick-tock"
     },
     "voice": {
-      "title": "Tone of Runo’s messages",
+      "title": "Tone of Avo’s messages",
       "helpLabel": "About message tone",
-      "help": "Adjust the style of the written prompts Runo shows. This isn't audio: Runo doesn't speak or read menus aloud.",
+      "help": "Adjust the style of the written prompts Avo shows. This isn't audio: Avo doesn't speak or read menus aloud.",
       "label": "Style",
       "silence": "No phrases",
       "normal": "Calm",
@@ -437,7 +437,7 @@
       "help": "Saves a copy of what's on this phone to your database. It doesn't turn on by itself and doesn't replace your local data.",
       "loading": "Checking the cloud…",
       "notConfigured": "The cloud isn't configured on the server.",
-      "notConfiguredHelp": "You can keep using Runo; backup isn't available right now.",
+      "notConfiguredHelp": "You can keep using Avo; backup isn't available right now.",
       "notConnected": "Connect this phone to save a copy.",
       "passcodeLabel": "Cloud key",
       "passcodeRequired": "Enter the cloud key.",
@@ -458,7 +458,7 @@
       "saved": "Backup saved.",
       "backupError": "I couldn't save the backup.",
       "deleteBackup": "Delete cloud backup",
-      "deleteConfirm": "This deletes the active Runo data saved in the cloud and ends this session. This can't be undone. Continue?",
+      "deleteConfirm": "This deletes the active Avo data saved in the cloud and ends this session. This can't be undone. Continue?",
       "deleteButton": "Yes, delete backup",
       "deleting": "Deleting backup…",
       "deleted": "The cloud backup was deleted.",
@@ -474,15 +474,15 @@
   },
   "dataDeletion": {
     "localTitle": "Delete data in this browser",
-    "localCopy": "Deletes Runo's local database and preferences saved in this browser. It does not delete the optional cloud backup or data on other devices.",
+    "localCopy": "Deletes Avo's local database and preferences saved in this browser. It does not delete the optional cloud backup or data on other devices.",
     "startButton": "Delete data in this browser",
     "confirmCopy": "This deletes local data and preferences in this browser. This can't be undone.",
     "confirmButton": "Yes, delete my local data",
     "cancel": "Keep my data",
     "deleting": "Deleting…",
-    "done": "Runo's local data and preferences in this browser were deleted.",
+    "done": "Avo's local data and preferences in this browser were deleted.",
     "unavailableError": "This browser can't delete local storage from here. Clear this site's data in your browser settings.",
-    "blockedError": "Runo is still open in another tab or window. Close other Runo sessions and try again.",
+    "blockedError": "Avo is still open in another tab or window. Close other Avo sessions and try again.",
     "failedError": "The data couldn't be deleted. Try again or clear this site's data in your browser settings."
   },
   "wallet": {
@@ -542,7 +542,7 @@
   },
   "account": {
     "titleSignedIn": "Signed in",
-    "copy": "You’re using Runo without an account. You can keep using it this way or sign in with Google or Facebook.",
+    "copy": "You’re using Avo without an account. You can keep using it this way or sign in with Google or Facebook.",
     "continueGoogle": "Continue with Google",
     "continueFacebook": "Continue with Facebook",
     "signOut": "Sign out",
