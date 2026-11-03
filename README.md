@@ -4,6 +4,7 @@ App personal local-first de hábitos, pendientes y timer; ES/EN, Next.js 16.4.3,
 
 - Sin cuenta, los datos operativos permanecen en IndexedDB.
 - Better Auth tiene rutas/UI básicas; Facebook se confirmó en local. Google, sesión/logout verificados, espacios de cuenta, recuperación y sync selectivo siguen pendientes.
+- El respaldo manual E3 fue retirado: ya no hay rutas `/api/cloud/*`, clave compartida ni seed remoto de dueño fijo. Los datos existentes y las claves técnicas `runo` se conservan; los snapshots locales y fixtures de migración no habilitan respaldo ni sync remoto.
 - `0003_account_spaces.sql` es una migración local no aplicada a Neon. No desplegar código que la requiere sobre un esquema anterior.
 - `/privacy` y `/data-deletion` tienen texto MVP y contacto fijo `support@frutit.app`; no se publicaron en este trabajo. El botón local borra solo el espacio invitado y sus preferencias; cuenta/servidores se solicitan por correo. Antes de producción, confirmar responsable legal/domicilio y probar la atención y eliminación segura por cuenta.
 
@@ -33,7 +34,9 @@ npm run dev
 
 Solo se regenera caché de compilación; no borres IndexedDB ni datos del sitio. Si el módulo tampoco se resuelve con Node, ejecuta `npm ci` con el servidor detenido.
 
-Nunca publiques secretos. `DATABASE_URL` es para runtime; `DATABASE_URL_UNPOOLED` para Drizzle. No ejecutes `db:migrate`, `db:seed`, operaciones Neon ni deploy sin confirmar destino, recuperación y autorización.
+Nunca publiques secretos. `DATABASE_URL` es para runtime; `DATABASE_URL_UNPOOLED` para Drizzle. No ejecutes `db:migrate`, operaciones Neon ni deploy sin confirmar destino, recuperación y autorización.
+
+Para el servidor actual configura `DATABASE_URL`, `BETTER_AUTH_SECRET` (generado con `openssl rand -base64 32`) y `BETTER_AUTH_URL` (origen HTTPS exacto en producción, sin rutas). Añade el par ID/secreto de cada proveedor que habilites y registra sus callbacks exactos en Google/Meta. Better Auth confía automáticamente en el origen de su base URL: ya no configuramos una lista adicional de orígenes ni variables `RUNO_*`. Retira las variables antiguas de Vercel; este cambio no modifica la configuración remota. La zona inicial sigue siendo `America/Mexico_City`.
 
 ## Verificación
 

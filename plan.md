@@ -33,7 +33,7 @@ Una sola fase 🟡 global. El detalle técnico de auth/migraciones está en [`do
 | **E4.5** | Outbox durable, revisiones y resolución explícita de conflictos; tráfico del timer recurrente: cero mutaciones remotas. |
 | **E4.5.1** | Completar pendiente único conserva una entrada estable con título/fecha; reintentos no duplican ni reabren; otro dispositivo la recupera. |
 | **E4.6** | Cambio A/invitado/B, expiración, logout y eliminación no cruzan datos ni reenvían colas ajenas. |
-| **E4.7** | Retirar rutas/clave E3 de dueño fijo de forma segura; preservar `owner`, sin asignarlo automáticamente ni borrar datos. |
+| **E4.7** | Retiro local autorizado del respaldo E3: rutas/UI, clave compartida y seed remoto eliminados; `owner` y sus datos preservados. Falta verificar la ausencia de rutas/variables en el despliegue autorizado; no implica recuperación ni sync E4. |
 | **F01** | Aviso y eliminación MVP actualizados para OAuth/proveedores, contacto fijo `support@frutit.app` y borrado local de invitado acotado. Confirmar responsable/domicilio, atención del correo, retención y eliminación segura por cuenta antes de publicar. |
 | **E4.8** | Regresión integrada de auth, importación, offline/conflictos, seguridad y PWA con evidencia real de navegador/dispositivo. |
 

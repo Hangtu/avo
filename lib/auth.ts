@@ -27,15 +27,6 @@ function socialProviders() {
   };
 }
 
-function trustedOrigins(): string[] {
-  const configured = process.env.BETTER_AUTH_TRUSTED_ORIGINS;
-  return (configured ? configured.split(",") : [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://runo-mu.vercel.app",
-  ]).map((origin) => origin.trim()).filter(Boolean);
-}
-
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET,
@@ -53,7 +44,6 @@ export const auth = betterAuth({
   },
   emailAndPassword: { enabled: false },
   socialProviders: socialProviders(),
-  trustedOrigins: trustedOrigins(),
   databaseHooks: {
     user: {
       create: {
@@ -62,7 +52,7 @@ export const auth = betterAuth({
             .insert(schema.users)
             .values({
               id: user.id,
-              timeZone: process.env.RUNO_TIME_ZONE ?? "America/Mexico_City",
+              timeZone: "America/Mexico_City",
             })
             .onConflictDoNothing();
         },

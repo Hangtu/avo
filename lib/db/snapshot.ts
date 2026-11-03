@@ -45,7 +45,7 @@ import {
 
 const MAX_ROWS = 100_000;
 
-export type { BackupCounts, RunoSnapshot } from "./snapshot-types";
+export type { RunoSnapshot } from "./snapshot-types";
 
 export class BackupError extends Error {
   constructor(message: string) {
@@ -278,7 +278,7 @@ function metadataFrom(value: unknown): Metadata {
   };
 }
 
-/** Validates the untrusted JSON before the transaction touches the remote mirror. */
+/** Validate a complete snapshot before local import or use in migration fixtures. */
 export function parseBackupSnapshot(value: unknown): RunoSnapshot {
   const raw = record(value, "snapshot");
   if (raw.schemaVersion !== BACKUP_SCHEMA_VERSION) {

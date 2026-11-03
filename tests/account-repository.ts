@@ -1,42 +1,17 @@
-import "server-only";
-
-import { and, eq } from "drizzle-orm";
-
-import { db } from "@/lib/db/client";
+import { eq } from "drizzle-orm";
+import type { PgliteDatabase } from "drizzle-orm/pglite";
 import * as schema from "@/lib/db/schema";
-import type { JsonValue } from "@/lib/domain/types";
-import { rowsForSnapshot } from "./snapshot";
-import type { BackupCounts, RunoSnapshot } from "./snapshot-types";
+import { rowsForSnapshot } from "@/lib/db/snapshot";
+import type { RunoSnapshot } from "@/lib/db/snapshot-types";
 
-function backupValue(at: number, counts: BackupCounts): Record<string, JsonValue> {
-  return { at, counts: { ...counts } };
-}
-
-function countsFor(snapshot: RunoSnapshot): BackupCounts {
-  return {
-    tasks: snapshot.tasks.length,
-    pendings: snapshot.pendings.length,
-    occurrences: snapshot.occurrences.length,
-    days: snapshot.days.length,
-    hands: snapshot.hands.length,
-    sessions: snapshot.sessions.length,
-    events: snapshot.events.length,
-    ledger: snapshot.ledger.length,
-  };
-}
-
-/**
- * The local device is the source for E3. This replaces this owner's remote
- * mirror atomically; it does not reconcile two remote writers.
- */
-export async function replaceRemoteSnapshot(
+/** Test-only full-row fixtures for migration/FK isolation, never production sync. */
+export async function replaceAccountFixture(
+  db: PgliteDatabase<typeof schema>,
   snapshot: RunoSnapshot,
   ownerId: string,
   timeZone: string,
-): Promise<{ lastBackupAt: number; counts: BackupCounts }> {
+): Promise<void> {
   const rows = rowsForSnapshot(snapshot, ownerId, timeZone);
-  const lastBackupAt = Date.now();
-  const counts = countsFor(snapshot);
 
   await db.transaction(async (tx) => {
     await tx.insert(schema.users).values(rows.user).onConflictDoNothing();
@@ -67,29 +42,14 @@ export async function replaceRemoteSnapshot(
     if (rows.metadata.length) {
       await tx.insert(schema.metadata).values(rows.metadata).onConflictDoNothing();
     }
-
-    await tx
-      .insert(schema.metadata)
-      .values({
-        userId: ownerId,
-        key: "cloud-backup",
-        value: backupValue(lastBackupAt, counts),
-        updatedAt: new Date(lastBackupAt),
-      })
-      .onConflictDoUpdate({
-        target: [schema.metadata.userId, schema.metadata.key],
-        set: {
-          value: backupValue(lastBackupAt, counts),
-          updatedAt: new Date(lastBackupAt),
-        },
-      });
   });
-
-  return { lastBackupAt, counts };
 }
 
-/** Permanently deletes the active remote copy for this single configured owner. */
-export async function deleteRemoteSnapshot(ownerId: string): Promise<void> {
+/** Test-only deletion scoped to an explicitly supplied synthetic account. */
+export async function deleteAccountFixture(
+  db: PgliteDatabase<typeof schema>,
+  ownerId: string,
+): Promise<void> {
   await db.transaction(async (tx) => {
     await tx.delete(schema.sessions).where(eq(schema.sessions.userId, ownerId));
     await tx.delete(schema.handItems).where(eq(schema.handItems.userId, ownerId));
@@ -106,25 +66,3 @@ export async function deleteRemoteSnapshot(ownerId: string): Promise<void> {
   });
 }
 
-export async function getLastBackup(ownerId: string): Promise<{
-  lastBackupAt: number | null;
-  counts: BackupCounts | null;
-}> {
-  const [row] = await db
-    .select({ value: schema.metadata.value })
-    .from(schema.metadata)
-    .where(and(eq(schema.metadata.userId, ownerId), eq(schema.metadata.key, "cloud-backup")))
-    .limit(1);
-  const value = row?.value;
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return { lastBackupAt: null, counts: null };
-  }
-  const data = value as { at?: unknown; counts?: unknown };
-  if (!Number.isFinite(data.at) || typeof data.counts !== "object" || data.counts === null) {
-    return { lastBackupAt: null, counts: null };
-  }
-  return {
-    lastBackupAt: data.at as number,
-    counts: data.counts as BackupCounts,
-  };
-}

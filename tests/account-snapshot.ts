@@ -1,4 +1,4 @@
-import type { RunoSnapshot } from "@/lib/cloud/snapshot-types";
+import type { RunoSnapshot } from "@/lib/db/snapshot-types";
 import type { Occurrence, Task } from "@/lib/domain/types";
 import { MONDAY, NOW, taskInput } from "./fixtures";
 

@@ -42,7 +42,7 @@ function snapshot(): RunoSnapshot {
   };
 }
 
-describe("cloud snapshot", () => {
+describe("local snapshot and migration row mapping", () => {
   it("validates and maps local rows to Postgres rows", () => {
     const parsed = parseBackupSnapshot(JSON.parse(JSON.stringify(snapshot())));
     const rows = rowsForSnapshot(parsed, "owner", "America/Mexico_City");

@@ -1,9 +1,9 @@
 import type { RunoDatabase } from "./database";
 import { getSettings } from "./repository";
-import { BACKUP_SCHEMA_VERSION, type RunoSnapshot } from "@/lib/cloud/snapshot-types";
+import { BACKUP_SCHEMA_VERSION, type RunoSnapshot } from "./snapshot-types";
 import { validateSettings } from "@/lib/domain/validation";
 
-/** Read the complete local DB for the explicit, one-way cloud backup. */
+/** Read a complete local snapshot; this does not upload or synchronize data. */
 export async function exportLocalSnapshot(
   db: RunoDatabase,
   exportedAt: number,

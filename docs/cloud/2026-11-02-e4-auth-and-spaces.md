@@ -37,7 +37,7 @@ Contrato a implementar en E4.3, **no configuración ya activa**:
 
 ### Orígenes y callbacks propuestos
 
-La ruta estándar de Better Auth será `/api/auth`; **aún no existe** en este corte.
+La ruta estándar de Better Auth es `/api/auth` y ya existe en el árbol integrado. `BETTER_AUTH_URL` fija el origen por entorno; Better Auth lo incluye automáticamente entre los orígenes permitidos, sin lista adicional de la app.
 
 | Entorno | Origen fijo | Callback Google / Facebook |
 |---|---|---|
@@ -46,7 +46,7 @@ La ruta estándar de Better Auth será `/api/auth`; **aún no existe** en este c
 | Desarrollo integrado | Host HTTPS estable de desarrollo, por confirmar | `/api/auth/callback/google` y `/api/auth/callback/facebook` |
 | Producción, después de autorización | `https://runo-mu.vercel.app` | `/api/auth/callback/google` y `/api/auth/callback/facebook` |
 
-Registrar URLs completas y exactas en cada consola; no usar previews efímeros como callbacks públicos. La documentación de Better Auth muestra localhost para Facebook, pero no sustituye los requisitos HTTPS/modo desarrollo y revisión que imponga Meta a la app concreta. No se creó un túnel ni se configuró una consola. Usar credenciales/secretos distintos por entorno; las claves E3 no son secretos OAuth. Los requisitos de aviso y eliminación de Meta siguen en F01.
+Registrar URLs completas y exactas en cada consola; no usar previews efímeros como callbacks públicos. La documentación de Better Auth muestra localhost para Facebook, pero no sustituye los requisitos HTTPS/modo desarrollo y revisión que imponga Meta a la app concreta. No se creó un túnel ni se configuró una consola. Usar credenciales/secretos distintos por entorno; las claves E3 no eran secretos OAuth y ya se retiraron del código local. Los requisitos de aviso y eliminación de Meta siguen en F01.
 
 ## 2. Proyección, semillas y salida: decisiones cerradas
 
@@ -65,10 +65,10 @@ Registrar URLs completas y exactas en cada consola; no usar previews efímeros c
 - `lib/db/auth-schema.ts`: refleja las cuatro tablas Better Auth ya creadas por `0002_dry_lethal_legion.sql` en `main`; conserva sus columnas e índices y añade en `0003_account_spaces.sql` unicidad conservadora del correo normalizado. Campos contrastados con `getAuthTables` de la versión instalada.
 - `runo_users.auth_user_id` es nullable y único, con FK restrictiva. Crear una identidad no adopta `owner`; el borrado de auth no puede saltarse la limpieza del dominio. `main` contiene ya el endpoint/auth básico y configuró Facebook local; credenciales/callbacks públicos, vinculación segura y persistencia de datos siguen pendientes.
 - PK de dominio `(user_id, id)` para rutinas, pendientes, franjas, ocurrencias, sesiones, eventos y ledger; `hand_items` añade dueño y PK `(user_id, hand_id, occurrence_id)`. Las FKs de dominio incluyen al dueño. Días/metadata conservan sus claves compuestas.
-- Revisiones iniciales en rutinas, pendientes y preferencias; idioma y orden tipado en preferencias. Esto **no implementa outbox, conflictos ni sync**. El flujo E3 aún reemplaza snapshots; no usarlo para E4.
-- Se corrigió el borrado de `hand_items` del repositorio E3: ahora filtra su `user_id`, no un `hand_id` global que podría coincidir en B. El mapeo de snapshot añade dueño tanto a activas como diferidas.
+- Revisiones iniciales en rutinas, pendientes y preferencias; idioma y orden tipado en preferencias. Esto **no implementa outbox, conflictos ni sync**. El flujo E3 se retiró por autorización del dueño; las inserciones completas para probar aislamiento viven solo en `tests/account-repository.ts`, sin acceso a Neon ni rutas públicas.
+- El fixture de PostgreSQL filtra el borrado de `hand_items` por `user_id`, no por un `hand_id` global que podría coincidir en B. El mapeo puro de snapshot, ahora en `lib/db/snapshot.ts`, añade dueño tanto a activas como diferidas; se conservan las pruebas de aislamiento y preservación legacy sin mantener el respaldo remoto.
 - Los IDs de eventos siguen siendo etiquetas históricas sin FKs; no autorizan joins. `occurrences.task_id` sigue sin FK por sus IDs sintéticos. Estas excepciones no convierten runtime en datos sincronizables.
-- Referencias opcionales `sessions.hand_id` y `ledger.occurrence_id`: pasan a `NO ACTION` en su FK compuesta. Antes de borrar solo el destino se debe limpiar explícitamente la referencia; `SET NULL` compuesto borraría también `user_id`. La copia/eliminación E3 ya elimina hijos primero y se prueba así.
+- Referencias opcionales `sessions.hand_id` y `ledger.occurrence_id`: pasan a `NO ACTION` en su FK compuesta. Antes de borrar solo el destino se debe limpiar explícitamente la referencia; `SET NULL` compuesto borraría también `user_id`. Los fixtures de aislamiento eliminan hijos primero y se prueban así; no hay una API de respaldo/eliminación E3 activa.
 
 `drizzle/0003_account_spaces.sql` se generó después de la migración `0002_dry_lethal_legion.sql` de Better Auth que ya forma parte de `main`; **0003 no se aplicó a Neon**. Revisión necesaria respecto de la salida de Kit:
 
@@ -101,7 +101,7 @@ Registrar URLs completas y exactas en cada consola; no usar previews efímeros c
 1. Identificar proyecto/rama/DB correctos y confirmar que es desarrollo; el endpoint no demuestra la rama. Revisar el journal real: `0000`–`0002` constan como aplicadas en dev en `STATUS.md`; verificarlo en la rama y revisar `0003_account_spaces.sql` antes de cualquier operación.
 2. Obtener autorización para esa operación y disponer de punto de recuperación probado (rama/backup), fuera de datos personales de pruebas destructivas. No crear servicios/rama con costo ni tocar producción por inferencia.
 3. Revisar nombres/columnas/PK/FKs y joins legacy con consultas solo lectura; detenerse si difieren. Revisar el SQL completo y hacer respaldo/recuperación según el entorno autorizado.
-4. Usar migraciones Drizzle por conexión directa en transacción; nunca `push`. No ejecutar `db:seed` multiusuario: carga ejemplos personales y `owner`.
+4. Usar migraciones Drizzle por conexión directa en transacción; nunca `push`. El script remoto `db:seed` de dueño fijo fue eliminado; no sembrar ni adoptar datos personales en cuentas nuevas.
 5. Repetir escenarios sintéticos A/B, comprobar datos preexistentes y recuperación. Solo entonces cerrar E4.2 y pasar a E4.3, un ID a la vez.
 6. No desplegar el código que depende de `hand_items.user_id` y las claves nuevas sobre una base antigua. OAuth público requiere además E4.7 y F01, no solo compilar.
 

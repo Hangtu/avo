@@ -3,16 +3,11 @@ import { PGlite } from "@electric-sql/pglite";
 import { getTableColumns } from "drizzle-orm";
 import { getTableConfig, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { rowsForSnapshot } from "@/lib/cloud/snapshot";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { rowsForSnapshot } from "./snapshot";
+import * as fixtures from "@/tests/account-repository";
 import { accountSnapshot } from "@/tests/account-snapshot";
 import * as schema from "./schema";
-
-// Run the real cloud repository against local PostgreSQL/WASM, not Neon or a
-// mocked transaction engine. Only the server-only guard/connection are replaced.
-const client = vi.hoisted(() => ({ db: undefined as unknown }));
-vi.mock("server-only", () => ({}));
-vi.mock("@/lib/db/client", () => ({ get db() { return client.db; } }));
 
 const sqlFile = (name: string) => readFileSync(new URL(`../../drizzle/${name}`, import.meta.url), "utf8");
 const initialSQL = sqlFile("0000_yellow_zodiak.sql");
@@ -127,9 +122,9 @@ async function expectNoPartialMigration(pg: PGlite) {
   expect(columns.rows).toEqual([]);
 }
 
-describe("E4.2 migration and repository isolation — local PostgreSQL/WASM, not Neon", () => {
+describe("E4.2 migration and data isolation — local PostgreSQL/WASM, not Neon", () => {
   let pg: PGlite;
-  let cloud: typeof import("@/lib/cloud/repository");
+  let db: ReturnType<typeof drizzle<typeof schema>>;
   let columns: LegacyColumns;
   let original: Record<string, unknown>;
   let originalAuth: Record<string, unknown>;
@@ -141,8 +136,7 @@ describe("E4.2 migration and repository isolation — local PostgreSQL/WASM, not
     original = await captureLegacy(pg, columns);
     originalAuth = await captureAuth(pg);
     await migrate(pg);
-    client.db = drizzle(pg, { schema });
-    cloud = await import("@/lib/cloud/repository");
+    db = drizzle(pg, { schema });
   }, 30_000);
   afterAll(async () => { await pg?.close(); });
 
@@ -155,24 +149,24 @@ describe("E4.2 migration and repository isolation — local PostgreSQL/WASM, not
     expect(await captureAuth(pg)).toEqual(originalAuth);
   });
 
-  it("backs up/replaces/deletes A with the same IDs as B without touching B or legacy", async () => {
+  it("replaces/deletes fixture A with the same IDs as B without touching B or legacy", async () => {
     const legacyBefore = await captureOwner(pg, "legacy-owner");
-    await cloud.replaceRemoteSnapshot(accountSnapshot("A"), "account-A", "America/Mexico_City");
-    await cloud.replaceRemoteSnapshot(accountSnapshot("B"), "account-B", "America/Mexico_City");
+    await fixtures.replaceAccountFixture(db, accountSnapshot("A"), "account-A", "America/Mexico_City");
+    await fixtures.replaceAccountFixture(db, accountSnapshot("B"), "account-B", "America/Mexico_City");
     const before = await captureOwner(pg, "account-B");
     expect((await pg.query("SELECT user_id, title FROM runo_tasks WHERE id = 'seed:coffee' ORDER BY user_id")).rows)
       .toEqual([{ user_id: "account-A", title: "A" }, { user_id: "account-B", title: "B" }, { user_id: "legacy-owner", title: "Synthetic legacy data" }]);
-    await cloud.replaceRemoteSnapshot(accountSnapshot("A edited"), "account-A", "America/Mexico_City");
+    await fixtures.replaceAccountFixture(db, accountSnapshot("A edited"), "account-A", "America/Mexico_City");
     expect(await captureOwner(pg, "account-B")).toEqual(before);
-    await cloud.deleteRemoteSnapshot("account-A");
+    await fixtures.deleteAccountFixture(db, "account-A");
     expect(await captureOwner(pg, "account-B")).toEqual(before);
     expect(Object.values(await captureOwner(pg, "account-A")).every((rows) => Array.isArray(rows) && rows.length === 0)).toBe(true);
     expect(await captureOwner(pg, "legacy-owner")).toEqual(legacyBefore);
   });
 
   it("rejects cross-account session, hand-item and ledger foreign keys", async () => {
-    await cloud.replaceRemoteSnapshot(accountSnapshot("C"), "account-C", "America/Mexico_City");
-    await cloud.replaceRemoteSnapshot(accountSnapshot("D"), "account-D", "America/Mexico_City");
+    await fixtures.replaceAccountFixture(db, accountSnapshot("C"), "account-C", "America/Mexico_City");
+    await fixtures.replaceAccountFixture(db, accountSnapshot("D"), "account-D", "America/Mexico_City");
     await pg.exec(`
       INSERT INTO runo_occurrences (user_id, id, task_id, date) VALUES ('account-D', 'D-only-occurrence', 'quick:D', '2026-10-26');
       INSERT INTO runo_hands (user_id, id, date, ordinal) VALUES ('account-D', 'D-only-hand', '2026-10-26', 2);

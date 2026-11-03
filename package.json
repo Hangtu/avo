@@ -14,7 +14,6 @@
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx --conditions=react-server scripts/seed-db.ts",
     "db:health": "tsx --conditions=react-server scripts/db-health.ts",
     "db:verify": "tsx --conditions=react-server scripts/db-verify.ts"
   },

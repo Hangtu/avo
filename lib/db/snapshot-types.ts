@@ -27,14 +27,3 @@ export interface RunoSnapshot {
   settings: Settings;
   metadata: Metadata[];
 }
-
-export interface BackupCounts {
-  tasks: number;
-  pendings: number;
-  occurrences: number;
-  days: number;
-  hands: number;
-  sessions: number;
-  events: number;
-  ledger: number;
-}
