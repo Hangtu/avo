@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "neon": {
+      "url": "https://mcp.neon.tech/mcp?readonly=true&projectId=REEMPLAZAR_CON_PROJECT_ID_DE_RUNO",
+      "enabled": false,
+      "description": "Neon de Runo, solo lectura. Confirmar proyecto y rama de desarrollo antes de consultar datos."
+    }
+  }
+}

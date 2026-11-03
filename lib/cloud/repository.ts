@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
@@ -41,12 +41,9 @@ export async function replaceRemoteSnapshot(
   await db.transaction(async (tx) => {
     await tx.insert(schema.users).values(rows.user).onConflictDoNothing();
 
-    // Child rows first; scope every delete to this owner.
+    // Child rows first; scope every delete to this owner, including join rows.
     await tx.delete(schema.sessions).where(eq(schema.sessions.userId, ownerId));
-    await tx.execute(sql`
-      delete from runo_hand_items
-      where hand_id in (select id from runo_hands where user_id = ${ownerId})
-    `);
+    await tx.delete(schema.handItems).where(eq(schema.handItems.userId, ownerId));
     await tx.delete(schema.ledger).where(eq(schema.ledger.userId, ownerId));
     await tx.delete(schema.events).where(eq(schema.events.userId, ownerId));
     await tx.delete(schema.occurrences).where(eq(schema.occurrences.userId, ownerId));
@@ -89,6 +86,24 @@ export async function replaceRemoteSnapshot(
   });
 
   return { lastBackupAt, counts };
+}
+
+/** Permanently deletes the active remote copy for this single configured owner. */
+export async function deleteRemoteSnapshot(ownerId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(schema.sessions).where(eq(schema.sessions.userId, ownerId));
+    await tx.delete(schema.handItems).where(eq(schema.handItems.userId, ownerId));
+    await tx.delete(schema.ledger).where(eq(schema.ledger.userId, ownerId));
+    await tx.delete(schema.events).where(eq(schema.events.userId, ownerId));
+    await tx.delete(schema.occurrences).where(eq(schema.occurrences.userId, ownerId));
+    await tx.delete(schema.hands).where(eq(schema.hands.userId, ownerId));
+    await tx.delete(schema.pendings).where(eq(schema.pendings.userId, ownerId));
+    await tx.delete(schema.tasks).where(eq(schema.tasks.userId, ownerId));
+    await tx.delete(schema.days).where(eq(schema.days.userId, ownerId));
+    await tx.delete(schema.metadata).where(eq(schema.metadata.userId, ownerId));
+    await tx.delete(schema.settings).where(eq(schema.settings.userId, ownerId));
+    await tx.delete(schema.users).where(eq(schema.users.id, ownerId));
+  });
 }
 
 export async function getLastBackup(ownerId: string): Promise<{

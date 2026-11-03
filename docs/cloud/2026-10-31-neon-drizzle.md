@@ -2,6 +2,8 @@
 
 # Runo en la nube — plan de Neon + Drizzle
 
+> **Actualización de alcance (2026-11-02):** este documento conserva el diseño y la evidencia de E1–E3. El nuevo contrato de E4 está en [`plan.md`](../../plan.md#e4--cuenta-opcional-y-persistencia-selectiva-por-usuario) y sustituye las propuestas generales de restauración/sync e importación completa de este documento. `main` contiene la base de login Better Auth y la UI; E4.2 añade primitivas de espacios/esquema, pero aún no restaura ni sincroniza los datos de cuenta. `0003_account_spaces.sql` no se aplicó a Neon. Decisión/evidencia en [`registro E4`](./2026-11-02-e4-auth-and-spaces.md). Esta guía es histórica: `CloudBackup` no está montado hoy en Ajustes. No reutilizar la clave de un solo dueño como acceso multiusuario.
+
 **Fecha:** 2026-10-31  
 **Fase:** E1 · preparación de la capa de datos  
 **Estado:** esquema, cliente server-only y migración aplicados. **E2:** proyecto Neon, migración y semilla cargados. **E3:** copia manual desde Ajustes, protegida por passcode y cookie HttpOnly; la app sigue leyendo y escribiendo IndexedDB y no hay sync ni restauración.

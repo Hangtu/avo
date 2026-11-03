@@ -409,6 +409,7 @@ export function rowsForSnapshot(
       if (seen.has(occurrenceId)) return [];
       seen.add(occurrenceId);
       return [{
+        userId: ownerId,
         handId: hand.id,
         occurrenceId,
         state: "active" as const,
@@ -418,6 +419,7 @@ export function rowsForSnapshot(
     const deferred = hand.deferredOccurrenceIds
       .filter((occurrenceId) => !seen.has(occurrenceId))
       .map((occurrenceId) => ({
+        userId: ownerId,
         handId: hand.id,
         occurrenceId,
         state: "deferred" as const,

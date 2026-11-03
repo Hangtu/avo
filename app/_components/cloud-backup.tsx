@@ -50,6 +50,7 @@ export function CloudBackup() {
   const passcodeRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(null);
   const [counts, setCounts] = useState<BackupCounts | null>(null);
 
@@ -169,6 +170,7 @@ export function CloudBackup() {
     if (busy) return;
     if (!confirming) {
       setConfirming(true);
+      setConfirmingDelete(false);
       setNotice(null);
       return;
     }
@@ -206,6 +208,46 @@ export function CloudBackup() {
       setError(t("backupError"));
     } finally {
       db?.close();
+      setBusy(false);
+    }
+  }
+
+  async function deleteBackup() {
+    if (busy) return;
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      setConfirming(false);
+      setNotice(null);
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch("/api/cloud/backup", {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (response.status === 401) {
+        setMode("login");
+        setConfirmingDelete(false);
+        return;
+      }
+      if (response.status === 503) {
+        setMode("unconfigured");
+        setConfirmingDelete(false);
+        return;
+      }
+      if (!response.ok) throw new Error("delete");
+      setLastBackupAt(null);
+      setCounts(null);
+      setConfirmingDelete(false);
+      setMode("login");
+      setNotice(t("deleted"));
+    } catch {
+      setError(t("deleteError"));
+    } finally {
       setBusy(false);
     }
   }
@@ -308,7 +350,29 @@ export function CloudBackup() {
           ) : null}
           <p className="mt-2 text-xs text-muted">{t("backupHelp")}</p>
 
-          {confirming ? (
+          {confirmingDelete ? (
+            <div className="mt-3 border-l-2 border-accent pl-3" role="alert">
+              <p className="text-sm leading-6">{t("deleteConfirm")}</p>
+              <div className="mt-2 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void deleteBackup()}
+                  disabled={busy}
+                  className="min-h-11 bg-accent px-4 text-sm font-semibold text-background disabled:opacity-60"
+                >
+                  {busy ? t("deleting") : t("deleteButton")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={busy}
+                  className="min-h-11 text-sm font-semibold underline underline-offset-4 disabled:opacity-60"
+                >
+                  {t("cancel")}
+                </button>
+              </div>
+            </div>
+          ) : confirming ? (
             <div className="mt-3 border-l-2 border-accent pl-3" role="alert">
               <p className="text-sm leading-6">{t("confirm")}</p>
               <div className="mt-2 flex flex-wrap gap-3">
@@ -339,6 +403,14 @@ export function CloudBackup() {
                 className="min-h-11 bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
               >
                 {t("backup")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteBackup()}
+                disabled={busy}
+                className="min-h-11 border border-accent px-4 text-sm font-semibold text-accent disabled:opacity-60"
+              >
+                {t("deleteBackup")}
               </button>
               <button
                 type="button"

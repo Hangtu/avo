@@ -3,7 +3,9 @@ import type {
   Day, Hand, LedgerEntry, Metadata, Occurrence, Pending, RunoEvent, Session, Settings, Task,
 } from "@/lib/domain/types";
 
-export const DATABASE_NAME = "runo";
+import { databaseNameForSpace, LEGACY_DATABASE_NAME, type LocalSpace } from "./local-space";
+
+export const DATABASE_NAME = LEGACY_DATABASE_NAME;
 export const DATABASE_VERSION = 4;
 
 /**
@@ -11,7 +13,7 @@ export const DATABASE_VERSION = 4;
  * original name as the guest scope preserves data from before E4.
  */
 export function databaseNameForUser(userId: string | null | undefined): string {
-  return userId ? `runo-user-${encodeURIComponent(userId)}` : DATABASE_NAME;
+  return databaseNameForSpace(userId ? { kind: "account", userId } : { kind: "guest" });
 }
 
 let activeDatabaseName = DATABASE_NAME;
@@ -81,6 +83,11 @@ export class RunoDatabase extends Dexie {
       }),
     );
   }
+}
+
+/** Explicit space selection, independent of the compatibility active-name API. */
+export function openDatabaseForSpace(space: LocalSpace): Promise<RunoDatabase> {
+  return openDatabase(databaseNameForSpace(space));
 }
 
 export async function openDatabase(name = currentDatabaseName()): Promise<RunoDatabase> {

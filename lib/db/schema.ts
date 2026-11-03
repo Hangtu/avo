@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -16,6 +17,8 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { SOUND_KEYS, type JsonValue, type Task, type TaskAgreement } from "@/lib/domain/types";
+import type { TaskOrder } from "@/lib/domain/task-order";
+import { authUsers } from "./auth-schema";
 
 /**
  * Server-side Postgres schema for the future online layer.
@@ -81,78 +84,14 @@ export const eventTypeEnum = pgEnum("runo_event_type", [
 
 export const users = pgTable("runo_users", {
   id: text("id").primaryKey(),
+  // Null preserves the legacy owner. Never attach it to the first social login.
+  authUserId: text("auth_user_id").unique().references(() => authUsers.id, { onDelete: "restrict" }),
   timeZone: text("time_zone").notNull().default("America/Mexico_City"),
   createdAt: createdAt(),
 });
 
-/**
- * Better Auth owns identity. Keep these tables prefixed so they can coexist in
- * a shared Neon project; `runo_users` remains the app profile (same id).
- */
-export const authUsers = pgTable("runo_auth_users", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
-  image: text("image"),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
-
-export const authSessions = pgTable(
-  "runo_auth_sessions",
-  {
-    id: text("id").primaryKey(),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
-    token: text("token").notNull().unique(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: text("user_id")
-      .notNull()
-      .references(() => authUsers.id, { onDelete: "cascade" }),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (table) => [index("runo_auth_sessions_user_id_idx").on(table.userId)],
-);
-
-export const authAccounts = pgTable(
-  "runo_auth_accounts",
-  {
-    id: text("id").primaryKey(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => authUsers.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true, mode: "date" }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true, mode: "date" }),
-    scope: text("scope"),
-    password: text("password"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (table) => [
-    index("runo_auth_accounts_user_id_idx").on(table.userId),
-    uniqueIndex("runo_auth_accounts_provider_account_idx").on(table.providerId, table.accountId),
-  ],
-);
-
-export const authVerifications = pgTable(
-  "runo_auth_verifications",
-  {
-    id: text("id").primaryKey(),
-    identifier: text("identifier").notNull(),
-    value: text("value").notNull(),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (table) => [index("runo_auth_verifications_identifier_idx").on(table.identifier)],
-);
+// Keep the public schema exports used by the existing auth server.
+export { authUsers, authSessions, authAccounts, authVerifications } from "./auth-schema";
 
 export const settings = pgTable(
   "runo_settings",
@@ -165,17 +104,22 @@ export const settings = pgTable(
     maxTone: smallint("max_tone").notNull().default(2),
     theme: themeEnum("theme").notNull().default("auto"),
     showWallet: boolean("show_wallet").notNull().default(false),
+    locale: text("locale").$type<"es" | "en">().notNull().default("es"),
+    taskOrder: jsonb("task_order").$type<TaskOrder>().notNull().default(sql`'{}'::jsonb`),
+    revision: integer("revision").notNull().default(1),
     updatedAt: updatedAt(),
   },
   (table) => [
     check("runo_settings_max_tone", sql`${table.maxTone} between 0 and 2`),
+    check("runo_settings_locale", sql`${table.locale} in ('es', 'en')`),
+    check("runo_settings_revision", sql`${table.revision} > 0`),
   ],
 );
 
 export const tasks = pgTable(
   "runo_tasks",
   {
-    id: text("id").primaryKey(),
+    id: text("id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -190,12 +134,15 @@ export const tasks = pgTable(
     fixedTime: time("fixed_time"),
     shortStepTitle: text("short_step_title"),
     shortStepDurationMin: smallint("short_step_duration_min"),
+    revision: integer("revision").notNull().default(1),
     archivedAt: timestampColumn("archived_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
     index("runo_tasks_user_archived_idx").on(table.userId, table.archivedAt),
+    check("runo_tasks_revision", sql`${table.revision} > 0`),
     check("runo_tasks_duration", sql`${table.durationMin} > 0`),
     check("runo_tasks_priority", sql`${table.priority} between 1 and 3`),
     check(
@@ -220,7 +167,7 @@ export const tasks = pgTable(
 export const pendings = pgTable(
   "runo_pendings",
   {
-    id: text("id").primaryKey(),
+    id: text("id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -228,11 +175,14 @@ export const pendings = pgTable(
     durationMin: integer("duration_min").notNull(),
     completedAt: timestampColumn("completed_at"),
     deletedAt: timestampColumn("deleted_at"),
+    revision: integer("revision").notNull().default(1),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
     index("runo_pendings_user_created_idx").on(table.userId, table.createdAt),
+    check("runo_pendings_revision", sql`${table.revision} > 0`),
     check("runo_pendings_duration", sql`${table.durationMin} > 0`),
   ],
 );
@@ -257,7 +207,7 @@ export const days = pgTable(
 export const hands = pgTable(
   "runo_hands",
   {
-    id: text("id").primaryKey(),
+    id: text("id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -268,6 +218,7 @@ export const hands = pgTable(
     closedAt: timestampColumn("closed_at"),
   },
   (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
     uniqueIndex("runo_hands_user_date_ordinal_idx").on(
       table.userId,
       table.date,
@@ -281,7 +232,7 @@ export const hands = pgTable(
 export const occurrences = pgTable(
   "runo_occurrences",
   {
-    id: text("id").primaryKey(),
+    id: text("id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -302,6 +253,7 @@ export const occurrences = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
     uniqueIndex("runo_occurrences_user_task_date_idx").on(
       table.userId,
       table.taskId,
@@ -320,21 +272,20 @@ export const occurrences = pgTable(
 export const handItems = pgTable(
   "runo_hand_items",
   {
-    handId: text("hand_id")
-      .notNull()
-      .references(() => hands.id, { onDelete: "cascade" }),
-    occurrenceId: text("occurrence_id")
-      .notNull()
-      .references(() => occurrences.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    handId: text("hand_id").notNull(),
+    occurrenceId: text("occurrence_id").notNull(),
     state: handItemStateEnum("state").notNull().default("active"),
     position: smallint("position"),
   },
   (table) => [
-    primaryKey({ columns: [table.handId, table.occurrenceId] }),
+    primaryKey({ columns: [table.userId, table.handId, table.occurrenceId] }),
+    foreignKey({ columns: [table.userId, table.handId], foreignColumns: [hands.userId, hands.id] }).onDelete("cascade"),
+    foreignKey({ columns: [table.userId, table.occurrenceId], foreignColumns: [occurrences.userId, occurrences.id] }).onDelete("cascade"),
     uniqueIndex("runo_hand_items_active_position_idx")
-      .on(table.handId, table.position)
+      .on(table.userId, table.handId, table.position)
       .where(sql`${table.state} = 'active'`),
-    index("runo_hand_items_occurrence_idx").on(table.occurrenceId),
+    index("runo_hand_items_occurrence_idx").on(table.userId, table.occurrenceId),
     check(
       "runo_hand_items_position",
       sql`(${table.state} = 'active' and ${table.position} between 1 and 3) or (${table.state} = 'deferred' and ${table.position} is null)`,
@@ -345,18 +296,16 @@ export const handItems = pgTable(
 export const sessions = pgTable(
   "runo_sessions",
   {
-    id: text("id").primaryKey(),
+    id: text("id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    occurrenceId: text("occurrence_id")
-      .notNull()
-      .references(() => occurrences.id, { onDelete: "restrict" }),
-    handId: text("hand_id").references(() => hands.id, { onDelete: "set null" }),
+    occurrenceId: text("occurrence_id").notNull(),
+    handId: text("hand_id"),
     variant: sessionVariantEnum("variant").notNull(),
     status: sessionStatusEnum("status").notNull(),
     quick: boolean("quick").notNull().default(false),
-    pendingId: text("pending_id").references(() => pendings.id, { onDelete: "restrict" }),
+    pendingId: text("pending_id"),
     taskSnapshot: jsonb("task_snapshot").$type<Task>().notNull(),
     durationSec: integer("duration_sec").notNull(),
     rewardTargetRc: integer("reward_target_rc").notNull().default(0),
@@ -368,11 +317,17 @@ export const sessions = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
+    foreignKey({ columns: [table.userId, table.occurrenceId], foreignColumns: [occurrences.userId, occurrences.id] }).onDelete("restrict"),
+    // Optional references must be cleared explicitly before deleting their target.
+    // Composite SET NULL would also null user_id and break account ownership.
+    foreignKey({ columns: [table.userId, table.handId], foreignColumns: [hands.userId, hands.id] }),
+    foreignKey({ columns: [table.userId, table.pendingId], foreignColumns: [pendings.userId, pendings.id] }).onDelete("restrict"),
     uniqueIndex("runo_sessions_one_running_per_user_idx")
       .on(table.userId)
       .where(sql`${table.status} = 'running'`),
     index("runo_sessions_user_status_idx").on(table.userId, table.status),
-    index("runo_sessions_occurrence_idx").on(table.occurrenceId),
+    index("runo_sessions_occurrence_idx").on(table.userId, table.occurrenceId),
     check("runo_sessions_duration", sql`${table.durationSec} > 0`),
     check("runo_sessions_remaining", sql`${table.remainingSecAtStart} >= 0`),
     check("runo_sessions_elapsed", sql`${table.elapsedSec} >= 0`),
@@ -387,7 +342,7 @@ export const sessions = pgTable(
 export const events = pgTable(
   "runo_events",
   {
-    id: text("id").primaryKey(),
+    id: text("id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -404,33 +359,35 @@ export const events = pgTable(
       .default(sql`'{}'::jsonb`),
   },
   (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
     uniqueIndex("runo_events_user_action_type_idx").on(
       table.userId,
       table.actionId,
       table.type,
     ),
     index("runo_events_user_at_idx").on(table.userId, table.at),
-    index("runo_events_occurrence_idx").on(table.occurrenceId),
-    index("runo_events_session_idx").on(table.sessionId),
+    // Event IDs remain descriptive legacy labels, not an authorization join.
+    index("runo_events_occurrence_idx").on(table.userId, table.occurrenceId),
+    index("runo_events_session_idx").on(table.userId, table.sessionId),
   ],
 );
 
 export const ledger = pgTable(
   "runo_ledger",
   {
-    id: text("id").primaryKey(),
+    id: text("id").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     sourceKey: text("source_key").notNull(),
-    occurrenceId: text("occurrence_id").references(() => occurrences.id, {
-      onDelete: "set null",
-    }),
+    occurrenceId: text("occurrence_id"),
     deltaRc: integer("delta_rc").notNull(),
     reason: ledgerReasonEnum("reason").notNull(),
     at: timestampColumn("at").notNull(),
   },
   (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
+    foreignKey({ columns: [table.userId, table.occurrenceId], foreignColumns: [occurrences.userId, occurrences.id] }),
     uniqueIndex("runo_ledger_user_source_idx").on(table.userId, table.sourceKey),
     index("runo_ledger_user_at_idx").on(table.userId, table.at),
     check("runo_ledger_delta", sql`${table.deltaRc} <> 0`),

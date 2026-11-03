@@ -457,9 +457,33 @@
       "saving": "Guardando copia…",
       "saved": "Copia guardada.",
       "backupError": "No pude guardar la copia.",
+      "deleteBackup": "Eliminar copia en la nube",
+      "deleteConfirm": "Se eliminarán los datos activos de Runo guardados en la nube y se cerrará esta sesión. No se puede deshacer. ¿Continuar?",
+      "deleteButton": "Sí, eliminar copia",
+      "deleting": "Eliminando copia…",
+      "deleted": "La copia en la nube se eliminó.",
+      "deleteError": "No pude eliminar la copia en la nube.",
       "logout": "Desconectar",
       "logoutError": "No pude desconectar."
+    },
+    "legal": {
+      "title": "Privacidad y datos",
+      "privacy": "Aviso de privacidad",
+      "deletion": "Eliminar mis datos"
     }
+  },
+  "dataDeletion": {
+    "localTitle": "Borrar los datos de este navegador",
+    "localCopy": "Elimina la base local de Runo y las preferencias guardadas en este navegador. No borra la copia opcional en la nube ni otros dispositivos.",
+    "startButton": "Borrar datos de este navegador",
+    "confirmCopy": "Se borrarán los datos locales y las preferencias de este navegador. Esta acción no se puede deshacer.",
+    "confirmButton": "Sí, borrar mis datos locales",
+    "cancel": "Conservar mis datos",
+    "deleting": "Borrando…",
+    "done": "Los datos locales de Runo y las preferencias de este navegador se eliminaron.",
+    "unavailableError": "Este navegador no permite eliminar el almacenamiento local desde aquí. Borra los datos del sitio en los ajustes del navegador.",
+    "blockedError": "No se pudo borrar porque Runo sigue abierto en otra pestaña o ventana. Cierra las otras sesiones de Runo y vuelve a intentarlo.",
+    "failedError": "No se pudieron borrar los datos. Inténtalo de nuevo o elimina los datos del sitio desde los ajustes del navegador."
   },
   "wallet": {
     "eyebrow": "Monedero",

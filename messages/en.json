@@ -457,9 +457,33 @@
       "saving": "Saving backup…",
       "saved": "Backup saved.",
       "backupError": "I couldn't save the backup.",
+      "deleteBackup": "Delete cloud backup",
+      "deleteConfirm": "This deletes the active Runo data saved in the cloud and ends this session. This can't be undone. Continue?",
+      "deleteButton": "Yes, delete backup",
+      "deleting": "Deleting backup…",
+      "deleted": "The cloud backup was deleted.",
+      "deleteError": "I couldn't delete the cloud backup.",
       "logout": "Disconnect",
       "logoutError": "I couldn't disconnect."
+    },
+    "legal": {
+      "title": "Privacy and data",
+      "privacy": "Privacy notice",
+      "deletion": "Delete my data"
     }
+  },
+  "dataDeletion": {
+    "localTitle": "Delete data in this browser",
+    "localCopy": "Deletes Runo's local database and preferences saved in this browser. It does not delete the optional cloud backup or data on other devices.",
+    "startButton": "Delete data in this browser",
+    "confirmCopy": "This deletes local data and preferences in this browser. This can't be undone.",
+    "confirmButton": "Yes, delete my local data",
+    "cancel": "Keep my data",
+    "deleting": "Deleting…",
+    "done": "Runo's local data and preferences in this browser were deleted.",
+    "unavailableError": "This browser can't delete local storage from here. Clear this site's data in your browser settings.",
+    "blockedError": "Runo is still open in another tab or window. Close other Runo sessions and try again.",
+    "failedError": "The data couldn't be deleted. Try again or clear this site's data in your browser settings."
   },
   "wallet": {
     "eyebrow": "Wallet",

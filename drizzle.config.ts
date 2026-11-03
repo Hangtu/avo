@@ -13,7 +13,7 @@ const databaseUrl =
   "postgresql://runo:runo@127.0.0.1:5432/runo";
 
 export default defineConfig({
-  schema: "./lib/db/schema.ts",
+  schema: ["./lib/db/schema.ts", "./lib/db/auth-schema.ts"],
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
