@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:prod": "drizzle-kit migrate --config drizzle.prod.config.ts",
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
     "db:health": "tsx --conditions=react-server scripts/db-health.ts",
