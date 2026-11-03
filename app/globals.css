@@ -1003,49 +1003,88 @@ body > * {
   outline-offset: 3px;
 }
 
-/* Carta principal con la siguiente opción asomándose. */
 .peek-layout {
-  --peek-overlap: 0.85rem;
+  --peek-reveal: 6rem;
+  position: relative;
   display: grid;
-  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+  isolation: isolate;
+  perspective: 1100px;
+  padding-bottom: var(--peek-reveal);
+}
+
+.peek-layout[data-has-alternative="false"] {
+  padding-bottom: 0;
+}
+
+.peek-card {
+  position: relative;
+  grid-area: 1 / 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius, 1.5rem);
+  transform-origin: center top;
+}
+
+:root[data-ui="liquid"] .peek-card {
+  padding: 0;
+  background: var(--surface-solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.peek-card[data-deck-role="hidden"] {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .peek-front {
   position: relative;
-  z-index: 1;
   min-width: 0;
+  padding: clamp(1.2rem, 4vw, 2rem);
 }
 
+.peek-layout button,
+:root[data-ui="liquid"] .peek-layout button {
+  transition: background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.peek-back,
 :root[data-ui="liquid"] .peek-back {
-  position: relative;
-  z-index: 0;
+  position: absolute;
+  inset: auto 0 0;
   display: grid;
+  width: 100%;
   min-width: 0;
-  width: auto;
-  margin: calc(-1 * var(--peek-overlap)) 1rem 0;
-  padding: 1.65rem 1rem 0.9rem;
-  border: 1px solid var(--surface-border);
-  border-top: 0;
-  border-radius: 0 0 var(--radius) var(--radius);
-  background: var(--peek-surface, var(--surface));
-  box-shadow: var(--surface-shadow);
-  /* El vidrio frontal no debe transparentar el borde de la tarjeta de atrás. */
-  clip-path: inset(var(--peek-overlap) -6rem -6rem);
+  margin: 0;
+  padding: 0.9rem 1rem 1rem;
+  border: 0;
+  border-radius: 0 0 var(--radius, 1.5rem) var(--radius, 1.5rem);
+  background: transparent;
+  box-shadow: none;
   color: var(--foreground);
   text-align: left;
 }
 
 :root[data-ui="liquid"] .peek-back:hover:not(:disabled) {
-  border-color: var(--control);
+  background: var(--surface-2);
 }
 
 .peek-back:disabled {
-  opacity: 0.6;
+  pointer-events: none;
 }
 
 .peek-back:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline-offset: -4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .peek-layout button,
+  :root[data-ui="liquid"] .peek-layout button {
+    transition: none;
+  }
 }
 
 .peek-back-top {
@@ -1112,7 +1151,7 @@ body > * {
   }
 
   :root[data-ui="liquid"] .peek-back {
-    margin-inline: 0.85rem;
+    padding-inline: 1rem;
   }
 }
 

@@ -32,7 +32,6 @@ import type { Occurrence, Pending, Session, Task } from "@/lib/domain/types";
 import { BreakCard } from "./break-card";
 import { ConfirmDialog } from "./confirm-dialog";
 import { HelpTip } from "./help-tip";
-import { MissedBadge } from "./missed-badge";
 import { PendingView } from "./pending-view";
 import { QuickTaskForm } from "./quick-task-form";
 import { SessionView } from "./session-view";
@@ -47,6 +46,7 @@ import { RunoToaster } from "./runo-toaster";
 import { useThemePreference } from "./use-theme-preference";
 import { EndDayReview, type ReviewGroups, type ReviewTask } from "./end-day-review";
 import type { FranjaTask } from "./franja-task";
+import { TaskDeck } from "./task-deck";
 
 type View =
   | { kind: "loading" }
@@ -1199,11 +1199,8 @@ function Franja({
 }) {
   const t = useTranslations("franja");
   const common = useTranslations("common");
-  const blocks = useTranslations("common.blocks");
   const messages = useMessages();
   const voicePhrases = useMemo(() => voicePhrasesFromMessages(messages), [messages]);
-  const [primaryIndex, setPrimaryIndex] = useState(0);
-  const [peekOffset, setPeekOffset] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [correction, setCorrection] = useState<{
     kind: "already_done" | "not_applicable";
@@ -1211,17 +1208,6 @@ function Franja({
   } | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const reduceMotion = useReducedMotion();
-  const startButtonRef = useRef<HTMLButtonElement>(null);
-  const focusStart = useRef(false);
-  const tasks = view.tasks;
-  const primarySlot = tasks.length ? primaryIndex % tasks.length : 0;
-  const primary = tasks[primarySlot];
-  const alternativesCount = Math.max(0, tasks.length - 1);
-  const normalizedPeekOffset = alternativesCount ? peekOffset % alternativesCount : 0;
-  const secondaryIndex = tasks.length > 1
-    ? (primarySlot + 1 + normalizedPeekOffset) % tasks.length
-    : -1;
-  const secondary = secondaryIndex >= 0 ? tasks[secondaryIndex] : undefined;
   const busy = swapping || correctingId !== null;
   const encouragement = correction?.kind === "not_applicable"
     ? chooseVoicePhrase(
@@ -1232,196 +1218,122 @@ function Franja({
       )
     : null;
 
-  useEffect(() => {
-    if (!primary) return;
-    void onOffer(view.handId, primary);
-    if (secondary) void onOffer(view.handId, secondary);
-  }, [onOffer, primary, secondary, view.handId]);
-
-  useEffect(() => {
-    if (!focusStart.current) return;
-    focusStart.current = false;
-    startButtonRef.current?.focus();
-  }, [primary]);
-
-  if (!primary) return null;
-
-  const remaining = primary.remainingMin;
-  const primaryLabel = primary.shortStepDone
-    ? t("continue", { remaining })
-    : t("start");
-
-  function promoteSecondary() {
-    if (!secondary || busy) return;
-    focusStart.current = true;
-    setPrimaryIndex(secondaryIndex);
-    setPeekOffset(0);
-    setMenuOpen(false);
-  }
+  if (!view.tasks.length) return null;
 
   return (
     <>
       <p className="first-prompt">{t("prompt")}</p>
-      <div className="peek-layout">
-      <AnimatePresence mode="popLayout">
-        <motion.section
-          key={primary.id}
-          layout
-          className="first-experience peek-front"
-          aria-labelledby="first-title"
-          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-          transition={{ type: "spring", stiffness: 380, damping: 34, mass: 0.7 }}
-        >
-        <p className="first-eyebrow">{t("eyebrow")}</p>
-        <h2 id="first-title" className="first-title">{primary.title}</h2>
-        <p id="first-duration" className="first-duration">
-          {common("minutes", { count: remaining })}
-          {primary.isMissed ? (
-            <>
-              <span className="first-block">· {blocks(primary.block)}</span>
-              <MissedBadge className="first-missed" />
-            </>
-          ) : null}
-        </p>
-
-        <div className="first-actions">
-          <motion.button
-            ref={startButtonRef}
-            type="button"
-            className="bg-foreground px-6 text-base font-semibold text-background disabled:opacity-60"
-            disabled={busy}
-            aria-labelledby="first-start-label first-title first-duration"
-            onClick={() => onStart(primary, "full")}
-            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-            transition={{ duration: 0.12 }}
-          >
-            <span id="first-start-label">{primaryLabel}</span> <span aria-hidden className="first-start-icon">▶️</span>
-          </motion.button>
-          {tasks.length > 2 ? (
-            <button
+      <TaskDeck
+        key={`${view.handId}:${view.tasks.map((task) => task.occurrenceId).sort().join("|")}`}
+        tasks={view.tasks}
+        handId={view.handId}
+        busy={busy}
+        onOffer={onOffer}
+        onPromote={() => setMenuOpen(false)}
+        renderActions={(task, { active, disabled, startButtonRef, showAnother, ids }) => (
+          <>
+            <motion.button
+              ref={startButtonRef}
               type="button"
-              className="first-secondary"
-              disabled={busy}
-              onClick={() => setPeekOffset((value) => value + 1)}
+              className="bg-foreground px-6 text-base font-semibold text-background disabled:opacity-60"
+              disabled={disabled}
+              aria-labelledby={`${ids.start} ${ids.title} ${ids.duration}`}
+              onClick={() => onStart(task, "full")}
+              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+              transition={{ duration: 0.12 }}
             >
-              {t("showAnother")}
-            </button>
-          ) : null}
-          <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>
-            <Menu.Trigger
-              type="button"
-              className="first-more"
-              disabled={busy}
-              aria-label={common("moreOptions")}
-            >
-              ⋯
-            </Menu.Trigger>
-            <Menu.Portal>
-              <Menu.Positioner
-                className="first-menu-positioner"
-                sideOffset={8}
-                align="end"
+              <span id={ids.start}>{task.shortStepDone
+                ? t("continue", { remaining: task.remainingMin })
+                : t("start")}</span> <span aria-hidden className="first-start-icon">▶️</span>
+            </motion.button>
+            {view.tasks.length > 2 ? (
+              <button
+                type="button"
+                className="first-secondary"
+                disabled={disabled}
+                onClick={showAnother}
               >
-                <Menu.Popup className="first-menu">
-                  {primary.shortStepMin && !primary.shortStepDone ? (
-                    <Menu.Item
-                      className="first-menu-item"
-                      disabled={busy}
-                      onClick={() => onStart(primary, "short")}
-                    >
-                      {t("shortStep", { minutes: primary.shortStepMin })}
-                    </Menu.Item>
-                  ) : null}
-                  {view.canSwap ? (
-                    <Menu.Item
-                      className="first-menu-item"
-                      disabled={busy}
-                      onClick={() => void onSwap(primary)}
-                    >
-                      {t("swap")}
-                    </Menu.Item>
-                  ) : null}
-                  <Menu.Item
-                    className="first-menu-item"
-                    disabled={busy}
-                    onClick={() => {
-                      setCorrection({ kind: "already_done", task: primary });
-                      setConfirmOpen(true);
-                    }}
-                  >
-                    {t("alreadyDone")}
-                  </Menu.Item>
-                  <Menu.Item
-                    className="first-menu-item"
-                    disabled={busy}
-                    onClick={() => {
-                      setCorrection({ kind: "not_applicable", task: primary });
-                      setConfirmOpen(true);
-                    }}
-                  >
-                    {t("notToday")}
-                  </Menu.Item>
-                  <Menu.Item
-                    className="first-menu-item"
-                    disabled={busy}
-                    onClick={() => onEdit(primary)}
-                  >
-                    {t("edit")}
-                  </Menu.Item>
-                  <Menu.Item
-                    className="first-menu-item"
-                    disabled={busy}
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onEndDay();
-                    }}
-                  >
-                    {t("endDay")}
-                  </Menu.Item>
-                </Menu.Popup>
-              </Menu.Positioner>
-            </Menu.Portal>
-          </Menu.Root>
-        </div>
-        </motion.section>
-      </AnimatePresence>
-
-      <AnimatePresence mode="popLayout" initial={false}>
-        {secondary ? (
-        <motion.button
-          type="button"
-          key={secondary.id}
-          layout
-          className="peek-back"
-          onClick={promoteSecondary}
-          disabled={busy}
-          whileTap={reduceMotion ? undefined : { scale: 0.99 }}
-          aria-labelledby="peek-back-action peek-back-title peek-back-duration"
-          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
-          transition={{ type: "spring", stiffness: 380, damping: 34, mass: 0.7 }}
-        >
-          <span className="peek-back-top">
-            <span className="peek-back-label">{t("otherOption")}</span>
-            <span id="peek-back-action" className="peek-back-action">{t("chooseTask")}</span>
-          </span>
-          <span id="peek-back-title" className="peek-back-title">{secondary.title}</span>
-          <span id="peek-back-duration" className="peek-back-duration">
-            {common("minutes", { count: secondary.remainingMin })}
-            {secondary.isMissed ? (
-              <>
-                <span className="peek-block">· {blocks(secondary.block)}</span>
-                <MissedBadge className="peek-missed" />
-              </>
+                {t("showAnother")}
+              </button>
             ) : null}
-          </span>
-        </motion.button>
-        ) : null}
-      </AnimatePresence>
-      </div>
+            <Menu.Root open={active && menuOpen} onOpenChange={setMenuOpen}>
+              <Menu.Trigger
+                type="button"
+                className="first-more"
+                disabled={disabled}
+                aria-label={common("moreOptions")}
+              >
+                ⋯
+              </Menu.Trigger>
+              <Menu.Portal>
+                <Menu.Positioner
+                  className="first-menu-positioner"
+                  sideOffset={8}
+                  align="end"
+                >
+                  <Menu.Popup className="first-menu">
+                    {task.shortStepMin && !task.shortStepDone ? (
+                      <Menu.Item
+                        className="first-menu-item"
+                        disabled={disabled}
+                        onClick={() => onStart(task, "short")}
+                      >
+                        {t("shortStep", { minutes: task.shortStepMin })}
+                      </Menu.Item>
+                    ) : null}
+                    {view.canSwap ? (
+                      <Menu.Item
+                        className="first-menu-item"
+                        disabled={disabled}
+                        onClick={() => void onSwap(task)}
+                      >
+                        {t("swap")}
+                      </Menu.Item>
+                    ) : null}
+                    <Menu.Item
+                      className="first-menu-item"
+                      disabled={disabled}
+                      onClick={() => {
+                        setCorrection({ kind: "already_done", task });
+                        setConfirmOpen(true);
+                      }}
+                    >
+                      {t("alreadyDone")}
+                    </Menu.Item>
+                    <Menu.Item
+                      className="first-menu-item"
+                      disabled={disabled}
+                      onClick={() => {
+                        setCorrection({ kind: "not_applicable", task });
+                        setConfirmOpen(true);
+                      }}
+                    >
+                      {t("notToday")}
+                    </Menu.Item>
+                    <Menu.Item
+                      className="first-menu-item"
+                      disabled={disabled}
+                      onClick={() => onEdit(task)}
+                    >
+                      {t("edit")}
+                    </Menu.Item>
+                    <Menu.Item
+                      className="first-menu-item"
+                      disabled={disabled}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onEndDay();
+                      }}
+                    >
+                      {t("endDay")}
+                    </Menu.Item>
+                  </Menu.Popup>
+                </Menu.Positioner>
+              </Menu.Portal>
+            </Menu.Root>
+          </>
+        )}
+      />
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
