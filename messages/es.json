@@ -507,7 +507,6 @@
   },
   "sync": {
     "retryOpen": "Volver a intentar",
-    "shellTitle": "Un espacio para volver a lo importante.",
     "openError": "No pude abrir tu espacio. Puedes volver a intentar o continuar como invitado.",
     "storageHelp": "Si hay otra pestaña de Avo abierta, ciérrala y vuelve a intentar. No borres los datos del sitio: puede haber cambios que solo estén aquí.",
     "privacy": "Privacidad",
@@ -526,6 +525,7 @@
     "completionProtected": "Una finalización no se deshace al elegir versión. Si ya fue confirmada en la cuenta, se conservan su título y fecha; si solo está local, se conserva para enviarla.",
     "verifyExisting": "Verificar y volver a la sesión existente",
       "opening": "Abriendo tu espacio…",
+      "slowOpening": "Esto está tardando un poco más de lo normal.",
       "guest": "Guardado solo en este navegador. Sin cuenta, no hay respaldo en la nube.",
       "syncing": "Guardado aquí. Conectando con tu cuenta…",
       "saved": "Respaldado en tu cuenta.",

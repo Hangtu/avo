@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { liveQuery } from "dexie";
 import { useTranslations } from "next-intl";
@@ -13,6 +13,7 @@ import { httpTransport, recoverRejected, SyncHttpError, syncOnce } from "@/lib/s
 import { resolveConflict } from "@/lib/sync/local";
 import { preferenceWriteState, retryPreferenceWrites, subscribePreferenceWrites } from "@/lib/sync/preference-writer";
 import type { OutboxItem, RemoteIssue } from "@/lib/sync/protocol";
+import { CURTAIN_MIN_VISIBLE_MS, LOADER_INK, LoaderBrand, LoadingCurtain } from "./loading-curtain";
 import { I18nProvider } from "./i18n-provider";
 import { AuthErrorNotice } from "./auth-error-notice";
 import { WorkspaceContext, type AccountIdentity, type SyncState } from "./workspace-context";
@@ -20,20 +21,55 @@ export { useWorkspace } from "./workspace-context";
 
 interface Selection { accountId: string | null; identity: AccountIdentity | null; verified: boolean; verification: number; probedSessionKey: string }
 
-/** Public, useful SSR shell. Private/data-using children wait for space selection. */
+const subscribeToNothing = () => () => {};
+/** False during SSR/no-JS, true after hydration: transient status is JS-only. */
+function useHydrated(): boolean {
+  return useSyncExternalStore(subscribeToNothing, () => true, () => false);
+}
+
+/**
+ * Pre-selection shell on the ink loader. With JS it is the same screen the
+ * curtain starts from; without JS it is the public page (brand, tagline,
+ * explanation and legal links).
+ */
 function WorkspaceFallback({ failed, closing, retry }: { failed?: boolean; closing?: boolean; retry: () => void }) {
   const t = useTranslations("sync");
-  return <main className="mx-auto max-w-3xl px-5 py-16">
-    <p className="text-xs font-semibold tracking-[0.2em] text-muted">AVO</p>
-    <h1 className="mt-4 text-2xl font-semibold">{t("shellTitle")}</h1>
-    <p className="mt-4 text-sm leading-6" role={failed ? "alert" : "status"}>{t(closing ? "signingOut" : failed ? "openError" : "opening")}</p>
-    <p className="mt-3 text-sm leading-6 text-muted">{t("storageHelp")}</p>
-    {!closing ? <div className="mt-4 flex flex-wrap gap-x-5">
-      <button type="button" className="min-h-11 underline" onClick={retry}>{t("retryOpen")}</button>
-      <button type="button" className="min-h-11 underline" onClick={() => lockAccountAccess()}>{t("useGuest")}</button>
-    </div> : null}
-    <nav className="mt-7 flex gap-5 text-sm"><Link href="/privacy" className="underline">{t("privacy")}</Link><Link href="/data-deletion" className="underline">{t("deletion")}</Link></nav>
-    <noscript><p className="mt-4 text-sm">{t("javascriptRequired")}</p></noscript>
+  const app = useTranslations();
+  const hydrated = useHydrated();
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (failed || closing) return;
+    const timeout = window.setTimeout(() => setSlow(true), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [failed, closing]);
+  // Only escalate when the wait needs a decision; a normal load stays quiet.
+  const recover = !closing && (failed === true || slow);
+  return <main className="min-h-screen text-[#eaf7f6]" style={{ backgroundColor: LOADER_INK }}>
+    <div className="runo-shell mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16">
+      <LoaderBrand />
+      <div className="flex flex-1 flex-col justify-center py-8">
+        {hydrated ? <>
+          <p className="text-sm leading-6 text-white/85" role={failed ? "alert" : "status"}>
+            {t(closing ? "signingOut" : failed ? "openError" : slow ? "slowOpening" : "opening")}
+          </p>
+          {recover ? <>
+            <p className="mt-3 max-w-md text-sm leading-6 text-white/60">{t("storageHelp")}</p>
+            <div className="mt-4 flex flex-wrap gap-x-5">
+              <button type="button" className="min-h-11 font-semibold text-white underline underline-offset-4" onClick={retry}>{t("retryOpen")}</button>
+              <button type="button" className="min-h-11 text-white/85 underline underline-offset-4" onClick={() => lockAccountAccess()}>{t("useGuest")}</button>
+            </div>
+          </> : null}
+        </> : null}
+        <noscript>
+          <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">{app("header.tagline")}</h1>
+          <p className="mt-4 text-sm leading-6 text-white/70">{t("javascriptRequired")}</p>
+          <nav className="mt-6 flex gap-5 text-sm">
+            <Link href="/privacy" className="text-white/80 underline">{t("privacy")}</Link>
+            <Link href="/data-deletion" className="text-white/80 underline">{t("deletion")}</Link>
+          </nav>
+        </noscript>
+      </div>
+    </div>
   </main>;
 }
 
@@ -49,6 +85,14 @@ export function AccountWorkspace({ children }: { children: ReactNode }) {
   const generation = useRef(0);
   const forceProbe = useRef(false);
   const lockWork = useRef<Promise<unknown>>(Promise.resolve());
+  const bootAt = useRef<number | null>(null);
+  const revealed = useRef(false);
+  const [curtain, setCurtain] = useState(false);
+
+  // Set on mount (never during render); measures how long the loader was shown.
+  useEffect(() => {
+    if (bootAt.current === null) bootAt.current = Date.now();
+  }, []);
 
   const recheck = useCallback(() => setProbe(value => value + 1), []);
   const retry = () => { forceProbe.current = true; recheck(); };
@@ -62,7 +106,7 @@ export function AccountWorkspace({ children }: { children: ReactNode }) {
     }
     function hideAccount(name: string, revoke: boolean) {
       if (name === databaseNameForUser(null) || name.startsWith("runo-locked-")) return;
-      selected.current = null; setSelection(null);
+      selected.current = null; setSelection(null); setCurtain(false);
       setActiveDatabaseName(newLockedSpaceName());
       lockWork.current = suspendSpace(name, revoke).catch(() => {});
     }
@@ -151,6 +195,13 @@ export function AccountWorkspace({ children }: { children: ReactNode }) {
         if (turn !== generation.current) return;
         const next = { accountId, identity, verified, verification: turn, probedSessionKey: sessionKey };
         selected.current = next; setSelection(next);
+        if (!revealed.current) {
+          revealed.current = true;
+          // A fast load does not need the reveal; a slow one gets the 600 ms curtain.
+          const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+          const shownFor = bootAt.current === null ? 0 : Date.now() - bootAt.current;
+          if (!reduceMotion && shownFor >= CURTAIN_MIN_VISIBLE_MS) setCurtain(true);
+        }
       } finally { db.close(); }
     }
     void select().catch(() => { if (turn === generation.current) setFailed(true); });
@@ -166,7 +217,10 @@ export function AccountWorkspace({ children }: { children: ReactNode }) {
   if (signOutUntil > 0) return <WorkspaceFallback closing retry={retry} />;
   // A known change of identity hides old data synchronously. Rechecking A keeps A mounted.
   if (failed || !selection || (session?.user.id && selection.accountId && session.user.id !== selection.accountId && session.user.id !== selection.probedSessionKey)) return <WorkspaceFallback failed={failed} retry={retry} />;
-  return <SelectedWorkspace key={selection.accountId ?? "guest"} selection={selection} onRecheck={recheck} onUnlock={unlock} signOutFailed={signOutFailed}>{children}</SelectedWorkspace>;
+  return <>
+    <SelectedWorkspace key={selection.accountId ?? "guest"} selection={selection} onRecheck={recheck} onUnlock={unlock} signOutFailed={signOutFailed}>{children}</SelectedWorkspace>
+    {curtain ? <LoadingCurtain onDone={() => setCurtain(false)} /> : null}
+  </>;
 }
 
 /** Rendered inside the space provider so it follows the chosen locale. */

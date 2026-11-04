@@ -507,7 +507,6 @@
   },
   "sync": {
     "retryOpen": "Try opening again",
-    "shellTitle": "A space to return to what matters.",
     "openError": "I couldn’t open your space. You can retry or continue as a guest.",
     "storageHelp": "If another Avo tab is open, close it and try again. Don’t clear site data: some changes may exist only here.",
     "privacy": "Privacy",
@@ -526,6 +525,7 @@
     "completionProtected": "Choosing a version never undoes completion. An account-confirmed completion keeps its title and date; a local-only completion is preserved for sending.",
     "verifyExisting": "Verify and return to the existing session",
       "opening": "Opening your space…",
+      "slowOpening": "This is taking a little longer than usual.",
       "guest": "Saved only in this browser. Without an account, there is no cloud backup.",
       "syncing": "Saved here. Connecting to your account…",
       "saved": "Backed up in your account.",
