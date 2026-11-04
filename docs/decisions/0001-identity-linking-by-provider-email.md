@@ -53,4 +53,4 @@ the MVP:
 
 `lib/auth.ts` encodes the policy; `lib/auth.test.ts` exercises the provider
 configuration with synthetic credentials. Real OAuth remains an external check
-recorded in `STATUS.md`, not something local tests prove.
+recorded in task 003, not something local tests prove.

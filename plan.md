@@ -21,7 +21,7 @@ App personal local-first de hábitos, pendientes y timer; español de México co
 
 ## Estado y pasos pendientes
 
-Un solo ID en curso. El dueño autorizó completar las conexiones tras el incidente de pendientes: E4.1 queda pausada con sus revisiones reales pendientes y E4.2 concentra el trabajo. Código y límites de la conexión en [`docs/cloud/2026-11-02-selective-account-sync.md`](./docs/cloud/2026-11-02-selective-account-sync.md); decisiones de auth en [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md); evidencia en [`STATUS.md`](./STATUS.md).
+Un solo ID en curso. El dueño autorizó completar las conexiones tras el incidente de pendientes: E4.1 queda pausada con sus revisiones reales pendientes y E4.2 concentra el trabajo. Código y límites de la conexión en [`docs/cloud/2026-11-02-selective-account-sync.md`](./docs/cloud/2026-11-02-selective-account-sync.md); decisiones de auth en [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md); evidencia y siguiente paso en [`tasks/`](./tasks/README.md).
 
 | ID | Pendiente verificable |
 |---|---|

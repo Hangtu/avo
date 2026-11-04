@@ -19,7 +19,8 @@ remain per-request operations.
 
 - Product brief: [`docs/product/brief.md`](../product/brief.md).
 - Product contract and pending IDs: [`plan.md`](../../plan.md).
-- Runtime state, evidence, and next action: [`STATUS.md`](../../STATUS.md).
+- Runtime state, evidence, and next action: [`tasks/README.md`](../../tasks/README.md)
+  and the active task [`003`](../../tasks/active/003-e4-2-selective-account-sync.md).
 - Observed stack: Next.js 16.4.3 (App Router, Turbopack, Cache Components,
   Partial Prefetching), React 19.3, TypeScript 5 strict, Tailwind CSS v4,
   next-intl 4, Dexie 4 (client persistence), Drizzle ORM 0.45 on PostgreSQL
@@ -83,6 +84,10 @@ in the agreed scope", not "forbidden".
 - Tests: `lib/**/*.test.ts` next to domain/data code; component tests in
   `components/**/*.test.tsx`; route/page/boundary tests in `tests/`; browser
   journeys in `e2e/*.spec.ts`.
+- Work state: `tasks/` is the board. `tasks/README.md` holds the index and
+  conventions; each task holds the goal, scope, next step, checklist and
+  evidence. `scripts/check-tasks.mjs` validates the board (`npm run check:tasks`).
+  Do not duplicate work state in the conversation or a second status file.
 - Local storage keys and database names keep the `runo` prefix on purpose;
   renaming them would orphan existing user data (`plan.md`).
 - Tools to preserve: npm, ESLint flat config (`eslint.config.mjs`), Prettier
@@ -104,6 +109,7 @@ in the agreed scope", not "forbidden".
 | Production build | `npm run build` | Passing on 2026-11-03 with synthetic loopback `DATABASE_URL` and a disposable secret |
 | Database connectivity | `npm run db:health` / `npm run db:health:prod` | Read-only; requires local `.env` / `.env.prod` (never committed) |
 | Schema verification | `npm run db:verify` / `npm run db:verify:prod` | Read-only; requires local `.env` / `.env.prod` |
+| Task board | `npm run check:tasks` | Passing on 2026-11-04; `npm run test:tasks` covers the guard itself |
 | Browser journeys | `npm run test:e2e` | 9/9 passing on 2026-11-03 (Chromium, production build); public surfaces only, axe reports no WCAG A/AA violations on both legal pages. No authenticated account, Neon, or provider login. |
 
 `npm run db:migrate` and `npm run db:migrate:prod` write to a database. They are
@@ -137,7 +143,8 @@ credentials; they do not validate Neon, OAuth, a real browser, or a device.
 ## Current work
 
 - Active ID: **E4.2** (selective account connection/recovery). See
-  [`STATUS.md`](../../STATUS.md) and
+  [`tasks/active/003-e4-2-selective-account-sync.md`](../../tasks/active/003-e4-2-selective-account-sync.md)
+  and
   [`docs/cloud/2026-11-02-selective-account-sync.md`](../cloud/2026-11-02-selective-account-sync.md).
 - Last verification: 410/410 tests, typecheck, lint, migration journal, and
   production build on 2026-11-03. Browser evidence for the loading curtain and

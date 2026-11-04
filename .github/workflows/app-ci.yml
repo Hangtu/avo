@@ -43,6 +43,10 @@ jobs:
         run: npm run typecheck
       - name: Run tests
         run: npm test
+      - name: Check task board
+        run: npm run check:tasks
+      - name: Test task-board guard
+        run: npm run test:tasks
       - name: Check migration journal
         run: npm run db:check
       - name: Build production app with synthetic credentials

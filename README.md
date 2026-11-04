@@ -12,7 +12,8 @@ App personal local-first de hábitos, pendientes y timer; ES/EN, Next.js 16.4.3,
 
 - [`AGENTS.md`](./AGENTS.md): reglas de trabajo, operaciones y límites de permiso.
 - [`docs/agent-kit/project-context.md`](./docs/agent-kit/project-context.md): contrato del proyecto y biblioteca de estándares adoptada (commit fijo; actualización manual).
-- [`STATUS.md`](./STATUS.md): estado, evidencia y siguiente paso.
+- [`tasks/README.md`](./tasks/README.md): tablero de trabajo; la tarea activa guarda Goal, Out of scope, Next step y evidencia.
+- [`STATUS.md` histórico](./tasks/archive/2026-11-03-status.md): bitácora anterior, conservada solo como archivo.
 - [`plan.md`](./plan.md): contrato y pendientes E4.
 - [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md): decisiones de auth/migración.
 - [`docs/cloud/github-actions-migrations.md`](./docs/cloud/github-actions-migrations.md): flujo protegido para migraciones de producción desde GitHub Actions.
@@ -47,6 +48,7 @@ Para auth/sync por LAN en desarrollo, `AVO_DEV_AUTH_ORIGINS` permite orígenes c
 ## Verificación
 
 ```bash
+npm run check:tasks
 npm run format:check
 npm run lint
 npm run typecheck
@@ -56,7 +58,7 @@ npm run build
 npm run test:e2e # requiere `npm run build` previo; viajes públicos
 ```
 
-`npm run verify` encadena formato, lint, tipos, tests y `db:check` sin build. El build y `test:e2e` sustituyen o consumen `.next`: no los ejecutes mientras el dueño usa `next dev`; usa una copia aislada. La CI (`app-ci.yml`) corre los mismos checks con credenciales sintéticas.
+`npm run verify` encadena formato, lint, tipos, tests, `db:check` y el guard del tablero (`check:tasks`), sin build. El build y `test:e2e` sustituyen o consumen `.next`: no los ejecutes mientras el dueño usa `next dev`; usa una copia aislada. La CI (`app-ci.yml`) corre los mismos checks con credenciales sintéticas.
 
 Las pruebas locales usan Vitest/fake IndexedDB y PGlite; no certifican Neon, OAuth, navegador o móvil. Los E2E cubren solo superficies públicas (`/` sin JS, legales, 404, cabeceras, robots/sitemap, manifest) y axe sobre las páginas legales; no cubren una cuenta autenticada. Para build local se puede usar un `DATABASE_URL` ficticio solo si Next lo exige; eso no valida una conexión. Better Auth usa variables servidoras descritas en `.env.example`. El audit runtime informa 4 moderadas de Drizzle Kit/esbuild: revisar antes de publicar, sin `audit fix --force`.
 

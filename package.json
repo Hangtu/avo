@@ -10,7 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run db:check",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run db:check && npm run check:tasks",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -22,7 +22,9 @@
     "db:health": "tsx --conditions=react-server scripts/db-health.ts",
     "db:health:prod": "tsx --conditions=react-server scripts/db-health.ts .env.prod",
     "db:verify": "tsx --conditions=react-server scripts/db-verify.ts",
-    "db:verify:prod": "tsx --conditions=react-server scripts/db-verify.ts .env.prod"
+    "db:verify:prod": "tsx --conditions=react-server scripts/db-verify.ts .env.prod",
+    "check:tasks": "node scripts/check-tasks.mjs",
+    "test:tasks": "node --test scripts/check-tasks.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

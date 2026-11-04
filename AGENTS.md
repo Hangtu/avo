@@ -20,8 +20,9 @@ Read the contract first, then applicable reference docs and the requested operat
 
 ## Fuentes y flujo
 
-- `STATUS.md`: estado real, evidencia y siguiente acción; `plan.md`: contrato y criterios; `docs/cloud/`: decisiones técnicas.
-- Un solo ID 🟡 global. No renombrar IDs. Al pausar/cerrar, actualizar `STATUS.md` con estado, bitácora breve y siguiente acción concreta.
+- `tasks/`: estado de trabajo (tablero, tarea activa, plantilla y guard); `plan.md`: contrato y criterios; `docs/cloud/`: decisiones técnicas.
+- Un solo ID 🟡 global. No renombrar IDs. El estado vive en `tasks/`, no en la conversación: lee [`tasks/README.md`](./tasks/README.md) y la tarea activa antes de actuar.
+- Al pausar/cerrar, haz checkpoint en la tarea (`Next step`, `Validation`, `Log`) y actualiza el tablero; cierra solo cuando el Goal, el checklist y los checks del Workflow estén satisfechos. Ejecuta `npm run check:tasks` después de cada checkpoint o movimiento.
 - Preservar trabajo ajeno; revisar diff/staged antes de editar. No limpiar datos ni ejecutar migraciones, seed, operaciones remotas, commit, deploy o contratación sin autorización específica.
 - No inventar evidencia: tests no prueban Neon, OAuth, navegador ni móvil. El dueño revisa UI/dispositivo; registrar límites.
 
@@ -44,6 +45,6 @@ Read the contract first, then applicable reference docs and the requested operat
 - Antes de actuar, lee [`docs/agent-kit/project-context.md`](./docs/agent-kit/project-context.md); el índice de referencia es [`docs/agent-kit/README.md`](./docs/agent-kit/README.md). Lee solo lo relevante a la tarea.
 - **Preguntar primero:** dependencias, auth/permisos/seguridad, cambios destructivos de esquema, configuración de CI/build/lint/TS, migraciones grandes, operaciones pagadas o externas, commit/push/PR.
 - **Nunca:** sobrescribir instrucciones o configuración existentes, exponer secretos o datos personales, saltar checks, editar lockfiles o migraciones aplicadas a mano, force-push, operaciones destructivas fuera de local, dejar éxito falso o datos de producción simulados.
-- Checks de implementación aprobada: `npm test`, `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run db:check`, `npm run build`. `npm run test:e2e` requiere `npm run build` previo y corre solo viajes públicos.
+- Checks de implementación aprobada: `npm test`, `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run db:check`, `npm run check:tasks`, `npm run build`. `npm run test:e2e` requiere `npm run build` previo y corre solo viajes públicos.
 - `db:migrate*`, `db:health*`, `db:verify*` y cualquier prueba contra Neon u OAuth requieren autorización, destino confirmado y punto de recuperación. No son parte de un check rutinario.
 - `npm run build` sustituye `.next`: no lo ejecutes mientras el dueño usa `next dev`. Usa una copia aislada del repo.
