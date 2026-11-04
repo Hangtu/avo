@@ -5,20 +5,20 @@ Git and linked archives preserve history.
 
 ## Current focus
 
-- [003 — E4.2 selective account sync](active/003-e4-2-selective-account-sync.md) — owner review, recovery in another browser, Facebook real.
+- [003 — E4.2 selective account sync](active/003-e4-2-selective-account-sync.md) — owner review and recovery in another browser.
 
 ## Backlog (in priority order)
 
 - [004 — E4.1 real provider sessions](backlog/004-e4-1-real-provider-sessions.md) — real Google session/logout and deployed-environment check.
 - [005 — E4.3.1 identity linking matrix](backlog/005-e4-3-1-identity-linking-matrix.md) — both orders, missing email, changed email with real OAuth.
-- [006 — E4.8 device and browser coverage](backlog/006-e4-8-device-and-browser-coverage.md) — Safari, physical phone, PWA offline, audio and wake lock.
 - [007 — F01 legal and account deletion](backlog/007-f01-legal-and-account-deletion.md) — controller identity, support mailbox, retention, remote deletion.
-- [008 — Authenticated E2E](backlog/008-authenticated-e2e.md) — Playwright storageState and axe on account journeys.
-- [009 — Split oversized modules](backlog/009-split-oversized-modules.md) — task editor, home shell and repository with characterization tests.
-- [010 — Nonce CSP](backlog/010-nonce-csp.md) — report-only policy, measure, enforce; update ADR 0002.
+- [006 — E4.8 device and browser coverage](backlog/006-e4-8-device-and-browser-coverage.md) — Safari, physical phone, PWA offline, audio and wake lock.
 
 ## Icebox (not approved)
 
+- Authenticated E2E: Playwright setup with a disposable identity and `storageState`, plus axe on account pages. Archived detail: [008](archive/2026-11-04-dropped-tasks/008-authenticated-e2e.md).
+- Split oversized modules: `components/task-editor.tsx`, `components/runo-home.tsx` and `lib/db/repository.ts`; characterization tests first. Archived detail: [009](archive/2026-11-04-dropped-tasks/009-split-oversized-modules.md).
+- Nonce CSP: `proxy.ts` report-only, measure, enforce; update ADR 0002. Archived detail: [010](archive/2026-11-04-dropped-tasks/010-nonce-csp.md).
 - Restore `resolved`/`integrity` in `package-lock.json` and commit it; a clean install keeps dropping them, so find the flag/tool that rewrites the lock first.
 - Push the local commits and verify `app-ci` on GitHub; not authorized yet. The first run is the only unverified part of CI.
 - Review the 4 moderate `npm audit --omit=dev` advisories (Drizzle Kit/esbuild chain); no forced fix.
@@ -39,6 +39,8 @@ tasks/
 The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
+
+Next id: **011** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`).
 
 ## Board conventions
 

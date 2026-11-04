@@ -6,15 +6,14 @@ updated: 2026-11-04
 ## Goal
 
 Close E4.2: the owner accepts the sync corrections and UI, a real account
-recovers its pending items in a second browser, Facebook sign-in is proven in
-both orders, and the authorized environment is validated. Deployment needs its
-own authorization.
+recovers its pending items in a second browser, and the authorized environment
+is validated for recovery. Deployment needs its own authorization.
 
 ## Out of scope
 
 - Deploying to production, applying migrations, or changing Vercel/Neon settings.
 - New sync features, runtime sync of timers/sessions, or changing the identity policy.
-- E4.1, E4.3.1 and F01, which stay in the backlog.
+- E4.1/E4.3.1 real-provider checks (tasks 004 and 005) and F01, which stay in the backlog.
 
 ## Next step
 
@@ -34,8 +33,7 @@ in Validation and Log. Do not deploy or migrate.
 
 - [ ] Create and confirm a pending item with a real Google account.
 - [ ] Clear storage, sign in again in another browser and recover the item.
-- [ ] Repeat with Facebook in both sign-in orders.
-- [ ] Cover missing email and changed email (E4.3.1 matrix).
+- [ ] Record the remote state of `development` with `db:verify` (read-only).
 
 ### Release
 
@@ -70,7 +68,6 @@ in Validation and Log. Do not deploy or migrate.
 | 2026-11-03 | Google real session | Passed locally | 2 pending items and 3 receipts in Neon `development`; owner report |
 | 2026-11-03 | Schema `development` / `prod` | Passed | 4 migrations and required schema; read-only verification |
 | 2026-11-04 | Recovery in another browser | Not run | Needs the authorized environment and the owner |
-| 2026-11-04 | Facebook real | Not run | Provider credentials and a real account; owner confirms locally only |
 | 2026-11-04 | Deploy | Not run | Requires separate authorization |
 
 ## Log
@@ -81,6 +78,7 @@ in Validation and Log. Do not deploy or migrate.
 - 2026-11-03 — `0003` applied in `development` with authorization; counts preserved. `prod` already had 4 migrations.
 - 2026-11-03 — First real Google sign-in synced 2 pending items and 3 receipts in `development`.
 - 2026-11-04 — Task board adopted; the old STATUS content is archived and this task is the resume point.
+- 2026-11-04 — Scope trimmed to E4.2: the Facebook and provider-matrix checks live in tasks 004 and 005.
 
 ## History
 
