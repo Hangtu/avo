@@ -12,6 +12,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 App local-first de hábitos, pendientes y timer (ES/EN, español de México). Busca ayudar a actuar y volver a la vida.
 
+<!-- agent-kit:adoption:start -->
+## Engineering kit
+Project contract: docs/agent-kit/project-context.md.
+Read the contract first, then applicable reference docs and the requested operation. Preserve existing instructions and report unresolved conflicts before acting.
+<!-- agent-kit:adoption:end -->
+
 ## Fuentes y flujo
 
 - `STATUS.md`: estado real, evidencia y siguiente acción; `plan.md`: contrato y criterios; `docs/cloud/`: decisiones técnicas.
@@ -31,3 +37,13 @@ App local-first de hábitos, pendientes y timer (ES/EN, español de México). Bu
 - `app/` rutas/UI, `lib/` dominio/datos; Server Components por defecto. Nada de IndexedDB/`window` en SSR; client components solo cuando hagan falta.
 - Neon/Drizzle y secretos solo en servidor. Mantener Cache Components/Partial Prefetching; leer guía instalada antes de cambiar APIs/flags o dependencias de Next. Tailwind v4.
 - Lógica pura → tests; ejecutar `npm test`, `npm run typecheck`, `npm run lint`, `npm run db:check`, `npm run build`. Probar PWA/offline en build de producción y dispositivo real.
+
+## Operaciones y permisos
+
+- **Doctor** inspecciona y reporta sin escribir, instalar ni ejecutar scripts del proyecto. **Adopt** aplica solo el plan aprobado. **Verify** ejecuta solo los checks autorizados y no repara. Sin operación explícita, la default es Doctor; ninguna avanza a la siguiente sola.
+- Antes de actuar, lee [`docs/agent-kit/project-context.md`](./docs/agent-kit/project-context.md); el índice de referencia es [`docs/agent-kit/README.md`](./docs/agent-kit/README.md). Lee solo lo relevante a la tarea.
+- **Preguntar primero:** dependencias, auth/permisos/seguridad, cambios destructivos de esquema, configuración de CI/build/lint/TS, migraciones grandes, operaciones pagadas o externas, commit/push/PR.
+- **Nunca:** sobrescribir instrucciones o configuración existentes, exponer secretos o datos personales, saltar checks, editar lockfiles o migraciones aplicadas a mano, force-push, operaciones destructivas fuera de local, dejar éxito falso o datos de producción simulados.
+- Checks de implementación aprobada: `npm test`, `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run db:check`, `npm run build`. `npm run test:e2e` requiere `npm run build` previo y corre solo viajes públicos.
+- `db:migrate*`, `db:health*`, `db:verify*` y cualquier prueba contra Neon u OAuth requieren autorización, destino confirmado y punto de recuperación. No son parte de un check rutinario.
+- `npm run build` sustituye `.next`: no lo ejecutes mientras el dueño usa `next dev`. Usa una copia aislada del repo.

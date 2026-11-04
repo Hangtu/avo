@@ -7,7 +7,10 @@ import { themeBootScript } from "./theme-boot";
 
 const GUEST_KEY = SPACE_STORAGE_KEYS.theme;
 const ACCOUNT = { accountId: "user-1", locked: false };
-const SCOPED_KEY = storageKeyForSpace({ kind: "account", userId: ACCOUNT.accountId }, SPACE_STORAGE_KEYS.theme);
+const SCOPED_KEY = storageKeyForSpace(
+  { kind: "account", userId: ACCOUNT.accountId },
+  SPACE_STORAGE_KEYS.theme,
+);
 
 /** Execute the real pre-paint script against synthetic browser objects. */
 function run(entries: Record<string, string>) {
@@ -59,11 +62,19 @@ describe("pre-paint theme is scoped to the selected space", () => {
   });
   it("never throws on a malformed marker or denied storage", () => {
     expect(run({ [ACCESS_KEY]: "{" }).theme).toBeDefined();
-    const document = { documentElement: { dataset: {} as Record<string, string>, style: {} as Record<string, string> }, querySelector: () => null };
-    expect(() => new Function("localStorage", "document", themeBootScript())({
-      getItem: () => {
-        throw new Error("denied");
-      },
-    }, document)).not.toThrow();
+    const document = {
+      documentElement: { dataset: {} as Record<string, string>, style: {} as Record<string, string> },
+      querySelector: () => null,
+    };
+    expect(() =>
+      new Function("localStorage", "document", themeBootScript())(
+        {
+          getItem: () => {
+            throw new Error("denied");
+          },
+        },
+        document,
+      ),
+    ).not.toThrow();
   });
 });

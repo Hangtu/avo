@@ -11,7 +11,9 @@ type Phase = "offer" | "running" | "done";
 
 function formatRemaining(milliseconds: number): string {
   const totalSeconds = Math.ceil(milliseconds / 1000);
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
   return `${minutes}:${seconds}`;
 }
@@ -64,9 +66,7 @@ export function BreakCard({ onClose }: { onClose: () => void }) {
       transition={{ duration: reduceMotion ? 0.12 : 0.2, ease: "easeOut" }}
     >
       <div className="flex items-center gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-          {t("eyebrow")}
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t("eyebrow")}</p>
         <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
       </div>
 

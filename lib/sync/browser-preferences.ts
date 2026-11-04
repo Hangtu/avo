@@ -8,7 +8,13 @@ export async function mirrorPreferences(db: RunoDatabase): Promise<void> {
   if (!settings || db.name !== currentDatabaseName()) return;
   try {
     if (settings.locale) localStorage.setItem(activeStorageKey(SPACE_STORAGE_KEYS.locale), settings.locale);
-    if (settings.taskOrder) localStorage.setItem(activeStorageKey(SPACE_STORAGE_KEYS.taskOrder), JSON.stringify(settings.taskOrder));
+    if (settings.taskOrder)
+      localStorage.setItem(
+        activeStorageKey(SPACE_STORAGE_KEYS.taskOrder),
+        JSON.stringify(settings.taskOrder),
+      );
     localStorage.setItem(activeStorageKey(SPACE_STORAGE_KEYS.theme), settings.theme);
-  } catch { /* Storage may be disabled; IndexedDB remains authoritative. */ }
+  } catch {
+    /* Storage may be disabled; IndexedDB remains authoritative. */
+  }
 }

@@ -5,6 +5,7 @@ import { ShellI18nProvider } from "./_components/shell-i18n-provider";
 import { ServiceWorkerRegister } from "./_components/service-worker-register";
 import { defaultLocale, messages } from "@/lib/i18n/config";
 import { themeBootScript } from "@/lib/domain/theme-boot";
+import { siteName, siteUrl } from "@/lib/site";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -12,14 +13,28 @@ const lexend = Lexend({
   display: "swap",
 });
 
+const description = messages[defaultLocale].meta.description;
+
 export const metadata: Metadata = {
-  applicationName: "Avo",
-  title: "Avo",
-  description: messages[defaultLocale].meta.description,
+  metadataBase: new URL(siteUrl),
+  applicationName: siteName,
+  title: { default: siteName, template: `%s | ${siteName}` },
+  description,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName,
+    url: "/",
+    title: siteName,
+    description,
+    locale: "es_MX",
+  },
+  twitter: { card: "summary", title: siteName, description },
+  robots: { index: true, follow: true },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Avo",
+    title: siteName,
   },
   formatDetection: {
     telephone: false,

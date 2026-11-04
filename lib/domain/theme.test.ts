@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isNightHour, resolveTheme } from "./theme";
 
-const at = (hour: number, minute = 0) =>
-  new Date(2026, 9, 30, hour, minute, 0, 0).getTime();
+const at = (hour: number, minute = 0) => new Date(2026, 9, 30, hour, minute, 0, 0).getTime();
 
 describe("tema automático", () => {
   it("entra en noche a las 20:00 y vuelve a claro a las 07:00", () => {

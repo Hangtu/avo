@@ -19,10 +19,19 @@ describe("validación de tareas", () => {
   });
 
   it.each([
-    { title: " " }, { category: "" }, { durationMin: 0 },
-    { durationMin: -1 }, { durationMin: 1.5 }, { durationMin: Number.NaN },
-    { durationMin: Number.POSITIVE_INFINITY }, { durationMin: Number.MAX_SAFE_INTEGER },
-    { priority: 0 }, { priority: 4 }, { days: [] }, { days: [7] }, { days: [-1] },
+    { title: " " },
+    { category: "" },
+    { durationMin: 0 },
+    { durationMin: -1 },
+    { durationMin: 1.5 },
+    { durationMin: Number.NaN },
+    { durationMin: Number.POSITIVE_INFINITY },
+    { durationMin: Number.MAX_SAFE_INTEGER },
+    { priority: 0 },
+    { priority: 4 },
+    { days: [] },
+    { days: [7] },
+    { days: [-1] },
     { shortStep: { title: "", durationMin: 1 } },
     { shortStep: { title: "Paso", durationMin: 0 } },
     { shortStep: { title: "Paso", durationMin: 15 } },
@@ -47,7 +56,9 @@ describe("validación de tareas", () => {
 
 describe("límites compartidos con el protocolo de cuenta", () => {
   it("acepta los límites y rechaza títulos/categorías que el sync no puede representar", () => {
-    expect(validateTaskInput(taskInput({ title: "x".repeat(1024), category: "x".repeat(256) })).title).toHaveLength(1024);
+    expect(
+      validateTaskInput(taskInput({ title: "x".repeat(1024), category: "x".repeat(256) })).title,
+    ).toHaveLength(1024);
     expect(validatePendingInput({ title: "x".repeat(1024), durationMin: 25 }).title).toHaveLength(1024);
     expect(() => validateTaskInput(taskInput({ title: "x".repeat(1025) }))).toThrow();
     expect(() => validateTaskInput(taskInput({ category: "x".repeat(257) }))).toThrow();
@@ -64,8 +75,13 @@ describe("validación de pendientes", () => {
   });
 
   it.each([
-    { title: "" }, { title: "  " }, { durationMin: 0 }, { durationMin: -1 },
-    { durationMin: 1.5 }, { durationMin: Number.NaN }, { durationMin: Number.MAX_SAFE_INTEGER },
+    { title: "" },
+    { title: "  " },
+    { durationMin: 0 },
+    { durationMin: -1 },
+    { durationMin: 1.5 },
+    { durationMin: Number.NaN },
+    { durationMin: Number.MAX_SAFE_INTEGER },
   ])("rechaza un pendiente inválido: %j", (patch) => {
     expect(() => validatePendingInput({ title: "Algo", durationMin: 25, ...patch })).toThrow();
   });
@@ -74,7 +90,10 @@ describe("validación de pendientes", () => {
 describe("preferencias", () => {
   it("arranca sin audio, tema automático y techo de tono 2", () => {
     expect(defaultSettings(NOW)).toMatchObject({
-      audioEnabled: false, maxTone: 2, theme: "auto", showWallet: false,
+      audioEnabled: false,
+      maxTone: 2,
+      theme: "auto",
+      showWallet: false,
     });
   });
 
@@ -84,11 +103,9 @@ describe("preferencias", () => {
     expect(() => validateSettings({ ...defaultSettings(NOW), showWallet: "sí" } as never)).toThrow();
   });
 
-  it.each(["brown", "pink", "rain", "ocean", "tick"] as const)(
-    "acepta el sonido %s", (sound) => {
-      expect(validateSettings({ ...defaultSettings(NOW), sound }).sound).toBe(sound);
-    },
-  );
+  it.each(["brown", "pink", "rain", "ocean", "tick"] as const)("acepta el sonido %s", (sound) => {
+    expect(validateSettings({ ...defaultSettings(NOW), sound }).sound).toBe(sound);
+  });
 
   it("rechaza un sonido fuera del catálogo", () => {
     expect(() => validateSettings({ ...defaultSettings(NOW), sound: "cafe" } as never)).toThrow();

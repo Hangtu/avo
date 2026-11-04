@@ -35,7 +35,6 @@ export function timeMinutes(time: string | null): number {
   return hours * 60 + minutes;
 }
 
-
 export function blockForTime(time: string | null): TaskBlock {
   if (!time) return "any";
   const hour = Number(time.slice(0, 2));

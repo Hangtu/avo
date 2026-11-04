@@ -26,7 +26,9 @@ import { useWakeLock } from "./use-wake-lock";
 
 function formatRemaining(milliseconds: number): string {
   const totalSeconds = Math.ceil(milliseconds / 1000);
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
   return `${minutes}:${seconds}`;
 }
@@ -82,21 +84,21 @@ export function SessionView({
   const isPending = current.pendingId !== undefined;
   const sessionDate = dateFromOccurrenceId(current.occurrenceId);
   const isTodaySession = today === null || sessionDate === today;
-  const segmentRemainingSec = current.status === "running"
-    ? remainingMs / 1000
-    : current.remainingSecAtStart;
+  const segmentRemainingSec = current.status === "running" ? remainingMs / 1000 : current.remainingSecAtStart;
   const elapsedTotal = Math.min(
     current.durationSec,
     Math.max(0, current.elapsedSec + current.remainingSecAtStart - segmentRemainingSec),
   );
-  const progress = current.durationSec > 0
-    ? Math.round(Math.min(1, elapsedTotal / current.durationSec) * 100)
-    : 0;
+  const progress =
+    current.durationSec > 0 ? Math.round(Math.min(1, elapsedTotal / current.durationSec) * 100) : 0;
   const displayTitle = isShort
-    ? current.taskSnapshot.shortStep?.title ?? current.taskSnapshot.title
+    ? (current.taskSnapshot.shortStep?.title ?? current.taskSnapshot.title)
     : current.taskSnapshot.title;
   const phrase = chooseVoicePhrase(
-    tone, "work", `${current.id}:${current.startedAt ?? current.updatedAt}`, voicePhrases,
+    tone,
+    "work",
+    `${current.id}:${current.startedAt ?? current.updatedAt}`,
+    voicePhrases,
   );
   const finishTitle = isShort
     ? t("finishStepConfirmTitle")
@@ -115,20 +117,12 @@ export function SessionView({
   const notApplicableTitle = isPending
     ? t("laterConfirmTitle")
     : confirm("notTodayTitle", { title: current.taskSnapshot.title });
-  const notApplicableCopy = isPending
-    ? t("laterConfirmCopy")
-    : confirm("notTodayCopy");
-  const notApplicableConfirm = isPending
-    ? t("laterConfirm")
-    : confirm("notTodayConfirm");
-  const notApplicableNote = confirmAction === "not_applicable" && !isPending && tone > 0
-    ? chooseVoicePhrase(
-        tone,
-        "work",
-        `${current.occurrenceId}:not-today-session`,
-        voicePhrases,
-      )
-    : null;
+  const notApplicableCopy = isPending ? t("laterConfirmCopy") : confirm("notTodayCopy");
+  const notApplicableConfirm = isPending ? t("laterConfirm") : confirm("notTodayConfirm");
+  const notApplicableNote =
+    confirmAction === "not_applicable" && !isPending && tone > 0
+      ? chooseVoicePhrase(tone, "work", `${current.occurrenceId}:not-today-session`, voicePhrases)
+      : null;
 
   useWakeLock(current.status === "running");
   const { ringBell } = useSessionAudio(current.status === "running");
@@ -190,28 +184,29 @@ export function SessionView({
     };
   }, [current, expire]);
 
-  const runAction = useCallback(async (action: () => Promise<void>) => {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setBusy(true);
-    setActionError(null);
-    try {
-      await action();
-    } catch (cause) {
-      console.error("No se pudo guardar el resultado", cause);
-      setActionError(t("actionError"));
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
-    }
-  }, [t]);
+  const runAction = useCallback(
+    async (action: () => Promise<void>) => {
+      if (busyRef.current) return;
+      busyRef.current = true;
+      setBusy(true);
+      setActionError(null);
+      try {
+        await action();
+      } catch (cause) {
+        console.error("No se pudo guardar el resultado", cause);
+        setActionError(t("actionError"));
+      } finally {
+        busyRef.current = false;
+        setBusy(false);
+      }
+    },
+    [t],
+  );
 
   function askNo() {
     setRetryId(newActionId());
     setNoPhrase(
-      tone > 0
-        ? chooseVoicePhrase(2, "push", `${current.id}:no:${pushCount}`, voicePhrases)
-        : null,
+      tone > 0 ? chooseVoicePhrase(2, "push", `${current.id}:no:${pushCount}`, voicePhrases) : null,
     );
     setPushCount((count) => count + 1);
     setShowNoOptions(true);
@@ -223,7 +218,10 @@ export function SessionView({
       try {
         const result = await completeSessionWithCredit(db, current.id, Date.now());
         const closing = chooseVoicePhrase(
-          tone, "close", `${current.id}:${current.startedAt ?? current.updatedAt}`, voicePhrases,
+          tone,
+          "close",
+          `${current.id}:${current.startedAt ?? current.updatedAt}`,
+          voicePhrases,
         );
         const credit = isPending
           ? t("pendingDone")
@@ -297,22 +295,22 @@ export function SessionView({
     >
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {current.status === "running"
-          ? isShort ? t("status.firstStep") : t("status.now")
+          ? isShort
+            ? t("status.firstStep")
+            : t("status.now")
           : current.status === "awaiting_confirmation"
             ? t("status.timeUp")
             : current.status === "paused"
-              ? isShort ? t("status.stepPaused") : t("status.paused")
+              ? isShort
+                ? t("status.stepPaused")
+                : t("status.paused")
               : t("status.finished")}
       </p>
       <div className="mt-3 flex items-start gap-2">
-        <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">
-          {displayTitle}
-        </h2>
+        <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">{displayTitle}</h2>
         {current.status === "running" || current.status === "paused" ? (
           <HelpTip label={t("helpLabel")}>
-            {current.status === "paused"
-              ? t("pausedHelp")
-              : t("runningHelp")}
+            {current.status === "paused" ? t("pausedHelp") : t("runningHelp")}
           </HelpTip>
         ) : null}
       </div>
@@ -327,9 +325,7 @@ export function SessionView({
         </p>
       ) : null}
       {!isQuick && !isPending && !isTodaySession ? (
-        <p className="mt-2 text-sm leading-6 text-muted">
-          {t("previousDay")}
-        </p>
+        <p className="mt-2 text-sm leading-6 text-muted">{t("previousDay")}</p>
       ) : null}
 
       <AnimatePresence mode="wait" initial={false}>
@@ -349,7 +345,9 @@ export function SessionView({
               {formatRemaining(remainingMs)}
             </p>
             <p className="mt-4 text-center text-sm text-muted">
-              {t("endsAt", { time: formatEndTime(current.startedAt, current.remainingSecAtStart, intlLocales[locale]) })}
+              {t("endsAt", {
+                time: formatEndTime(current.startedAt, current.remainingSecAtStart, intlLocales[locale]),
+              })}
             </p>
             <Vigia progress={progress} isShort={isShort} />
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -396,9 +394,7 @@ export function SessionView({
             <Vigia progress={progress} isShort={isShort} />
             {!showNoOptions ? (
               <>
-                <p className="text-lg font-semibold">
-                  {isShort ? t("didStep") : t("didTask")}
-                </p>
+                <p className="text-lg font-semibold">{isShort ? t("didStep") : t("didTask")}</p>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <motion.button
                     type="button"
@@ -431,19 +427,13 @@ export function SessionView({
             ) : (
               <>
                 <p className="text-lg font-semibold">
-                  {isShort
-                    ? t("whatStep")
-                    : isPending ? t("whatPending") : t("whatTask")}
+                  {isShort ? t("whatStep") : isPending ? t("whatPending") : t("whatTask")}
                 </p>
                 {noPhrase ? (
-                  <p className="border-l-2 border-accent pl-4 text-base leading-7">
-                    {noPhrase}
-                  </p>
+                  <p className="border-l-2 border-accent pl-4 text-base leading-7">{noPhrase}</p>
                 ) : null}
                 <p className="text-sm leading-6 text-muted">
-                  {isPending
-                    ? t("retryHelpPending")
-                    : t("retryHelp")}
+                  {isPending ? t("retryHelpPending") : t("retryHelp")}
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button
@@ -540,9 +530,9 @@ export function SessionView({
         title={confirmAction === "finish" ? finishTitle : notApplicableTitle}
         description={confirmAction === "finish" ? finishCopy : notApplicableCopy}
         note={confirmAction === "not_applicable" ? notApplicableNote : null}
-        confirmLabel={confirmAction === "finish"
-          ? isShort ? t("yesStep") : t("yesTask")
-          : notApplicableConfirm}
+        confirmLabel={
+          confirmAction === "finish" ? (isShort ? t("yesStep") : t("yesTask")) : notApplicableConfirm
+        }
         onConfirm={() => {
           const action = confirmAction;
           setConfirmAction(null);
@@ -553,7 +543,6 @@ export function SessionView({
     </motion.section>
   );
 }
-
 
 function Vigia({ progress, isShort }: { progress: number; isShort: boolean }) {
   const t = useTranslations("session");

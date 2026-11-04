@@ -29,8 +29,7 @@ import { authUsers } from "./auth-schema";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow();
 const updatedAt = () => timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow();
-const timestampColumn = (name: string) =>
-  timestamp(name, { withTimezone: true, mode: "date" });
+const timestampColumn = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
 export const occurrenceStatusEnum = pgEnum("runo_occurrence_status", [
   "pending",
@@ -52,11 +51,7 @@ export const sessionStatusEnum = pgEnum("runo_session_status", [
   "partial",
   "abandoned",
 ]);
-export const ledgerReasonEnum = pgEnum("runo_ledger_reason", [
-  "full_completion",
-  "short_step",
-  "redemption",
-]);
+export const ledgerReasonEnum = pgEnum("runo_ledger_reason", ["full_completion", "short_step", "redemption"]);
 export const soundEnum = pgEnum("runo_sound", SOUND_KEYS);
 export const themeEnum = pgEnum("runo_theme", ["auto", "light", "dark"]);
 export const eventTypeEnum = pgEnum("runo_event_type", [
@@ -83,7 +78,9 @@ export const eventTypeEnum = pgEnum("runo_event_type", [
 export const users = pgTable("runo_users", {
   id: text("id").primaryKey(),
   // Null preserves the legacy owner. Never attach it to the first social login.
-  authUserId: text("auth_user_id").unique().references(() => authUsers.id, { onDelete: "restrict" }),
+  authUserId: text("auth_user_id")
+    .unique()
+    .references(() => authUsers.id, { onDelete: "restrict" }),
   timeZone: text("time_zone").notNull().default("America/Mexico_City"),
   createdAt: createdAt(),
 });
@@ -103,7 +100,10 @@ export const settings = pgTable(
     theme: themeEnum("theme").notNull().default("auto"),
     showWallet: boolean("show_wallet").notNull().default(false),
     locale: text("locale").$type<"es" | "en">().notNull().default("es"),
-    taskOrder: jsonb("task_order").$type<TaskOrder>().notNull().default(sql`'{}'::jsonb`),
+    taskOrder: jsonb("task_order")
+      .$type<TaskOrder>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     revision: integer("revision").notNull().default(1),
     updatedAt: updatedAt(),
   },
@@ -126,7 +126,10 @@ export const tasks = pgTable(
     durationMin: integer("duration_min").notNull(),
     priority: smallint("priority").notNull(),
     /** JavaScript weekday convention: 0 = Sunday, 6 = Saturday. */
-    days: smallint("days").array().notNull().default(sql`'{}'::smallint[]`),
+    days: smallint("days")
+      .array()
+      .notNull()
+      .default(sql`'{}'::smallint[]`),
     windowStart: time("window_start"),
     windowEnd: time("window_end"),
     fixedTime: time("fixed_time"),
@@ -143,10 +146,7 @@ export const tasks = pgTable(
     check("runo_tasks_revision", sql`${table.revision} > 0`),
     check("runo_tasks_duration", sql`${table.durationMin} > 0`),
     check("runo_tasks_priority", sql`${table.priority} between 1 and 3`),
-    check(
-      "runo_tasks_days",
-      sql`${table.days} <@ ARRAY[0, 1, 2, 3, 4, 5, 6]::smallint[]`,
-    ),
+    check("runo_tasks_days", sql`${table.days} <@ ARRAY[0, 1, 2, 3, 4, 5, 6]::smallint[]`),
     check(
       "runo_tasks_window",
       sql`(${table.windowStart} is null and ${table.windowEnd} is null) or (${table.windowStart} is not null and ${table.windowEnd} is not null and ${table.windowStart} < ${table.windowEnd})`,
@@ -217,11 +217,7 @@ export const hands = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.id] }),
-    uniqueIndex("runo_hands_user_date_ordinal_idx").on(
-      table.userId,
-      table.date,
-      table.ordinal,
-    ),
+    uniqueIndex("runo_hands_user_date_ordinal_idx").on(table.userId, table.date, table.ordinal),
     index("runo_hands_user_date_status_idx").on(table.userId, table.date, table.status),
     check("runo_hands_ordinal", sql`${table.ordinal} > 0`),
   ],
@@ -252,16 +248,8 @@ export const occurrences = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.id] }),
-    uniqueIndex("runo_occurrences_user_task_date_idx").on(
-      table.userId,
-      table.taskId,
-      table.date,
-    ),
-    index("runo_occurrences_user_date_status_idx").on(
-      table.userId,
-      table.date,
-      table.status,
-    ),
+    uniqueIndex("runo_occurrences_user_task_date_idx").on(table.userId, table.taskId, table.date),
+    index("runo_occurrences_user_date_status_idx").on(table.userId, table.date, table.status),
     check("runo_occurrences_elapsed", sql`${table.timerElapsedSec} >= 0`),
     check("runo_occurrences_credited", sql`${table.creditedRc} >= 0`),
   ],
@@ -270,7 +258,9 @@ export const occurrences = pgTable(
 export const handItems = pgTable(
   "runo_hand_items",
   {
-    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     handId: text("hand_id").notNull(),
     occurrenceId: text("occurrence_id").notNull(),
     state: handItemStateEnum("state").notNull().default("active"),
@@ -278,8 +268,13 @@ export const handItems = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.handId, table.occurrenceId] }),
-    foreignKey({ columns: [table.userId, table.handId], foreignColumns: [hands.userId, hands.id] }).onDelete("cascade"),
-    foreignKey({ columns: [table.userId, table.occurrenceId], foreignColumns: [occurrences.userId, occurrences.id] }).onDelete("cascade"),
+    foreignKey({ columns: [table.userId, table.handId], foreignColumns: [hands.userId, hands.id] }).onDelete(
+      "cascade",
+    ),
+    foreignKey({
+      columns: [table.userId, table.occurrenceId],
+      foreignColumns: [occurrences.userId, occurrences.id],
+    }).onDelete("cascade"),
     uniqueIndex("runo_hand_items_active_position_idx")
       .on(table.userId, table.handId, table.position)
       .where(sql`${table.state} = 'active'`),
@@ -316,11 +311,17 @@ export const sessions = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.id] }),
-    foreignKey({ columns: [table.userId, table.occurrenceId], foreignColumns: [occurrences.userId, occurrences.id] }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.userId, table.occurrenceId],
+      foreignColumns: [occurrences.userId, occurrences.id],
+    }).onDelete("restrict"),
     // Optional references must be cleared explicitly before deleting their target.
     // Composite SET NULL would also null user_id and break account ownership.
     foreignKey({ columns: [table.userId, table.handId], foreignColumns: [hands.userId, hands.id] }),
-    foreignKey({ columns: [table.userId, table.pendingId], foreignColumns: [pendings.userId, pendings.id] }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.userId, table.pendingId],
+      foreignColumns: [pendings.userId, pendings.id],
+    }).onDelete("restrict"),
     uniqueIndex("runo_sessions_one_running_per_user_idx")
       .on(table.userId)
       .where(sql`${table.status} = 'running'`),
@@ -358,11 +359,7 @@ export const events = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.id] }),
-    uniqueIndex("runo_events_user_action_type_idx").on(
-      table.userId,
-      table.actionId,
-      table.type,
-    ),
+    uniqueIndex("runo_events_user_action_type_idx").on(table.userId, table.actionId, table.type),
     index("runo_events_user_at_idx").on(table.userId, table.at),
     // Event IDs remain descriptive legacy labels, not an authorization join.
     index("runo_events_occurrence_idx").on(table.userId, table.occurrenceId),
@@ -385,7 +382,10 @@ export const ledger = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.id] }),
-    foreignKey({ columns: [table.userId, table.occurrenceId], foreignColumns: [occurrences.userId, occurrences.id] }),
+    foreignKey({
+      columns: [table.userId, table.occurrenceId],
+      foreignColumns: [occurrences.userId, occurrences.id],
+    }),
     uniqueIndex("runo_ledger_user_source_idx").on(table.userId, table.sourceKey),
     index("runo_ledger_user_at_idx").on(table.userId, table.at),
     check("runo_ledger_delta", sql`${table.deltaRc} <> 0`),

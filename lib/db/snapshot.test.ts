@@ -65,8 +65,7 @@ describe("local snapshot and migration row mapping", () => {
   });
 
   it("rejects a different snapshot version", () => {
-    expect(() => parseBackupSnapshot({ ...snapshot(), schemaVersion: 2 }))
-      .toThrow(/versión/i);
+    expect(() => parseBackupSnapshot({ ...snapshot(), schemaVersion: 2 })).toThrow(/versión/i);
   });
 
   it("rejects malformed task data before writing", () => {

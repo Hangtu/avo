@@ -8,15 +8,26 @@ import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 function task(id: string, patch: Partial<TaskInput> = {}): Task {
   return {
     ...validateTaskInput(taskInput(patch)),
-    id, createdAt: NOW, updatedAt: NOW, archivedAt: null,
+    id,
+    createdAt: NOW,
+    updatedAt: NOW,
+    archivedAt: null,
   };
 }
 function occurrence(t: Task, patch: Partial<Occurrence> = {}): Occurrence {
   return {
-    id: occurrenceIdFor(t.id, MONDAY), taskId: t.id, date: MONDAY,
-    status: "pending", timerElapsedSec: 0, creditedRc: 0,
-    shortStepCompleted: false, agreement: null, anchorPresentedAt: null,
-    createdAt: NOW, updatedAt: NOW, ...patch,
+    id: occurrenceIdFor(t.id, MONDAY),
+    taskId: t.id,
+    date: MONDAY,
+    status: "pending",
+    timerElapsedSec: 0,
+    creditedRc: 0,
+    shortStepCompleted: false,
+    agreement: null,
+    anchorPresentedAt: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...patch,
   };
 }
 function at(hour: number, minute = 0) {
@@ -42,10 +53,8 @@ describe("ancla ligera", () => {
   it("ordena varias anclas por hora fija", () => {
     const first = task("first", { fixedTime: "17:00" });
     const second = task("second", { fixedTime: "18:00" });
-    expect(findDueAnchor(
-      [second, first],
-      [occurrence(first), occurrence(second)],
-      at(18),
-    )?.task.id).toBe("first");
+    expect(findDueAnchor([second, first], [occurrence(first), occurrence(second)], at(18))?.task.id).toBe(
+      "first",
+    );
   });
 });

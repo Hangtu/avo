@@ -33,10 +33,12 @@ export function AuthErrorNotice() {
   }, []);
 
   if (!key) return null;
-  return <div role="alert" className="mx-auto max-w-3xl px-5 pt-5 text-sm leading-6">
-    <p>{t(MESSAGE[key])}</p>
-    <button type="button" className="min-h-11 font-semibold underline" onClick={() => setKey(null)}>
-      {t("dismiss")}
-    </button>
-  </div>;
+  return (
+    <div role="alert" className="mx-auto max-w-3xl px-5 pt-5 text-sm leading-6">
+      <p>{t(MESSAGE[key])}</p>
+      <button type="button" className="min-h-11 font-semibold underline" onClick={() => setKey(null)}>
+        {t("dismiss")}
+      </button>
+    </div>
+  );
 }

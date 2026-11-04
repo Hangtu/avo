@@ -20,7 +20,10 @@ export interface RedemptionResult {
  * The actionId makes a double tap or retry idempotent.
  */
 export async function redeemRc(
-  db: RunoDatabase, amount: number, actionId: string, now: number,
+  db: RunoDatabase,
+  amount: number,
+  actionId: string,
+  now: number,
 ): Promise<RedemptionResult> {
   assertId(actionId);
   assertTimestamp(now);
@@ -32,7 +35,11 @@ export async function redeemRc(
   return db.transaction("rw", db.ledger, async () => {
     const existing = await db.ledger.where("sourceKey").equals(sourceKey).first();
     if (existing) {
-      if (existing.deltaRc !== -amount || existing.reason !== "redemption" || existing.occurrenceId !== undefined) {
+      if (
+        existing.deltaRc !== -amount ||
+        existing.reason !== "redemption" ||
+        existing.occurrenceId !== undefined
+      ) {
         throw new DomainError("conflict", "Ese canje ya existe con otro contenido.");
       }
       return { entry: existing, balance: await getBalance(db), inserted: false };

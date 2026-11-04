@@ -8,8 +8,11 @@ const testDb = setupTestDatabase();
 
 async function credit(db: Awaited<ReturnType<typeof testDb>>, amount: number) {
   await appendLedgerEntry(db, {
-    sourceKey: `test-credit:${amount}`, occurrenceId: `occ:${amount}`,
-    deltaRc: amount, reason: "full_completion", at: NOW,
+    sourceKey: `test-credit:${amount}`,
+    occurrenceId: `occ:${amount}`,
+    deltaRc: amount,
+    reason: "full_completion",
+    at: NOW,
   });
 }
 

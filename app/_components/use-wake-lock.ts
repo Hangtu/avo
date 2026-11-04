@@ -29,9 +29,13 @@ export function useWakeLock(active: boolean): void {
           return;
         }
         sentinelRef.current = sentinel;
-        sentinel.addEventListener("release", () => {
-          if (sentinelRef.current === sentinel) sentinelRef.current = null;
-        }, { once: true });
+        sentinel.addEventListener(
+          "release",
+          () => {
+            if (sentinelRef.current === sentinel) sentinelRef.current = null;
+          },
+          { once: true },
+        );
       } catch {
         // Rejection is expected on some browsers and power-saving modes.
       }

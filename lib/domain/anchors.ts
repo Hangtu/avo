@@ -5,6 +5,8 @@ import type { Occurrence, Task } from "./types";
 export interface DueAnchor {
   task: Task;
   occurrence: Occurrence;
+  /** Always present: candidates without a fixed time are excluded. */
+  fixedTime: string;
 }
 
 /** The first due fixed-time task that has not been presented for this date. */
@@ -19,18 +21,19 @@ export function findDueAnchor(
       .filter((occurrence) => occurrence.date === date)
       .map((occurrence) => [occurrence.taskId, occurrence]),
   );
-  const candidates: DueAnchor[] = [];
+  const candidates: Array<DueAnchor & { minutes: number }> = [];
   for (const task of tasks) {
-    if (!task.fixedTime) continue;
+    const fixedTime = task.fixedTime;
+    if (!fixedTime) continue;
     const occurrence = byTask.get(task.id);
     if (!occurrence) continue;
     const availability = availabilityOf(task, occurrence, now);
     if (!availability.eligible || !availability.isDueAnchor) continue;
-    candidates.push({ task, occurrence });
+    candidates.push({ task, occurrence, fixedTime, minutes: clockMinutes(fixedTime) });
   }
-  candidates.sort((a, b) => {
-    const time = clockMinutes(a.task.fixedTime!) - clockMinutes(b.task.fixedTime!);
-    return time || (a.task.id < b.task.id ? -1 : a.task.id > b.task.id ? 1 : 0);
-  });
-  return candidates[0] ?? null;
+  candidates.sort(
+    (a, b) => a.minutes - b.minutes || (a.task.id < b.task.id ? -1 : a.task.id > b.task.id ? 1 : 0),
+  );
+  const first = candidates[0];
+  return first ? { task: first.task, occurrence: first.occurrence, fixedTime: first.fixedTime } : null;
 }

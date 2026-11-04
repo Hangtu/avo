@@ -2,12 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
-import {
-  claimAnchor,
-  ensureOccurrence,
-  listTasks,
-  pauseSession,
-} from "@/lib/db/repository";
+import { claimAnchor, ensureOccurrence, listTasks, pauseSession } from "@/lib/db/repository";
 import { findDueAnchor } from "@/lib/domain/anchors";
 import { pulse } from "@/lib/platform/haptics";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
@@ -65,7 +60,7 @@ export function useAnchorWatcher({
         const claimed = await claimAnchor(db, {
           taskId: due.task.id,
           date,
-          fixedTime: due.task.fixedTime!,
+          fixedTime: due.fixedTime,
           now,
         });
         if (claimed && !cancelled) {

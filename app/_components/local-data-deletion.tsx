@@ -56,14 +56,19 @@ export function LocalDataDeletion() {
   }
 
   return (
-    <section aria-labelledby="local-data-delete-title" className="mt-8 rounded-2xl border border-line p-5 sm:p-6">
+    <section
+      aria-labelledby="local-data-delete-title"
+      className="mt-8 rounded-2xl border border-line p-5 sm:p-6"
+    >
       <h2 id="local-data-delete-title" className="text-xl font-semibold">
         {t("localTitle")}
       </h2>
       <p className="mt-2 text-sm leading-6 text-muted">{t("localCopy")}</p>
 
       {done ? (
-        <p className="mt-4 text-sm font-semibold" role="status">{t("done")}</p>
+        <p className="mt-4 text-sm font-semibold" role="status">
+          {t("done")}
+        </p>
       ) : confirming ? (
         <div className="mt-4 border-l-2 border-accent pl-4" role="alert">
           <p className="text-sm leading-6">{t("confirmCopy")}</p>
@@ -104,7 +109,13 @@ export function LocalDataDeletion() {
 
       {error ? (
         <p className="mt-3 text-sm" role="alert">
-          {t(error === "unavailable" ? "unavailableError" : error === "blocked" ? "blockedError" : "failedError")}
+          {t(
+            error === "unavailable"
+              ? "unavailableError"
+              : error === "blocked"
+                ? "blockedError"
+                : "failedError",
+          )}
         </p>
       ) : null}
     </section>

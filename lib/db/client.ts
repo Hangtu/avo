@@ -5,13 +5,9 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 import * as schema from "./schema";
+import { env } from "@/lib/env";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error(
-    "Falta DATABASE_URL. Copia .env.example a .env y usa la cadena pooled de Neon.",
-  );
-}
+const connectionString = env.DATABASE_URL;
 
 /**
  * Reuse the pool across HMR in development. On Vercel Fluid, attachDatabasePool

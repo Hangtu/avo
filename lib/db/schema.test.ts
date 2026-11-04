@@ -60,13 +60,26 @@ describe("Postgres schema", () => {
   });
 
   it("scopes every domain ID to its owner, including join rows", () => {
-    for (const table of [schema.tasks, schema.pendings, schema.hands, schema.occurrences, schema.sessions, schema.events, schema.ledger]) {
-      expect(getTableConfig(table).primaryKeys[0]?.columns.map((column) => column.name))
-        .toEqual(["user_id", "id"]);
+    for (const table of [
+      schema.tasks,
+      schema.pendings,
+      schema.hands,
+      schema.occurrences,
+      schema.sessions,
+      schema.events,
+      schema.ledger,
+    ]) {
+      expect(getTableConfig(table).primaryKeys[0]?.columns.map((column) => column.name)).toEqual([
+        "user_id",
+        "id",
+      ]);
       expect(getTableConfig(table).columns.find((column) => column.name === "id")?.primary).toBe(false);
     }
-    expect(getTableConfig(schema.handItems).primaryKeys[0]?.columns.map((column) => column.name))
-      .toEqual(["user_id", "hand_id", "occurrence_id"]);
+    expect(getTableConfig(schema.handItems).primaryKeys[0]?.columns.map((column) => column.name)).toEqual([
+      "user_id",
+      "hand_id",
+      "occurrence_id",
+    ]);
   });
 
   it("includes the owner in every domain foreign key", () => {
@@ -92,16 +105,22 @@ describe("Postgres schema", () => {
       }
       expect(getTableConfig(table).name).toMatch(/^runo_auth_/);
     }
-    expect(getTableConfig(authAccounts).indexes.map((index) => index.config.name))
-      .toContain("runo_auth_accounts_provider_account_idx");
-    expect(getTableConfig(authUsers).indexes.map((index) => index.config.name))
-      .toContain("runo_auth_users_email_normalized_idx");
+    expect(getTableConfig(authAccounts).indexes.map((index) => index.config.name)).toContain(
+      "runo_auth_accounts_provider_account_idx",
+    );
+    expect(getTableConfig(authUsers).indexes.map((index) => index.config.name)).toContain(
+      "runo_auth_users_email_normalized_idx",
+    );
   });
 
   it("uses a composite owner key for days and metadata", () => {
-    expect(getTableConfig(schema.days).primaryKeys[0]?.columns.map((column) => column.name))
-      .toEqual(["user_id", "date"]);
-    expect(getTableConfig(schema.metadata).primaryKeys[0]?.columns.map((column) => column.name))
-      .toEqual(["user_id", "key"]);
+    expect(getTableConfig(schema.days).primaryKeys[0]?.columns.map((column) => column.name)).toEqual([
+      "user_id",
+      "date",
+    ]);
+    expect(getTableConfig(schema.metadata).primaryKeys[0]?.columns.map((column) => column.name)).toEqual([
+      "user_id",
+      "key",
+    ]);
   });
 });

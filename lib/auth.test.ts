@@ -11,16 +11,24 @@ vi.mock("@/lib/db/client", () => ({ db: database }));
 
 beforeEach(() => {
   vi.resetModules();
+  vi.stubEnv("DATABASE_URL", "postgresql://synthetic:synthetic@127.0.0.1:5432/avo_test");
   vi.stubEnv("BETTER_AUTH_SECRET", "synthetic-test-secret-never-a-production-secret-123456789");
   vi.stubEnv("BETTER_AUTH_URL", undefined);
   vi.stubEnv("BETTER_AUTH_TRUSTED_ORIGINS", undefined);
   vi.stubEnv("AVO_DEV_AUTH_ORIGINS", undefined);
-  for (const key of ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET"]) {
+  for (const key of [
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "FACEBOOK_CLIENT_ID",
+    "FACEBOOK_CLIENT_SECRET",
+  ]) {
     vi.stubEnv(key, undefined);
   }
 });
 
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("auth without legacy cloud configuration — no database or OAuth network", () => {
   it("uses the local base URL without an additional origin list", async () => {
@@ -31,14 +39,19 @@ describe("auth without legacy cloud configuration — no database or OAuth netwo
   });
 
   it("shares the explicit development allowlist with Better Auth, without disabling CSRF", async () => {
-    vi.stubEnv("NODE_ENV", "development"); vi.stubEnv("AVO_DEV_AUTH_ORIGINS", "http://192.168.68.109:3000");
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("AVO_DEV_AUTH_ORIGINS", "http://192.168.68.109:3000");
     const { auth } = await import("./auth");
-    expect((await auth.$context).trustedOrigins).toEqual(["http://localhost:3000", "http://192.168.68.109:3000"]);
+    expect((await auth.$context).trustedOrigins).toEqual([
+      "http://localhost:3000",
+      "http://192.168.68.109:3000",
+    ]);
     expect(auth.options).not.toHaveProperty("advanced.disableOriginCheck", true);
     expect(auth.options).not.toHaveProperty("advanced.disableCSRFCheck", true);
   });
   it("ignores the development allowlist in production", async () => {
-    vi.stubEnv("NODE_ENV", "production"); vi.stubEnv("AVO_DEV_AUTH_ORIGINS", "http://192.168.68.109:3000");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AVO_DEV_AUTH_ORIGINS", "http://192.168.68.109:3000");
     vi.stubEnv("BETTER_AUTH_URL", "https://avo.example.test");
     const { auth } = await import("./auth");
     expect((await auth.$context).trustedOrigins).toEqual(["https://avo.example.test"]);
@@ -54,15 +67,17 @@ describe("auth without legacy cloud configuration — no database or OAuth netwo
     // Exercise the production middleware without changing app configuration.
     context.skipOriginCheck = false;
 
-    const response = await auth.handler(new Request("https://avo.example.test/api/auth/sign-out", {
-      method: "POST",
-      headers: {
-        origin: "https://foreign.example.test",
-        cookie: "synthetic-cookie=not-a-session",
-        "content-type": "application/json",
-      },
-      body: "{}",
-    }));
+    const response = await auth.handler(
+      new Request("https://avo.example.test/api/auth/sign-out", {
+        method: "POST",
+        headers: {
+          origin: "https://foreign.example.test",
+          cookie: "synthetic-cookie=not-a-session",
+          "content-type": "application/json",
+        },
+        body: "{}",
+      }),
+    );
     expect(response.status).toBe(403);
     expect(database.insert).not.toHaveBeenCalled();
   });
@@ -98,8 +113,11 @@ describe("auth without legacy cloud configuration — no database or OAuth netwo
     });
     const before = auth.options.databaseHooks.user.create.before;
     const base = {
-      id: "synthetic-account-id", name: "Synthetic", email: "synthetic@example.test",
-      createdAt: new Date(0), updatedAt: new Date(0),
+      id: "synthetic-account-id",
+      name: "Synthetic",
+      email: "synthetic@example.test",
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
     };
     // Facebook first: the local user must count as verified so Google can link later.
     expect(await before({ ...base, emailVerified: false })).toEqual({ data: { emailVerified: true } });

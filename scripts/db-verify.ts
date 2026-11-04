@@ -35,7 +35,7 @@ async function main() {
       where table_schema = 'public' and table_name like 'runo_%'
       order by table_name
     `);
-    const found = tables.rows.map(row => row.table_name);
+    const found = tables.rows.map((row) => row.table_name);
     console.log(`entorno: ${envPath}  host: ${hostname}`);
     console.log("tablas:", found.join(", ") || "(ninguna)");
     if (found.length === 0) {
@@ -49,7 +49,7 @@ async function main() {
       from information_schema.columns
       where table_schema = 'public' and table_name like 'runo_%'
     `);
-    const have = new Set(columns.rows.map(row => `${row.table_name}.${row.column_name}`));
+    const have = new Set(columns.rows.map((row) => `${row.table_name}.${row.column_name}`));
     const required: [string, string][] = [
       ["runo_users", "auth_user_id"],
       ["runo_settings", "locale"],
@@ -62,13 +62,19 @@ async function main() {
       ["runo_auth_accounts", "provider_id"],
       ["runo_auth_accounts", "account_id"],
     ];
-    const missing = required.filter(([table, column]) => !have.has(`${table}.${column}`)).map(([table, column]) => `${table}.${column}`);
+    const missing = required
+      .filter(([table, column]) => !have.has(`${table}.${column}`))
+      .map(([table, column]) => `${table}.${column}`);
     console.log("esquema requerido:", missing.length ? `faltan ${missing.join(", ")}` : "completo");
 
-    const journal = await db.execute<{ applied: number; last: string | null }>(sql`
+    const journal = await db
+      .execute<{ applied: number; last: string | null }>(
+        sql`
       select count(*)::int as applied, max(created_at)::text as last
       from drizzle.__drizzle_migrations
-    `).catch(() => null);
+    `,
+      )
+      .catch(() => null);
     console.log("migraciones:", journal ? JSON.stringify(journal.rows[0]) : "(sin journal de Drizzle)");
 
     const counts = await db.execute<Record<string, number>>(sql`

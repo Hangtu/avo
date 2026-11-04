@@ -9,12 +9,7 @@ export interface SelectOption {
 
 function ChevronIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      fill="none"
-      className="select-chevron"
-    >
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="select-chevron">
       <path
         d="m5 8 5 5 5-5"
         stroke="currentColor"
@@ -28,12 +23,7 @@ function ChevronIcon() {
 
 function CheckIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      fill="none"
-      className="select-check"
-    >
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="select-check">
       <path
         d="m4 10 4 4 8-9"
         stroke="currentColor"
@@ -94,11 +84,7 @@ export function SelectControl({
             <Select.Popup className="select-popup">
               <Select.List className="select-list">
                 {options.map((option) => (
-                  <Select.Item
-                    key={option.value}
-                    value={option.value}
-                    className="select-item"
-                  >
+                  <Select.Item key={option.value} value={option.value} className="select-item">
                     <Select.ItemIndicator className="select-item-indicator">
                       <CheckIcon />
                     </Select.ItemIndicator>

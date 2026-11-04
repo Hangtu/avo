@@ -21,7 +21,19 @@ describe("vibración opcional", () => {
   });
 
   it("captura una excepción del navegador", () => {
-    expect(vibrate([60], { vibrate: () => { throw new Error("blocked"); } })).toBe(false);
-    expect(pulse("timer", { vibrate: () => { throw new Error("blocked"); } })).toBe(false);
+    expect(
+      vibrate([60], {
+        vibrate: () => {
+          throw new Error("blocked");
+        },
+      }),
+    ).toBe(false);
+    expect(
+      pulse("timer", {
+        vibrate: () => {
+          throw new Error("blocked");
+        },
+      }),
+    ).toBe(false);
   });
 });

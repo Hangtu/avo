@@ -20,7 +20,8 @@ export interface LedgerInput {
 
 /** Append-only, source-key idempotent. The ledger is the balance source. */
 export async function appendLedgerEntry(
-  db: RunoDatabase, input: LedgerInput,
+  db: RunoDatabase,
+  input: LedgerInput,
 ): Promise<{ entry: LedgerEntry; inserted: boolean }> {
   assertId(input.sourceKey);
   if (input.occurrenceId !== undefined) assertId(input.occurrenceId);

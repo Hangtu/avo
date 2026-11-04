@@ -3,11 +3,15 @@ import { clockMinutes, localClockMinutes, toLocalDate, weekdayOf } from "./time"
 import { TERMINAL_OCCURRENCE_STATUSES, type Occurrence, type Task } from "./types";
 
 export type UnavailableReason =
-  | "archived" | "unscheduled" | "wrong_day" | "closed"
-  | "in_progress" | "outside_window" | "before_fixed_time";
+  | "archived"
+  | "unscheduled"
+  | "wrong_day"
+  | "closed"
+  | "in_progress"
+  | "outside_window"
+  | "before_fixed_time";
 export type Availability =
-  | { eligible: false; reason: UnavailableReason }
-  | { eligible: true; isDueAnchor: boolean };
+  { eligible: false; reason: UnavailableReason } | { eligible: true; isDueAnchor: boolean };
 
 export interface SelectionInput {
   tasks: readonly Task[];
@@ -36,14 +40,11 @@ function taskForOccurrence(task: Task, occurrence: Occurrence | undefined): Task
  * keeps the task available for an explicit late start, without pretending the
  * window is still open or marking it as not applicable for the user.
  */
-export function isMissedOccurrence(
-  task: Task, occurrence: Occurrence | undefined, now: number,
-): boolean {
+export function isMissedOccurrence(task: Task, occurrence: Occurrence | undefined, now: number): boolean {
   const date = toLocalDate(now);
   const current = occurrence?.taskId === task.id && occurrence.date === date ? occurrence : undefined;
   if (task.archivedAt !== null) return false;
-  if (current &&
-    (TERMINAL_OCCURRENCE_STATUSES.has(current.status) || current.status === "in_progress")) {
+  if (current && (TERMINAL_OCCURRENCE_STATUSES.has(current.status) || current.status === "in_progress")) {
     return false;
   }
   const effective = taskForOccurrence(task, current);
@@ -52,9 +53,7 @@ export function isMissedOccurrence(
 }
 
 /** Windows are [start, end); fixed times cannot be consumed early. No hidden clock. */
-export function availabilityOf(
-  task: Task, occurrence: Occurrence | undefined, now: number,
-): Availability {
+export function availabilityOf(task: Task, occurrence: Occurrence | undefined, now: number): Availability {
   const date = toLocalDate(now);
   const current = occurrence?.taskId === task.id && occurrence.date === date ? occurrence : undefined;
   const effective = taskForOccurrence(task, current);
@@ -67,8 +66,10 @@ export function availabilityOf(
   if (current?.status === "in_progress") return { eligible: false, reason: "in_progress" };
 
   const minute = localClockMinutes(now);
-  if (effective.window &&
-    (minute < clockMinutes(effective.window.start) || minute >= clockMinutes(effective.window.end))) {
+  if (
+    effective.window &&
+    (minute < clockMinutes(effective.window.start) || minute >= clockMinutes(effective.window.end))
+  ) {
     return { eligible: false, reason: "outside_window" };
   }
   if (effective.fixedTime && minute < clockMinutes(effective.fixedTime)) {
@@ -93,9 +94,11 @@ function score(seed: string, id: string): number {
 
 export function eligibleCandidates(input: SelectionInput): Candidate[] {
   const date = toLocalDate(input.now);
-  const byTask = new Map(input.occurrences
-    .filter((occurrence) => occurrence.date === date)
-    .map((occurrence) => [occurrence.taskId, occurrence]));
+  const byTask = new Map(
+    input.occurrences
+      .filter((occurrence) => occurrence.date === date)
+      .map((occurrence) => [occurrence.taskId, occurrence]),
+  );
   const excluded = new Set(input.excludeOccurrenceIds ?? []);
   const tasks = new Map(input.tasks.map((task) => [task.id, task]));
   const candidates: Candidate[] = [];
@@ -129,8 +132,8 @@ export function eligibleCandidates(input: SelectionInput): Candidate[] {
     }
     const relevance = Number(b.task.window !== undefined) - Number(a.task.window !== undefined);
     if (relevance) return relevance;
-    const diversity = Number(a.task.category === input.previousCategory) -
-      Number(b.task.category === input.previousCategory);
+    const diversity =
+      Number(a.task.category === input.previousCategory) - Number(b.task.category === input.previousCategory);
     if (diversity) return diversity;
     const tie = score(input.seed, a.task.id) - score(input.seed, b.task.id);
     return tie || (a.task.id < b.task.id ? -1 : a.task.id > b.task.id ? 1 : 0);
@@ -148,7 +151,9 @@ export function proposeHand(input: SelectionInput): Candidate[] {
   let previousCategory = input.previousCategory;
   while (hand.length < 3) {
     const next = chooseNextTask({
-      ...input, previousCategory, excludeOccurrenceIds: [...excluded],
+      ...input,
+      previousCategory,
+      excludeOccurrenceIds: [...excluded],
     });
     if (!next) break;
     hand.push(next);

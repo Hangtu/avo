@@ -43,3 +43,7 @@ next-env.d.ts
 
 # generated service worker
 /public/sw.js
+
+# playwright
+/playwright-report
+/test-results

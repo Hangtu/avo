@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
-import { animate, motion, useMotionValue, useReducedMotion, useTransform, type MotionValue } from "motion/react";
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type MotionValue,
+} from "motion/react";
 import { useTranslations } from "next-intl";
 import {
   DECK_TURN_DURATION,
@@ -37,7 +44,10 @@ interface TaskDeckProps {
 
 export function TaskDeck({ tasks, handId, busy, onOffer, onPromote, renderActions }: TaskDeckProps) {
   const [selection, setSelection] = useState<DeckSelection>(() =>
-    resolveDeckSelection(tasks.map((task) => task.id), { primaryId: null, secondaryId: null }),
+    resolveDeckSelection(
+      tasks.map((task) => task.id),
+      { primaryId: null, secondaryId: null },
+    ),
   );
   const [turn, setTurn] = useState<DeckSelection | null>(null);
   const [focusTargetId, setFocusTargetId] = useState<string | null>(null);
@@ -48,7 +58,12 @@ export function TaskDeck({ tasks, handId, busy, onOffer, onPromote, renderAction
   const width = useMotionValue(0);
   const height = useMotionValue(0);
   const reveal = useMotionValue(108);
-  const current = turn ?? resolveDeckSelection(tasks.map((task) => task.id), selection);
+  const current =
+    turn ??
+    resolveDeckSelection(
+      tasks.map((task) => task.id),
+      selection,
+    );
   const primary = tasks.find((task) => task.id === current.primaryId);
   const secondary = tasks.find((task) => task.id === current.secondaryId);
   const orderedTasks = [
@@ -72,9 +87,8 @@ export function TaskDeck({ tasks, handId, busy, onOffer, onPromote, renderAction
       if (!stage) return;
       const nextWidth = stage.clientWidth;
       const nextHeight = cards[0]?.offsetHeight ?? 0;
-      const nextReveal = tasks.length > 1
-        ? Math.max(0, ...previews.map((preview) => preview.offsetHeight))
-        : 0;
+      const nextReveal =
+        tasks.length > 1 ? Math.max(0, ...previews.map((preview) => preview.offsetHeight)) : 0;
       width.set(nextWidth);
       height.set(nextHeight);
       reveal.set(nextReveal);
@@ -117,7 +131,12 @@ export function TaskDeck({ tasks, handId, busy, onOffer, onPromote, renderAction
 
   function showAnother() {
     if (busy || turnLock.current) return;
-    setSelection(nextDeckAlternative(tasks.map((task) => task.id), current));
+    setSelection(
+      nextDeckAlternative(
+        tasks.map((task) => task.id),
+        current,
+      ),
+    );
   }
 
   return (
@@ -150,8 +169,18 @@ export function TaskDeck({ tasks, handId, busy, onOffer, onPromote, renderAction
 }
 
 function DeckCard({
-  task, role, turning, busy, progress, width, height, reveal,
-  focusOnSelect, onChoose, showAnother, renderActions,
+  task,
+  role,
+  turning,
+  busy,
+  progress,
+  width,
+  height,
+  reveal,
+  focusOnSelect,
+  onChoose,
+  showAnother,
+  renderActions,
 }: {
   task: FranjaTask;
   role: DeckRole;
@@ -204,7 +233,9 @@ function DeckCard({
         style={{ opacity: fullOpacity }}
       >
         <p className="first-eyebrow">{t("eyebrow")}</p>
-        <h2 id={ids.title} className="first-title">{task.title}</h2>
+        <h2 id={ids.title} className="first-title">
+          {task.title}
+        </h2>
         <p id={ids.duration} className="first-duration">
           {common("minutes", { count: task.remainingMin })}
           {task.isMissed ? (
@@ -236,9 +267,13 @@ function DeckCard({
       >
         <span className="peek-back-top">
           <span className="peek-back-label">{t("otherOption")}</span>
-          <span id={`${id}-peek-action`} className="peek-back-action">{t("chooseTask")}</span>
+          <span id={`${id}-peek-action`} className="peek-back-action">
+            {t("chooseTask")}
+          </span>
         </span>
-        <span id={`${id}-peek-title`} className="peek-back-title">{task.title}</span>
+        <span id={`${id}-peek-title`} className="peek-back-title">
+          {task.title}
+        </span>
         <span id={`${id}-peek-duration`} className="peek-back-duration">
           {common("minutes", { count: task.remainingMin })}
           {task.isMissed ? (

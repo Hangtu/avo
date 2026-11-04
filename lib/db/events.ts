@@ -1,6 +1,12 @@
 import type { RunoDatabase } from "./database";
 import { assertTimestamp } from "@/lib/domain/time";
-import { EVENT_TYPES, type EventType, type JsonValue, type RunoEvent, type TaskInput } from "@/lib/domain/types";
+import {
+  EVENT_TYPES,
+  type EventType,
+  type JsonValue,
+  type RunoEvent,
+  type TaskInput,
+} from "@/lib/domain/types";
 import { assertId, DomainError } from "@/lib/domain/validation";
 
 export type EventInput = Omit<RunoEvent, "id" | "context"> & {
@@ -19,7 +25,10 @@ function canonicalJson(value: JsonValue, ancestors = new Set<object>()): JsonVal
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value !== "object" || ancestors.has(value)) {
-    throw new DomainError("validation", "El contexto del evento debe ser JSON sin ciclos ni valores inválidos.");
+    throw new DomainError(
+      "validation",
+      "El contexto del evento debe ser JSON sin ciclos ni valores inválidos.",
+    );
   }
   const prototype = Object.getPrototypeOf(value);
   if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
@@ -28,15 +37,22 @@ function canonicalJson(value: JsonValue, ancestors = new Set<object>()): JsonVal
   ancestors.add(value);
   const result: JsonValue = Array.isArray(value)
     ? Array.from(value, (item) => canonicalJson(item, ancestors))
-    : Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalJson(value[key], ancestors)]));
+    : Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .map((key) => [key, canonicalJson(value[key], ancestors)]),
+      );
   ancestors.delete(value);
   return result;
 }
 
 export function taskEventContext(task: TaskInput): Record<string, JsonValue> {
   return {
-    title: task.title, days: [...task.days], durationMin: task.durationMin,
-    priority: task.priority, category: task.category,
+    title: task.title,
+    days: [...task.days],
+    durationMin: task.durationMin,
+    priority: task.priority,
+    category: task.category,
     window: task.window ? { ...task.window } : null,
     fixedTime: task.fixedTime ?? null,
     shortStep: task.shortStep ? { ...task.shortStep } : null,
@@ -54,7 +70,8 @@ function samePayload(a: RunoEvent, b: RunoEvent): boolean {
 
 /** Append-only through this API. One action may legitimately emit multiple event types. */
 export async function appendEvent(
-  db: RunoDatabase, input: EventInput,
+  db: RunoDatabase,
+  input: EventInput,
 ): Promise<{ event: RunoEvent; inserted: boolean }> {
   assertTimestamp(input.at);
   const id = eventIdFor(input.actionId, input.type);
@@ -66,7 +83,10 @@ export async function appendEvent(
     throw new DomainError("validation", "El contexto del evento debe ser un objeto.");
   }
   const event: RunoEvent = {
-    id, actionId: input.actionId, type: input.type, at: input.at,
+    id,
+    actionId: input.actionId,
+    type: input.type,
+    at: input.at,
     ...(input.taskId !== undefined ? { taskId: input.taskId } : {}),
     ...(input.occurrenceId !== undefined ? { occurrenceId: input.occurrenceId } : {}),
     ...(input.sessionId !== undefined ? { sessionId: input.sessionId } : {}),

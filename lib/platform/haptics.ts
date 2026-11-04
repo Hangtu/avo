@@ -23,9 +23,6 @@ export function vibrate(
   }
 }
 
-export function pulse(
-  kind: keyof typeof HAPTIC_PATTERNS,
-  target?: VibrationTarget | null,
-): boolean {
+export function pulse(kind: keyof typeof HAPTIC_PATTERNS, target?: VibrationTarget | null): boolean {
   return vibrate([...HAPTIC_PATTERNS[kind]], target);
 }

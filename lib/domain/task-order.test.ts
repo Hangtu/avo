@@ -24,9 +24,12 @@ describe("orden visual del editor", () => {
     expect(order.late).toBe(1);
     expect(order.early).toBe(0);
     expect(order["no-time"]).toBe(0);
-    expect(sortTasksForDisplay(tasks.filter((item) => item.window), order).map((item) => item.id)).toEqual([
-      "early", "late",
-    ]);
+    expect(
+      sortTasksForDisplay(
+        tasks.filter((item) => item.window),
+        order,
+      ).map((item) => item.id),
+    ).toEqual(["early", "late"]);
   });
 
   it("agrega tareas nuevas al final sin mover las ya ordenadas", () => {
@@ -44,20 +47,13 @@ describe("orden visual del editor", () => {
     ];
     const order = { a: 0, hidden: 1, b: 2, c: 3 };
     const down = reorderTaskOrder(tasks, ["a", "b", "c"], "a", "c", order);
-    expect(sortTasksForDisplay(tasks, down).map((item) => item.id)).toEqual([
-      "hidden", "b", "c", "a",
-    ]);
+    expect(sortTasksForDisplay(tasks, down).map((item) => item.id)).toEqual(["hidden", "b", "c", "a"]);
     const up = reorderTaskOrder(tasks, ["a", "b", "c"], "c", "a", order);
-    expect(sortTasksForDisplay(tasks, up).map((item) => item.id)).toEqual([
-      "c", "a", "hidden", "b",
-    ]);
+    expect(sortTasksForDisplay(tasks, up).map((item) => item.id)).toEqual(["c", "a", "hidden", "b"]);
   });
 
   it("no cruza secciones", () => {
-    const tasks = [
-      task("morning", { window: { start: "06:00", end: "07:00" } }),
-      task("any"),
-    ];
+    const tasks = [task("morning", { window: { start: "06:00", end: "07:00" } }), task("any")];
     const order = { morning: 0, any: 0 };
     expect(reorderTaskOrder(tasks, ["morning", "any"], "morning", "any", order)).toBe(order);
   });

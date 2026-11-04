@@ -4,8 +4,16 @@ import { newOperationId } from "@/lib/domain/id";
 import type { Pending, Settings, Task } from "@/lib/domain/types";
 import { defaultSettings } from "@/lib/domain/validation";
 import {
-  entityKey, mergeSettings, preserveCompletion, sameValue, validValue,
-  type DurableKind, type DurableRecord, type DurableValue, type MutationResult, type OutboxItem,
+  entityKey,
+  mergeSettings,
+  preserveCompletion,
+  sameValue,
+  validValue,
+  type DurableKind,
+  type DurableRecord,
+  type DurableValue,
+  type MutationResult,
+  type OutboxItem,
 } from "./protocol";
 
 export function syncTables(db: RunoDatabase): Table[] {
@@ -15,12 +23,20 @@ export function syncTables(db: RunoDatabase): Table[] {
 export async function enqueue(db: RunoDatabase, kind: DurableKind, value: DurableValue): Promise<void> {
   if (!db.accountId) return;
   const key = entityKey(kind, value.id);
-  const previous = await db.outbox.get(key), remote = await db.syncRecords.get(key);
+  const previous = await db.outbox.get(key),
+    remote = await db.syncRecords.get(key);
   const clean = validValue(kind, value.id, value);
   // Do not silently clear a known conflict when another local edit occurs.
-  await db.outbox.put({ key, kind, id: value.id, value: clean,
-    operationId: newOperationId(), baseRevision: previous?.baseRevision ?? remote?.revision ?? 0,
-    state: previous?.state ?? "queued", ...(previous?.error ? { error: previous.error } : {}), ...(previous?.remote ? { remote: previous.remote } : {}),
+  await db.outbox.put({
+    key,
+    kind,
+    id: value.id,
+    value: clean,
+    operationId: newOperationId(),
+    baseRevision: previous?.baseRevision ?? remote?.revision ?? 0,
+    state: previous?.state ?? "queued",
+    ...(previous?.error ? { error: previous.error } : {}),
+    ...(previous?.remote ? { remote: previous.remote } : {}),
   });
 }
 export async function writeValue(db: RunoDatabase, kind: DurableKind, value: DurableValue) {
@@ -39,12 +55,20 @@ export async function mergeRemote(db: RunoDatabase, records: DurableRecord[]): P
       const known = await db.syncRecords.get(record.key);
       if (known && known.revision > record.revision) continue;
       const item = await db.outbox.get(record.key);
-      if (!known || known.revision !== record.revision || !sameValue(known.value, record.value)) await db.syncRecords.put(record);
+      if (!known || known.revision !== record.revision || !sameValue(known.value, record.value))
+        await db.syncRecords.put(record);
       if (item) {
         if (item.state === "rejected" || item.state === "local-only") continue;
-        if (record.kind === "settings" && item.baseRevision !== record.revision &&
-          ((known && known.revision === item.baseRevision) || (!known && item.baseRevision === 0))) {
-          const merged = mergeSettings(item.value as Settings, record.value as Settings, known?.value as Settings ?? defaultSettings(0));
+        if (
+          record.kind === "settings" &&
+          item.baseRevision !== record.revision &&
+          ((known && known.revision === item.baseRevision) || (!known && item.baseRevision === 0))
+        ) {
+          const merged = mergeSettings(
+            item.value as Settings,
+            record.value as Settings,
+            (known?.value as Settings) ?? defaultSettings(0),
+          );
           if (merged) {
             await writeValue(db, "settings", merged);
             await db.outbox.delete(item.key);
@@ -70,7 +94,11 @@ export async function mergeRemote(db: RunoDatabase, records: DurableRecord[]): P
       let value = record.value;
       if (record.kind === "pending") {
         const local = await db.pendings.get(record.id);
-        if (local?.completedAt !== null && local?.completedAt !== undefined && (value as Pending).completedAt === null) {
+        if (
+          local?.completedAt !== null &&
+          local?.completedAt !== undefined &&
+          (value as Pending).completedAt === null
+        ) {
           value = preserveCompletion(value, local, "pending");
           await enqueue(db, "pending", value);
         }
@@ -86,7 +114,11 @@ export async function mergeRemote(db: RunoDatabase, records: DurableRecord[]): P
   return changed;
 }
 /** An in-flight acknowledgement must not delete a newer coalesced edit. */
-export async function acknowledge(db: RunoDatabase, sent: OutboxItem, result: MutationResult): Promise<boolean> {
+export async function acknowledge(
+  db: RunoDatabase,
+  sent: OutboxItem,
+  result: MutationResult,
+): Promise<boolean> {
   let changed = false;
   await db.transaction("rw", allDurableTables(db), async () => {
     const record = result.record;
@@ -119,9 +151,12 @@ export async function resolveConflict(db: RunoDatabase, key: string, choice: "lo
     const item = await db.outbox.get(key);
     if (!item?.remote || item.state !== "conflict") return;
     const remote = item.remote;
-    const value = choice === "local" ? preserveCompletion(item.value, remote.value, item.kind)
-      : item.kind === "pending" && (remote.value as Pending).completedAt !== null ? remote.value
-        : preserveCompletion(remote.value, item.value, item.kind);
+    const value =
+      choice === "local"
+        ? preserveCompletion(item.value, remote.value, item.kind)
+        : item.kind === "pending" && (remote.value as Pending).completedAt !== null
+          ? remote.value
+          : preserveCompletion(remote.value, item.value, item.kind);
     await db.outbox.delete(key);
     await writeValue(db, item.kind, value);
     if (!sameValue(value, remote.value)) await enqueue(db, item.kind, value);

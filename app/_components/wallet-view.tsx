@@ -115,9 +115,7 @@ export function WalletView() {
 
   return (
     <section aria-labelledby="wallet-title">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        {t("eyebrow")}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t("eyebrow")}</p>
       <div className="mt-2 flex items-start gap-2">
         <h2 id="wallet-title" className="text-4xl font-semibold tracking-tight sm:text-5xl">
           {t("title")}
@@ -151,14 +149,10 @@ export function WalletView() {
           </p>
 
           {balance === 0 ? (
-            <p className="mt-5 text-sm leading-6 text-muted">
-              {t("empty")}
-            </p>
+            <p className="mt-5 text-sm leading-6 text-muted">{t("empty")}</p>
           ) : confirmation ? (
             <div className="mt-6 border-y border-line py-5">
-              <p className="text-lg font-semibold">
-                {t("confirmTitle", { minutes: confirmation.amount })}
-              </p>
+              <p className="text-lg font-semibold">{t("confirmTitle", { minutes: confirmation.amount })}</p>
               <p className="mt-1 text-sm leading-6 text-muted">
                 {t("confirmCopy", { minutes: confirmation.amount })}
               </p>

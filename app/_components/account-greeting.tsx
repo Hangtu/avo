@@ -10,7 +10,11 @@ export function AccountGreeting() {
   const t = useTranslations("account");
   const { data: session, isPending } = authClient.useSession();
   const workspace = useWorkspace();
-  const user = workspace.available ? (workspace.status === "expired" || workspace.status === "offline" ? null : workspace.identity) : session?.user;
+  const user = workspace.available
+    ? workspace.status === "expired" || workspace.status === "offline"
+      ? null
+      : workspace.identity
+    : session?.user;
 
   if (isPending || !user) return null;
 

@@ -38,10 +38,7 @@ import {
   users as usersTable,
 } from "@/lib/db/schema";
 
-import {
-  BACKUP_SCHEMA_VERSION,
-  type RunoSnapshot,
-} from "./snapshot-types";
+import { BACKUP_SCHEMA_VERSION, type RunoSnapshot } from "./snapshot-types";
 
 const MAX_ROWS = 100_000;
 
@@ -109,16 +106,19 @@ function taskFrom(value: unknown): Task {
   const raw = record(value, "task");
   let input: TaskInput;
   try {
-    input = validateTaskInput({
-      title: raw.title as string,
-      days: raw.days as TaskInput["days"],
-      durationMin: raw.durationMin as number,
-      priority: raw.priority as TaskInput["priority"],
-      category: raw.category as string,
-      window: raw.window as TaskInput["window"],
-      fixedTime: raw.fixedTime as TaskInput["fixedTime"],
-      shortStep: raw.shortStep as TaskInput["shortStep"],
-    }, { allowEmptyDays: true });
+    input = validateTaskInput(
+      {
+        title: raw.title as string,
+        days: raw.days as TaskInput["days"],
+        durationMin: raw.durationMin as number,
+        priority: raw.priority as TaskInput["priority"],
+        category: raw.category as string,
+        window: raw.window as TaskInput["window"],
+        fixedTime: raw.fixedTime as TaskInput["fixedTime"],
+        shortStep: raw.shortStep as TaskInput["shortStep"],
+      },
+      { allowEmptyDays: true },
+    );
   } catch (error) {
     if (error instanceof DomainError) throw new BackupError(error.message);
     throw error;
@@ -161,15 +161,18 @@ function occurrenceFrom(value: unknown): Occurrence {
     id: text(raw.id, "occurrence.id"),
     taskId: text(raw.taskId, "occurrence.taskId"),
     date,
-    status: oneOf(raw.status, [
-      "pending", "in_progress", "partial", "completed", "already_done", "not_applicable",
-    ] as const, "occurrence.status"),
+    status: oneOf(
+      raw.status,
+      ["pending", "in_progress", "partial", "completed", "already_done", "not_applicable"] as const,
+      "occurrence.status",
+    ),
     timerElapsedSec: integer(raw.timerElapsedSec, "occurrence.timerElapsedSec"),
     creditedRc: integer(raw.creditedRc, "occurrence.creditedRc"),
     shortStepCompleted: raw.shortStepCompleted === true,
-    agreement: raw.agreement === null || raw.agreement === undefined
-      ? null
-      : (record(raw.agreement, "occurrence.agreement") as unknown as TaskAgreement),
+    agreement:
+      raw.agreement === null || raw.agreement === undefined
+        ? null
+        : (record(raw.agreement, "occurrence.agreement") as unknown as TaskAgreement),
     anchorPresentedAt: nullableMs(raw.anchorPresentedAt, "occurrence.anchorPresentedAt"),
     createdAt: ms(raw.createdAt, "occurrence.createdAt"),
     updatedAt: ms(raw.updatedAt, "occurrence.updatedAt"),
@@ -206,15 +209,15 @@ function handFrom(value: unknown): Hand {
 
 function sessionFrom(value: unknown): Session {
   const raw = record(value, "session");
-  const status = oneOf(raw.status, [
-    "running", "paused", "awaiting_confirmation", "completed", "partial", "abandoned",
-  ] as const, "session.status");
+  const status = oneOf(
+    raw.status,
+    ["running", "paused", "awaiting_confirmation", "completed", "partial", "abandoned"] as const,
+    "session.status",
+  );
   return {
     id: text(raw.id, "session.id"),
     occurrenceId: text(raw.occurrenceId, "session.occurrenceId"),
-    handId: raw.handId === null || raw.handId === undefined
-      ? null
-      : text(raw.handId, "session.handId"),
+    handId: raw.handId === null || raw.handId === undefined ? null : text(raw.handId, "session.handId"),
     variant: oneOf(raw.variant, ["full", "short"] as const, "session.variant"),
     status,
     quick: raw.quick === true,
@@ -227,9 +230,7 @@ function sessionFrom(value: unknown): Session {
     rewardCapRc: integer(raw.rewardCapRc, "session.rewardCapRc"),
     remainingSecAtStart: integer(raw.remainingSecAtStart, "session.remainingSecAtStart"),
     elapsedSec: integer(raw.elapsedSec, "session.elapsedSec"),
-    startedAt: status === "running"
-      ? ms(raw.startedAt, "session.startedAt")
-      : null,
+    startedAt: status === "running" ? ms(raw.startedAt, "session.startedAt") : null,
     createdAt: ms(raw.createdAt, "session.createdAt"),
     updatedAt: ms(raw.updatedAt, "session.updatedAt"),
   } as Session;
@@ -249,9 +250,7 @@ function eventFrom(value: unknown): RunoEvent {
     ...(raw.sessionId === null || raw.sessionId === undefined
       ? {}
       : { sessionId: text(raw.sessionId, "event.sessionId") }),
-    ...(raw.handId === null || raw.handId === undefined
-      ? {}
-      : { handId: text(raw.handId, "event.handId") }),
+    ...(raw.handId === null || raw.handId === undefined ? {} : { handId: text(raw.handId, "event.handId") }),
     context: record(raw.context, "event.context") as Record<string, JsonValue>,
   };
 }
@@ -341,11 +340,7 @@ const instant = (value: number | null | undefined): Date | null =>
   value === null || value === undefined ? null : new Date(value);
 
 /** Maps local IDs and epoch timestamps into the Postgres representation. */
-export function rowsForSnapshot(
-  snapshot: RunoSnapshot,
-  ownerId: string,
-  timeZone: string,
-): SnapshotRows {
+export function rowsForSnapshot(snapshot: RunoSnapshot, ownerId: string, timeZone: string): SnapshotRows {
   const tasks: TaskInsert[] = snapshot.tasks.map((task) => ({
     id: task.id,
     userId: ownerId,
@@ -408,13 +403,15 @@ export function rowsForSnapshot(
     const active = hand.occurrenceIds.flatMap((occurrenceId, index) => {
       if (seen.has(occurrenceId)) return [];
       seen.add(occurrenceId);
-      return [{
-        userId: ownerId,
-        handId: hand.id,
-        occurrenceId,
-        state: "active" as const,
-        position: index + 1,
-      }];
+      return [
+        {
+          userId: ownerId,
+          handId: hand.id,
+          occurrenceId,
+          state: "active" as const,
+          position: index + 1,
+        },
+      ];
     });
     const deferred = hand.deferredOccurrenceIds
       .filter((occurrenceId) => !seen.has(occurrenceId))

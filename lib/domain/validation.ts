@@ -27,24 +27,22 @@ function positiveMinutes(value: number): void {
 }
 
 /** Rebuild/clone the input so callers cannot mutate persisted nested values. */
-export function validateTaskInput(
-  input: TaskInput,
-  options: { allowEmptyDays?: boolean } = {},
-): TaskInput {
+export function validateTaskInput(input: TaskInput, options: { allowEmptyDays?: boolean } = {}): TaskInput {
   if (typeof input.title !== "string" || !input.title.trim() || input.title.length > MAX_TITLE_LENGTH) {
     throw new DomainError("validation", "Escribe el nombre de la tarea.");
   }
-  if (typeof input.category !== "string" || !input.category.trim() || input.category.length > MAX_CATEGORY_LENGTH) {
+  if (
+    typeof input.category !== "string" ||
+    !input.category.trim() ||
+    input.category.length > MAX_CATEGORY_LENGTH
+  ) {
     throw new DomainError("validation", "Elige un tipo.");
   }
   positiveMinutes(input.durationMin);
   if (![1, 2, 3].includes(input.priority)) {
     throw new DomainError("validation", "La importancia debe estar entre 1 y 3.");
   }
-  if (
-    !Array.isArray(input.days) ||
-    input.days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
-  ) {
+  if (!Array.isArray(input.days) || input.days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
     throw new DomainError("validation", "Elige días de la semana.");
   }
 
@@ -79,7 +77,11 @@ export function validateTaskInput(
     }
   }
   if (input.shortStep) {
-    if (typeof input.shortStep.title !== "string" || !input.shortStep.title.trim() || input.shortStep.title.length > MAX_TITLE_LENGTH) {
+    if (
+      typeof input.shortStep.title !== "string" ||
+      !input.shortStep.title.trim() ||
+      input.shortStep.title.length > MAX_TITLE_LENGTH
+    ) {
       throw new DomainError("validation", "Escribe qué harás en el primer paso.");
     }
     positiveMinutes(input.shortStep.durationMin);
@@ -126,9 +128,17 @@ export function validateSettings(settings: Settings): Settings {
     !["auto", "light", "dark"].includes(settings.theme) ||
     typeof settings.showWallet !== "boolean" ||
     (settings.locale !== undefined && !["es", "en"].includes(settings.locale)) ||
-    (settings.taskOrder !== undefined && (!settings.taskOrder || typeof settings.taskOrder !== "object" ||
-      Array.isArray(settings.taskOrder) || Object.entries(settings.taskOrder).some(([key, value]) =>
-        !key.trim() || ["__proto__", "prototype", "constructor"].includes(key) || !Number.isSafeInteger(value) || value < 0)))
+    (settings.taskOrder !== undefined &&
+      (!settings.taskOrder ||
+        typeof settings.taskOrder !== "object" ||
+        Array.isArray(settings.taskOrder) ||
+        Object.entries(settings.taskOrder).some(
+          ([key, value]) =>
+            !key.trim() ||
+            ["__proto__", "prototype", "constructor"].includes(key) ||
+            !Number.isSafeInteger(value) ||
+            value < 0,
+        )))
   ) {
     throw new DomainError("validation", "La configuración no es válida.");
   }

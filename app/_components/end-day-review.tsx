@@ -30,10 +30,7 @@ function ReviewRow({
   busy: boolean;
   disabled: boolean;
   onStart: (task: FranjaTask) => void;
-  onCorrect: (
-    task: FranjaTask,
-    kind: "already_done" | "not_applicable",
-  ) => void;
+  onCorrect: (task: FranjaTask, kind: "already_done" | "not_applicable") => void;
 }) {
   const t = useTranslations("home.review");
   const blocks = useTranslations("common.blocks");
@@ -113,14 +110,10 @@ export function EndDayReview({
     task: FranjaTask;
   } | null>(null);
   const count = review.missed.length + review.later.length;
-  const note = correction?.kind === "not_applicable"
-    ? chooseVoicePhrase(
-        tone,
-        "work",
-        `${correction.task.occurrenceId}:review-not-today`,
-        voicePhrases,
-      )
-    : null;
+  const note =
+    correction?.kind === "not_applicable"
+      ? chooseVoicePhrase(tone, "work", `${correction.task.occurrenceId}:review-not-today`, voicePhrases)
+      : null;
 
   function handleOpenChange(next: boolean) {
     if (!next) setCorrection(null);
@@ -133,9 +126,7 @@ export function EndDayReview({
         <Dialog.Portal className="runo-dialog-portal">
           <Dialog.Backdrop className="runo-dialog-backdrop" />
           <Dialog.Popup className="runo-dialog runo-review">
-            <Dialog.Title className="runo-dialog-title">
-              {t("title")}
-            </Dialog.Title>
+            <Dialog.Title className="runo-dialog-title">{t("title")}</Dialog.Title>
             <Dialog.Description className="runo-dialog-copy">
               {count > 0 ? t("copy", { count }) : t("empty")}
             </Dialog.Description>
@@ -186,9 +177,7 @@ export function EndDayReview({
             </div>
 
             <div className="runo-dialog-actions">
-              <Dialog.Close className="runo-dialog-cancel">
-                {t("back")}
-              </Dialog.Close>
+              <Dialog.Close className="runo-dialog-cancel">{t("back")}</Dialog.Close>
               <button
                 type="button"
                 className="runo-dialog-confirm"
@@ -207,16 +196,18 @@ export function EndDayReview({
         onOpenChange={(next) => {
           if (!next) setCorrection(null);
         }}
-        title={correction?.kind === "already_done"
-          ? confirm("alreadyDoneTitle")
-          : confirm("notTodayTitle", { title: correction?.task.title ?? "" })}
-        description={correction?.kind === "already_done"
-          ? confirm("alreadyDoneCopy")
-          : confirm("notTodayCopy")}
+        title={
+          correction?.kind === "already_done"
+            ? confirm("alreadyDoneTitle")
+            : confirm("notTodayTitle", { title: correction?.task.title ?? "" })
+        }
+        description={
+          correction?.kind === "already_done" ? confirm("alreadyDoneCopy") : confirm("notTodayCopy")
+        }
         note={note}
-        confirmLabel={correction?.kind === "already_done"
-          ? confirm("alreadyDoneConfirm")
-          : confirm("notTodayConfirm")}
+        confirmLabel={
+          correction?.kind === "already_done" ? confirm("alreadyDoneConfirm") : confirm("notTodayConfirm")
+        }
         onConfirm={() => {
           if (!correction) return;
           const { kind, task } = correction;

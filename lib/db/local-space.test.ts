@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { DATABASE_NAME, databaseNameForUser, openDatabaseForSpace, type RunoDatabase } from "./database";
 import {
-  databaseNameForSpace, GUEST_SPACE, readSpaceStorage, removeSpaceStorage,
-  SPACE_STORAGE_KEYS, storageKeyForSpace, writeSpaceStorage, type LocalSpace,
+  databaseNameForSpace,
+  GUEST_SPACE,
+  readSpaceStorage,
+  removeSpaceStorage,
+  SPACE_STORAGE_KEYS,
+  storageKeyForSpace,
+  writeSpaceStorage,
+  type LocalSpace,
 } from "./local-space";
 import { createTask } from "./repository";
 import { localeStorageKey } from "@/lib/i18n/config";
@@ -14,8 +20,12 @@ function memoryStorage() {
   const values = new Map<string, string>();
   return {
     getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => { values.set(key, value); },
-    removeItem: (key: string) => { values.delete(key); },
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    },
   };
 }
 
@@ -127,7 +137,11 @@ describe("isolated Dexie spaces (fake IndexedDB, never the real runo DB)", () =>
     const spaceB: LocalSpace = { kind: "account", userId: `runo-test-${crypto.randomUUID()}` };
     const a = await openAccount(spaceA);
     const b = await openAccount(spaceB);
-    for (const [db, title] of [[guest, "Guest unchanged"], [a, "A only"], [b, "B only"]] as const) {
+    for (const [db, title] of [
+      [guest, "Guest unchanged"],
+      [a, "A only"],
+      [b, "B only"],
+    ] as const) {
       await createTask(db, "seed:coffee", taskInput({ title }), NOW);
       await db.metadata.put({ key: "test:private-state", value: { title } });
     }
@@ -139,7 +153,10 @@ describe("isolated Dexie spaces (fake IndexedDB, never the real runo DB)", () =>
     expect((await reopened.tasks.get("seed:coffee"))?.title).toBe("A edited");
     reopened.close();
     await a.delete();
-    expect(await b.metadata.get("test:private-state")).toEqual({ key: "test:private-state", value: { title: "B only" } });
+    expect(await b.metadata.get("test:private-state")).toEqual({
+      key: "test:private-state",
+      value: { title: "B only" },
+    });
     expect((await guest.tasks.get("seed:coffee"))?.title).toBe("Guest unchanged");
     expect(await b.events.count()).toBe(1);
     expect(await guest.events.count()).toBe(1);

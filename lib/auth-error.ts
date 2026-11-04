@@ -3,12 +3,7 @@
  * (`?error=<code>`). Only codes are mapped; provider text is never rendered.
  */
 export type AuthErrorKey =
-  | "accountNotLinked"
-  | "emailMissing"
-  | "emailNotVerified"
-  | "emailMismatch"
-  | "denied"
-  | "generic";
+  "accountNotLinked" | "emailMissing" | "emailNotVerified" | "emailMismatch" | "denied" | "generic";
 
 const CODES: Record<string, AuthErrorKey> = {
   account_not_linked: "accountNotLinked",

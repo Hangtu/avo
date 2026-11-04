@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+coverage
+playwright-report
+test-results
+public/sw.js
+drizzle/meta
+docs/agent-kit
+package-lock.json
+*.tsbuildinfo
+next-env.d.ts
+*.md

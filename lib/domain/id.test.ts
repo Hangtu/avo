@@ -9,7 +9,8 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("local identifiers — no reliance on a secure context", () => {
   it("keeps the v4 shape required by the protocol and never repeats", () => {
-    const first = newOperationId(), second = newOperationId();
+    const first = newOperationId(),
+      second = newOperationId();
     expect(first).toMatch(V4);
     expect(second).toMatch(V4);
     expect(first).not.toBe(second);

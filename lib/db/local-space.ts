@@ -1,7 +1,5 @@
 /** Pure local namespacing. A space selector is NOT proof of authentication. */
-export type LocalSpace =
-  | { readonly kind: "guest" }
-  | { readonly kind: "account"; readonly userId: string };
+export type LocalSpace = { readonly kind: "guest" } | { readonly kind: "account"; readonly userId: string };
 
 export const GUEST_SPACE: LocalSpace = { kind: "guest" };
 export const LEGACY_DATABASE_NAME = "runo";
@@ -44,11 +42,20 @@ export function storageKeyForSpace(space: LocalSpace, key: SpaceStorageKey): str
 
 export type SpaceStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-export function readSpaceStorage(storage: SpaceStorage, space: LocalSpace, key: SpaceStorageKey): string | null {
+export function readSpaceStorage(
+  storage: SpaceStorage,
+  space: LocalSpace,
+  key: SpaceStorageKey,
+): string | null {
   return storage.getItem(storageKeyForSpace(space, key));
 }
 
-export function writeSpaceStorage(storage: SpaceStorage, space: LocalSpace, key: SpaceStorageKey, value: string): void {
+export function writeSpaceStorage(
+  storage: SpaceStorage,
+  space: LocalSpace,
+  key: SpaceStorageKey,
+  value: string,
+): void {
   storage.setItem(storageKeyForSpace(space, key), value);
 }
 

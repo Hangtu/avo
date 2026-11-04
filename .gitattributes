@@ -1,0 +1,19 @@
+# Normalize line endings to LF for everyone (Windows included).
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Generated files: collapse in diffs
+# Keep the lockfile diff visible: dependency changes are security-relevant.
+package-lock.json linguist-generated=true
+drizzle/meta/** linguist-generated=true
+public/sw.js linguist-generated=true

@@ -37,9 +37,7 @@ export function AnchorView({
         </h2>
         <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
       </div>
-      <p className="mt-3 text-sm leading-6 text-muted">
-        {t("duration", { minutes: task.durationMin })}
-      </p>
+      <p className="mt-3 text-sm leading-6 text-muted">{t("duration", { minutes: task.durationMin })}</p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <button
           type="button"

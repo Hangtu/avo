@@ -3,12 +3,40 @@ import { describe, expect, it, vi } from "vitest";
 import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
-  archiveTask, claimAnchor, closeDay, completePendingDirect, completeSession, completeSessionWithCredit,
-  createPending, createTask, createTasks, deletePending, ensureDay, ensureFranja,
-  ensureOccurrence, expireSession, getSettings, listPendings, listTasks, markOccurrenceAlreadyDoneDirect,
-  markOccurrenceNotApplicable, markOccurrenceNotApplicableDirect, occurrenceIdFor, pauseSession, reactivateOccurrence, recordOffered, resumeSession,
-  restoreArchivedTask, restorePending, retrySession, saveSettings, startPendingSession, startQuickSession, startSession,
-  swapFranjaTask, updateTask,
+  archiveTask,
+  claimAnchor,
+  closeDay,
+  completePendingDirect,
+  completeSession,
+  completeSessionWithCredit,
+  createPending,
+  createTask,
+  createTasks,
+  deletePending,
+  ensureDay,
+  ensureFranja,
+  ensureOccurrence,
+  expireSession,
+  getSettings,
+  listPendings,
+  listTasks,
+  markOccurrenceAlreadyDoneDirect,
+  markOccurrenceNotApplicable,
+  markOccurrenceNotApplicableDirect,
+  occurrenceIdFor,
+  pauseSession,
+  reactivateOccurrence,
+  recordOffered,
+  resumeSession,
+  restoreArchivedTask,
+  restorePending,
+  retrySession,
+  saveSettings,
+  startPendingSession,
+  startQuickSession,
+  startSession,
+  swapFranjaTask,
+  updateTask,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 import type { RunoEvent } from "@/lib/domain/types";
@@ -28,7 +56,18 @@ describe("schema versionado y almacenamiento local", () => {
     const db = await testDb();
     expect(db.verno).toBe(5);
     expect(db.tables.map((table) => table.name).sort()).toEqual([
-      "days", "events", "hands", "ledger", "metadata", "occurrences", "outbox", "pendings", "sessions", "settings", "syncRecords", "tasks",
+      "days",
+      "events",
+      "hands",
+      "ledger",
+      "metadata",
+      "occurrences",
+      "outbox",
+      "pendings",
+      "sessions",
+      "settings",
+      "syncRecords",
+      "tasks",
     ]);
   });
 
@@ -48,13 +87,24 @@ describe("schema versionado y almacenamiento local", () => {
     });
     await old.open();
     await old.table("tasks").add({
-      ...taskInput(), id: "ropa", createdAt: NOW, updatedAt: NOW, archivedAt: null,
+      ...taskInput(),
+      id: "ropa",
+      createdAt: NOW,
+      updatedAt: NOW,
+      archivedAt: null,
     });
     await old.table("tasks").add({
-      ...taskInput({ days: [] }), id: "sin-dia", createdAt: NOW, updatedAt: NOW, archivedAt: null,
+      ...taskInput({ days: [] }),
+      id: "sin-dia",
+      createdAt: NOW,
+      updatedAt: NOW,
+      archivedAt: null,
     });
     await old.table("days").add({
-      date: MONDAY, swapsUsed: 2, closedAt: NOW, createdAt: NOW,
+      date: MONDAY,
+      swapsUsed: 2,
+      closedAt: NOW,
+      createdAt: NOW,
     });
     old.close();
 
@@ -85,7 +135,11 @@ describe("schema versionado y almacenamiento local", () => {
     });
     await old.open();
     await old.table("tasks").add({
-      ...taskInput({ days: [] }), id: "sin-dia", createdAt: NOW, updatedAt: NOW, archivedAt: null,
+      ...taskInput({ days: [] }),
+      id: "sin-dia",
+      createdAt: NOW,
+      updatedAt: NOW,
+      archivedAt: null,
     });
     old.close();
 
@@ -101,7 +155,7 @@ describe("schema versionado y almacenamiento local", () => {
     await createTask(db, "ropa", taskInput(), NOW);
     await ensureOccurrence(db, "ropa", MONDAY, NOW);
     await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
-    await saveSettings(db, { ...await getSettings(db, NOW), theme: "dark", audioEnabled: true });
+    await saveSettings(db, { ...(await getSettings(db, NOW)), theme: "dark", audioEnabled: true });
     db.close();
 
     const reopened = await testDb(db.name);
@@ -121,7 +175,7 @@ describe("schema versionado y almacenamiento local", () => {
     const db = await testDb();
     await Promise.all([getSettings(db, NOW), getSettings(db, NOW)]);
     expect(await db.settings.count()).toBe(1);
-    await saveSettings(db, { ...await getSettings(db, NOW), maxTone: 0 });
+    await saveSettings(db, { ...(await getSettings(db, NOW)), maxTone: 0 });
     expect((await getSettings(db, NOW + 1000)).maxTone).toBe(0);
   });
 
@@ -154,7 +208,12 @@ describe("schema versionado y almacenamiento local", () => {
 
   it("elimina opciones al editar sin conservar campos anteriores por accidente", async () => {
     const db = await testDb();
-    await createTask(db, "ropa", taskInput({ fixedTime: "18:00", window: { start: "18:00", end: "18:30" } }), NOW);
+    await createTask(
+      db,
+      "ropa",
+      taskInput({ fixedTime: "18:00", window: { start: "18:00", end: "18:30" } }),
+      NOW,
+    );
     await updateTask(db, "ropa", taskInput({ shortStep: undefined }), NOW + 1, "remove-options");
     const stored = await db.tasks.get("ropa");
     expect(stored!.fixedTime).toBeUndefined();
@@ -189,7 +248,9 @@ describe("ocurrencias y acuerdos", () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
     const occurrence = await ensureOccurrence(db, "ropa", MONDAY, NOW);
-    await expect(db.occurrences.add({ ...occurrence, id: "duplicado" })).rejects.toMatchObject({ name: "ConstraintError" });
+    await expect(db.occurrences.add({ ...occurrence, id: "duplicado" })).rejects.toMatchObject({
+      name: "ConstraintError",
+    });
   });
 
   it("rechaza una tarea sin días y no la programa en un día incorrecto", async () => {
@@ -208,11 +269,26 @@ describe("ocurrencias y acuerdos", () => {
   it("congela el tope completo desde el escalón y no al editar la plantilla", async () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
-    const session = await startSession(db, { sessionId: "corto", taskId: "ropa", date: MONDAY, variant: "short", now: NOW });
+    const session = await startSession(db, {
+      sessionId: "corto",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "short",
+      now: NOW,
+    });
     expect(session).toMatchObject({ rewardTargetRc: 1, rewardCapRc: 15, durationSec: 60 });
-    await updateTask(db, "ropa", taskInput({ title: "Nombre nuevo", durationMin: 30 }), NOW + 1, "edit-snapshot");
+    await updateTask(
+      db,
+      "ropa",
+      taskInput({ title: "Nombre nuevo", durationMin: 30 }),
+      NOW + 1,
+      "edit-snapshot",
+    );
     const occurrence = await db.occurrences.get(session.occurrenceId);
-    expect(occurrence!.agreement).toMatchObject({ rewardCapRc: 15, task: { title: "Lavar ropa", durationMin: 15 } });
+    expect(occurrence!.agreement).toMatchObject({
+      rewardCapRc: 15,
+      task: { title: "Lavar ropa", durationMin: 15 },
+    });
     expect((await db.sessions.get("corto"))!.taskSnapshot.title).toBe("Lavar ropa");
     expect((await db.tasks.get("ropa"))!.durationMin).toBe(30);
     expect(await db.ledger.count()).toBe(0);
@@ -222,7 +298,10 @@ describe("ocurrencias y acuerdos", () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
     const input = { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full" as const, now: NOW };
-    const [a, b] = await Promise.all([startSession(db, input), startSession(db, { ...input, now: NOW + 1000 })]);
+    const [a, b] = await Promise.all([
+      startSession(db, input),
+      startSession(db, { ...input, now: NOW + 1000 }),
+    ]);
     expect(a).toEqual(b);
     expect(await db.sessions.count()).toBe(1);
     expect(await db.events.count()).toBe(2);
@@ -236,8 +315,10 @@ describe("ocurrencias y acuerdos", () => {
 
     const expired = await expireSession(db, "s1", deadline);
     expect(expired).toMatchObject({
-      status: "awaiting_confirmation", startedAt: null,
-      remainingSecAtStart: 0, elapsedSec: 15 * 60,
+      status: "awaiting_confirmation",
+      startedAt: null,
+      remainingSecAtStart: 0,
+      elapsedSec: 15 * 60,
     });
     expect(await db.sessions.where("runningSlot").equals("running").count()).toBe(0);
     expect(await db.events.where("type").equals("timer_expired").count()).toBe(1);
@@ -265,7 +346,9 @@ describe("ocurrencias y acuerdos", () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
     await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
-    await expect(startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "short", now: NOW })).rejects.toThrow();
+    await expect(
+      startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "short", now: NOW }),
+    ).rejects.toThrow();
   });
 
   it.each([
@@ -274,24 +357,39 @@ describe("ocurrencias y acuerdos", () => {
     new Date(2026, 9, 27, 18, 0).getTime(),
   ])("no inicia tareas nuevas antes de hora, fuera de franja o para otra fecha: %s", async (now) => {
     const db = await testDb();
-    await createTask(db, "gym", taskInput({
-      fixedTime: "18:00", window: { start: "18:00", end: "18:30" },
-    }), NOW);
-    await expect(startSession(db, {
-      sessionId: "s1", taskId: "gym", date: MONDAY, variant: "full", now,
-    })).rejects.toThrow();
+    await createTask(
+      db,
+      "gym",
+      taskInput({
+        fixedTime: "18:00",
+        window: { start: "18:00", end: "18:30" },
+      }),
+      NOW,
+    );
+    await expect(
+      startSession(db, {
+        sessionId: "s1",
+        taskId: "gym",
+        date: MONDAY,
+        variant: "full",
+        now,
+      }),
+    ).rejects.toThrow();
     expect(await db.sessions.count()).toBe(0);
     expect(await db.occurrences.count()).toBe(0);
     expect(await db.events.where("type").equals("started").count()).toBe(0);
   });
 
   it.each(["completed", "already_done", "not_applicable"] as const)(
-    "no reabre una ocurrencia %s", async (status) => {
+    "no reabre una ocurrencia %s",
+    async (status) => {
       const db = await testDb();
       await createTask(db, "ropa", taskInput(), NOW);
       const occurrence = await ensureOccurrence(db, "ropa", MONDAY, NOW);
       await db.occurrences.update(occurrence.id, { status });
-      await expect(startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW })).rejects.toThrow();
+      await expect(
+        startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW }),
+      ).rejects.toThrow();
       expect(await db.sessions.count()).toBe(0);
     },
   );
@@ -301,7 +399,13 @@ describe("resultados y correcciones", () => {
   it("completa antes de tiempo sin cerrar por el timer y sin duplicar el evento", async () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
-    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const started = await startSession(db, {
+      sessionId: "s1",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW,
+    });
     const completed = await completeSession(db, "s1", NOW + 10_000);
 
     expect(completed).toMatchObject({ status: "completed", startedAt: null, elapsedSec: 10 });
@@ -318,7 +422,13 @@ describe("resultados y correcciones", () => {
   it("completa una sesión ya vencida y conserva el tiempo completo", async () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
-    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const started = await startSession(db, {
+      sessionId: "s1",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW,
+    });
     await expireSession(db, "s1", NOW + 15 * 60 * 1000);
     const completed = await completeSession(db, "s1", NOW + 15 * 60 * 1000 + 1000);
 
@@ -331,7 +441,13 @@ describe("resultados y correcciones", () => {
   it("marca no aplica, cierra la sesión como abandonada y es idempotente", async () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
-    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const started = await startSession(db, {
+      sessionId: "s1",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW,
+    });
     const closed = await markOccurrenceNotApplicable(db, "s1", NOW + 10_000);
 
     expect(closed).toMatchObject({ status: "abandoned", elapsedSec: 10 });
@@ -344,13 +460,21 @@ describe("resultados y correcciones", () => {
   it("reintenta cinco minutos sin cambiar el acuerdo ni duplicar con el mismo actionId", async () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
-    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const started = await startSession(db, {
+      sessionId: "s1",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW,
+    });
     const deadline = NOW + 15 * 60 * 1000;
     await expireSession(db, "s1", deadline);
 
     const retried = await retrySession(db, "s1", "retry-1", deadline + 1000);
     expect(retried).toMatchObject({
-      status: "running", remainingSecAtStart: 300, rewardTargetRc: started.rewardTargetRc,
+      status: "running",
+      remainingSecAtStart: 300,
+      rewardTargetRc: started.rewardTargetRc,
       elapsedSec: 15 * 60,
     });
     expect(await retrySession(db, "s1", "retry-1", deadline + 2000)).toEqual(retried);
@@ -378,18 +502,29 @@ describe("pausa y reanudación", () => {
   it("congela el restante y no cuenta el tiempo pausado", async () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
-    const started = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    const started = await startSession(db, {
+      sessionId: "s1",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW,
+    });
     const paused = await pauseSession(db, "s1", NOW + 10_000);
 
     expect(paused).toMatchObject({
-      status: "paused", startedAt: null, remainingSecAtStart: 15 * 60 - 10, elapsedSec: 10,
+      status: "paused",
+      startedAt: null,
+      remainingSecAtStart: 15 * 60 - 10,
+      elapsedSec: 10,
     });
     expect(await db.sessions.where("runningSlot").equals("running").count()).toBe(0);
     expect(await db.events.where("type").equals("paused").count()).toBe(1);
 
     const resumed = await resumeSession(db, "s1", NOW + 70_000);
     expect(resumed).toMatchObject({
-      status: "running", startedAt: NOW + 70_000, remainingSecAtStart: 15 * 60 - 10,
+      status: "running",
+      startedAt: NOW + 70_000,
+      remainingSecAtStart: 15 * 60 - 10,
       elapsedSec: 10,
     });
     expect(await db.events.where("type").equals("resumed").count()).toBe(1);
@@ -421,15 +556,27 @@ describe("pausa y reanudación", () => {
     await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
     await pauseSession(db, "s1", NOW + 10_000);
 
-    await expect(startSession(db, {
-      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: NOW + 20_000,
-    })).rejects.toThrow("Primero termina");
+    await expect(
+      startSession(db, {
+        sessionId: "s2",
+        taskId: "cafe",
+        date: MONDAY,
+        variant: "full",
+        now: NOW + 20_000,
+      }),
+    ).rejects.toThrow("Primero termina");
 
     await resumeSession(db, "s1", NOW + 20_000);
     await completeSession(db, "s1", NOW + 25_000);
-    await expect(startSession(db, {
-      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: NOW + 30_000,
-    })).resolves.toMatchObject({ status: "running", handId: null });
+    await expect(
+      startSession(db, {
+        sessionId: "s2",
+        taskId: "cafe",
+        date: MONDAY,
+        variant: "full",
+        now: NOW + 30_000,
+      }),
+    ).resolves.toMatchObject({ status: "running", handId: null });
   });
 
   it("mantiene la pausa al cerrar y reabrir la DB", async () => {
@@ -441,10 +588,13 @@ describe("pausa y reanudación", () => {
 
     const reopened = await testDb(db.name);
     expect(await reopened.sessions.get("s1")).toMatchObject({
-      status: "paused", remainingSecAtStart: 15 * 60 - 10, elapsedSec: 10,
+      status: "paused",
+      remainingSecAtStart: 15 * 60 - 10,
+      elapsedSec: 10,
     });
     await expect(resumeSession(reopened, "s1", NOW + 60_000)).resolves.toMatchObject({
-      status: "running", startedAt: NOW + 60_000,
+      status: "running",
+      startedAt: NOW + 60_000,
     });
   });
 
@@ -481,7 +631,10 @@ describe("franjas y cierre del día", () => {
 
     await db.occurrences.update(first.hand!.occurrenceIds[0], { status: "completed" });
     const afterOne = await ensureFranja(db, {
-      date: MONDAY, now: NOW + 1000, seed: "s", tasks,
+      date: MONDAY,
+      now: NOW + 1000,
+      seed: "s",
+      tasks,
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
     expect(afterOne.hand!.id).toBe(first.hand!.id);
@@ -496,7 +649,10 @@ describe("franjas y cierre del día", () => {
       await db.occurrences.update(occurrenceId, { status: "completed" });
     }
     const after = await ensureFranja(db, {
-      date: MONDAY, now: NOW + 1000, seed: "s", tasks,
+      date: MONDAY,
+      now: NOW + 1000,
+      seed: "s",
+      tasks,
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
     expect(after.tasks).toHaveLength(2);
@@ -509,9 +665,17 @@ describe("franjas y cierre del día", () => {
     const db = await testDb();
     await createTask(db, "a", taskInput({ title: "A", priority: 3, days: [1] }), NOW);
     await createTask(db, "b", taskInput({ title: "B", priority: 2, days: [1] }), NOW);
-    await createTask(db, "coffee", taskInput({
-      title: "Café", priority: 3, days: [1], window: { start: "09:00", end: "12:00" },
-    }), NOW);
+    await createTask(
+      db,
+      "coffee",
+      taskInput({
+        title: "Café",
+        priority: 3,
+        days: [1],
+        window: { start: "09:00", end: "12:00" },
+      }),
+      NOW,
+    );
     for (const id of ["a", "b", "coffee"]) await ensureOccurrence(db, id, MONDAY, NOW);
     await ensureDay(db, MONDAY, NOW);
     const tasks = await listTasks(db);
@@ -532,25 +696,46 @@ describe("franjas y cierre del día", () => {
   it("mantiene una tarea missed en la franja y permite iniciarla tarde", async () => {
     const db = await testDb();
     const late = new Date(2026, 9, 26, 13, 0).getTime();
-    await createTask(db, "cafe", taskInput({
-      title: "Café", priority: 3, days: [1], window: { start: "06:00", end: "12:00" },
-    }), NOW);
+    await createTask(
+      db,
+      "cafe",
+      taskInput({
+        title: "Café",
+        priority: 3,
+        days: [1],
+        window: { start: "06:00", end: "12:00" },
+      }),
+      NOW,
+    );
     await ensureOccurrence(db, "cafe", MONDAY, NOW);
     await ensureDay(db, MONDAY, NOW);
     const tasks = await listTasks(db);
     const occurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
     const franja = await ensureFranja(db, { date: MONDAY, now: late, seed: "s", tasks, occurrences });
     expect(franja.tasks[0]).toMatchObject({
-      task: { id: "cafe" }, block: "morning", isMissed: true,
+      task: { id: "cafe" },
+      block: "morning",
+      isMissed: true,
     });
 
-    await expect(startSession(db, {
-      sessionId: "late-without-flag", taskId: "cafe", date: MONDAY, variant: "full", now: late,
-    })).rejects.toThrow("no es para este momento");
+    await expect(
+      startSession(db, {
+        sessionId: "late-without-flag",
+        taskId: "cafe",
+        date: MONDAY,
+        variant: "full",
+        now: late,
+      }),
+    ).rejects.toThrow("no es para este momento");
 
     const session = await startSession(db, {
-      sessionId: "late", taskId: "cafe", date: MONDAY, variant: "full",
-      now: late, handId: franja.hand!.id, allowMissed: true,
+      sessionId: "late",
+      taskId: "cafe",
+      date: MONDAY,
+      variant: "full",
+      now: late,
+      handId: franja.hand!.id,
+      allowMissed: true,
     });
     expect(session).toMatchObject({ status: "running", taskSnapshot: { title: "Café" } });
     const started = await db.events.where("type").equals("started").toArray();
@@ -561,13 +746,26 @@ describe("franjas y cierre del día", () => {
   it("no adelanta una ventana futura aunque se pida un inicio tarde", async () => {
     const db = await testDb();
     const before = new Date(2026, 9, 26, 10, 0).getTime();
-    await createTask(db, "comida", taskInput({
-      title: "Comida", days: [1], window: { start: "12:00", end: "19:00" },
-    }), NOW);
-    await expect(startSession(db, {
-      sessionId: "early-with-late-flag", taskId: "comida", date: MONDAY,
-      variant: "full", now: before, allowMissed: true,
-    })).rejects.toThrow("no es para este momento");
+    await createTask(
+      db,
+      "comida",
+      taskInput({
+        title: "Comida",
+        days: [1],
+        window: { start: "12:00", end: "19:00" },
+      }),
+      NOW,
+    );
+    await expect(
+      startSession(db, {
+        sessionId: "early-with-late-flag",
+        taskId: "comida",
+        date: MONDAY,
+        variant: "full",
+        now: before,
+        allowMissed: true,
+      }),
+    ).rejects.toThrow("no es para este momento");
     expect(await db.sessions.count()).toBe(0);
   });
 
@@ -578,7 +776,10 @@ describe("franjas y cierre del día", () => {
       await db.occurrences.update(occurrenceId, { status: "not_applicable" });
     }
     const next = await ensureFranja(db, {
-      date: MONDAY, now: NOW + 1000, seed: "s", tasks,
+      date: MONDAY,
+      now: NOW + 1000,
+      seed: "s",
+      tasks,
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
     expect(next.hand).toMatchObject({ ordinal: 2, status: "open" });
@@ -598,13 +799,22 @@ describe("franjas y cierre del día", () => {
     expect(await db.events.where("type").equals("hand_closed").count()).toBe(1);
 
     const after = await ensureFranja(db, {
-      date: MONDAY, now: NOW + 3000, seed: "s", tasks,
+      date: MONDAY,
+      now: NOW + 3000,
+      seed: "s",
+      tasks,
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
     expect(after.hand).toBeNull();
-    await expect(startSession(db, {
-      sessionId: "blocked", taskId: "a", date: MONDAY, variant: "full", now: NOW + 3000,
-    })).rejects.toThrow("terminó");
+    await expect(
+      startSession(db, {
+        sessionId: "blocked",
+        taskId: "a",
+        date: MONDAY,
+        variant: "full",
+        now: NOW + 3000,
+      }),
+    ).rejects.toThrow("terminó");
   });
 
   it("terminar por hoy con sesión pausada conserva el tiempo congelado", async () => {
@@ -648,15 +858,27 @@ describe("bloqueo de tarea y franja", () => {
     const deadline = NOW + 15 * 60 * 1000;
     await expireSession(db, "s1", deadline);
 
-    await expect(startSession(db, {
-      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: deadline + 1000,
-    })).rejects.toThrow("Primero termina");
+    await expect(
+      startSession(db, {
+        sessionId: "s2",
+        taskId: "cafe",
+        date: MONDAY,
+        variant: "full",
+        now: deadline + 1000,
+      }),
+    ).rejects.toThrow("Primero termina");
     expect(await db.sessions.count()).toBe(1);
 
     await completeSession(db, "s1", deadline + 2000);
-    await expect(startSession(db, {
-      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: deadline + 3000,
-    })).resolves.toMatchObject({ status: "running" });
+    await expect(
+      startSession(db, {
+        sessionId: "s2",
+        taskId: "cafe",
+        date: MONDAY,
+        variant: "full",
+        now: deadline + 3000,
+      }),
+    ).resolves.toMatchObject({ status: "running" });
   });
 
   it("permite iniciar otra tarea después de no aplica", async () => {
@@ -666,16 +888,27 @@ describe("bloqueo de tarea y franja", () => {
     await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
     await markOccurrenceNotApplicable(db, "s1", NOW + 1000);
 
-    await expect(startSession(db, {
-      sessionId: "s2", taskId: "cafe", date: MONDAY, variant: "full", now: NOW + 2000,
-    })).resolves.toMatchObject({ status: "running" });
+    await expect(
+      startSession(db, {
+        sessionId: "s2",
+        taskId: "cafe",
+        date: MONDAY,
+        variant: "full",
+        now: NOW + 2000,
+      }),
+    ).resolves.toMatchObject({ status: "running" });
   });
 });
 
 describe("cambios de franja", () => {
   async function fourTasks() {
     const db = await testDb();
-    for (const [id, priority] of [["a", 3], ["b", 2], ["c", 2], ["d", 1]] as const) {
+    for (const [id, priority] of [
+      ["a", 3],
+      ["b", 2],
+      ["c", 2],
+      ["d", 1],
+    ] as const) {
       await createTask(db, id, taskInput({ title: id.toUpperCase(), priority }), NOW);
       await ensureOccurrence(db, id, MONDAY, NOW);
     }
@@ -694,8 +927,12 @@ describe("cambios de franja", () => {
     const original = first.hand!.occurrenceIds[0];
 
     const result = await swapFranjaTask(db, {
-      handId: first.hand!.id, occurrenceId: original, now: NOW + 1000,
-      seed: "s", tasks, occurrences,
+      handId: first.hand!.id,
+      occurrenceId: original,
+      now: NOW + 1000,
+      seed: "s",
+      tasks,
+      occurrences,
     });
     expect(result.swapped).toBe(true);
     if (!result.swapped) return;
@@ -707,7 +944,10 @@ describe("cambios de franja", () => {
     expect(await db.ledger.count()).toBe(0);
 
     const after = await ensureFranja(db, {
-      date: MONDAY, now: NOW + 2000, seed: "s", tasks,
+      date: MONDAY,
+      now: NOW + 2000,
+      seed: "s",
+      tasks,
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
     expect(after).toMatchObject({ swapsRemaining: 2, canSwap: false });
@@ -724,8 +964,12 @@ describe("cambios de franja", () => {
     const hand = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
 
     const result = await swapFranjaTask(db, {
-      handId: hand.hand!.id, occurrenceId: hand.hand!.occurrenceIds[0],
-      now: NOW + 1000, seed: "s", tasks, occurrences,
+      handId: hand.hand!.id,
+      occurrenceId: hand.hand!.occurrenceIds[0],
+      now: NOW + 1000,
+      seed: "s",
+      tasks,
+      occurrences,
     });
     expect(result).toEqual({ swapped: false, reason: "no_alternative" });
     expect((await db.days.get(MONDAY))!.swapsUsed).toBe(0);
@@ -747,8 +991,12 @@ describe("cambios de franja", () => {
 
     for (let index = 0; index < 3; index += 1) {
       const result = await swapFranjaTask(db, {
-        handId: hand.id, occurrenceId: occurrenceIds[0],
-        now: NOW + index * 1000, seed: "s", tasks, occurrences,
+        handId: hand.id,
+        occurrenceId: occurrenceIds[0],
+        now: NOW + index * 1000,
+        seed: "s",
+        tasks,
+        occurrences,
       });
       expect(result.swapped).toBe(true);
       if (!result.swapped) return;
@@ -757,8 +1005,12 @@ describe("cambios de franja", () => {
     expect((await db.days.get(MONDAY))!.swapsUsed).toBe(3);
 
     const fourth = await swapFranjaTask(db, {
-      handId: hand.id, occurrenceId: occurrenceIds[0],
-      now: NOW + 5000, seed: "s", tasks, occurrences,
+      handId: hand.id,
+      occurrenceId: occurrenceIds[0],
+      now: NOW + 5000,
+      seed: "s",
+      tasks,
+      occurrences,
     });
     expect(fourth).toEqual({ swapped: false, reason: "no_swaps" });
     expect(await db.events.where("type").equals("swapped").count()).toBe(3);
@@ -769,8 +1021,12 @@ describe("cambios de franja", () => {
     const hand = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
     await startSession(db, { sessionId: "s1", taskId: tasks[0].id, date: MONDAY, variant: "full", now: NOW });
     const result = await swapFranjaTask(db, {
-      handId: hand.hand!.id, occurrenceId: hand.hand!.occurrenceIds[0],
-      now: NOW + 1000, seed: "s", tasks, occurrences,
+      handId: hand.hand!.id,
+      occurrenceId: hand.hand!.occurrenceIds[0],
+      now: NOW + 1000,
+      seed: "s",
+      tasks,
+      occurrences,
     });
     expect(result).toEqual({ swapped: false, reason: "active_session" });
     expect((await db.days.get(MONDAY))!.swapsUsed).toBe(0);
@@ -781,8 +1037,12 @@ describe("cambios de franja", () => {
     const first = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
     const original = first.hand!.occurrenceIds[0];
     const swapped = await swapFranjaTask(db, {
-      handId: first.hand!.id, occurrenceId: original, now: NOW + 1000,
-      seed: "s", tasks, occurrences,
+      handId: first.hand!.id,
+      occurrenceId: original,
+      now: NOW + 1000,
+      seed: "s",
+      tasks,
+      occurrences,
     });
     expect(swapped.swapped).toBe(true);
     if (!swapped.swapped) return;
@@ -791,7 +1051,10 @@ describe("cambios de franja", () => {
       await db.occurrences.update(occurrenceId, { status: "completed" });
     }
     const next = await ensureFranja(db, {
-      date: MONDAY, now: NOW + 2000, seed: "s", tasks,
+      date: MONDAY,
+      now: NOW + 2000,
+      seed: "s",
+      tasks,
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
     expect(next.hand).toMatchObject({ ordinal: 2, status: "open" });
@@ -804,26 +1067,42 @@ describe("escalones", () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
     const short = await startSession(db, {
-      sessionId: "short", taskId: "ropa", date: MONDAY, variant: "short", now: NOW,
+      sessionId: "short",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "short",
+      now: NOW,
     });
     expect(short).toMatchObject({
-      variant: "short", durationSec: 60, remainingSecAtStart: 60,
-      elapsedSec: 0, rewardTargetRc: 1, rewardCapRc: 15,
+      variant: "short",
+      durationSec: 60,
+      remainingSecAtStart: 60,
+      elapsedSec: 0,
+      rewardTargetRc: 1,
+      rewardCapRc: 15,
     });
 
     const completed = await completeSession(db, "short", NOW + 60_000);
     const occurrence = await db.occurrences.get(occurrenceIdFor("ropa", MONDAY));
     expect(completed).toMatchObject({ status: "completed", variant: "short", elapsedSec: 60 });
     expect(occurrence).toMatchObject({
-      status: "partial", shortStepCompleted: true, timerElapsedSec: 60,
+      status: "partial",
+      shortStepCompleted: true,
+      timerElapsedSec: 60,
     });
     expect(await db.events.where("type").equals("completed").count()).toBe(1);
     expect(await db.ledger.count()).toBe(1);
     expect((await db.ledger.toArray())[0]).toMatchObject({ deltaRc: 1, reason: "short_step" });
 
-    await expect(startSession(db, {
-      sessionId: "short-again", taskId: "ropa", date: MONDAY, variant: "short", now: NOW + 61_000,
-    })).rejects.toThrow("primer paso");
+    await expect(
+      startSession(db, {
+        sessionId: "short-again",
+        taskId: "ropa",
+        date: MONDAY,
+        variant: "short",
+        now: NOW + 61_000,
+      }),
+    ).rejects.toThrow("primer paso");
   });
 
   it("continúa el resto con el tiempo restante y cierra la tarea al completarla", async () => {
@@ -833,16 +1112,26 @@ describe("escalones", () => {
     await completeSession(db, "short", NOW + 60_000);
 
     const full = await startSession(db, {
-      sessionId: "full", taskId: "ropa", date: MONDAY, variant: "full", now: NOW + 61_000,
+      sessionId: "full",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW + 61_000,
     });
     expect(full).toMatchObject({
-      variant: "full", durationSec: 15 * 60, remainingSecAtStart: 14 * 60,
-      elapsedSec: 60, rewardTargetRc: 14, rewardCapRc: 15,
+      variant: "full",
+      durationSec: 15 * 60,
+      remainingSecAtStart: 14 * 60,
+      elapsedSec: 60,
+      rewardTargetRc: 14,
+      rewardCapRc: 15,
     });
     const completed = await completeSession(db, "full", NOW + 61_000 + 14 * 60_000);
     expect(completed).toMatchObject({ status: "completed", elapsedSec: 15 * 60 });
     expect(await db.occurrences.get(occurrenceIdFor("ropa", MONDAY))).toMatchObject({
-      status: "completed", shortStepCompleted: true, timerElapsedSec: 15 * 60,
+      status: "completed",
+      shortStepCompleted: true,
+      timerElapsedSec: 15 * 60,
       creditedRc: 15,
     });
     expect(await db.ledger.count()).toBe(2);
@@ -871,7 +1160,11 @@ describe("cruce de medianoche", () => {
     const db = await testDb();
     await createTask(db, "diaria", daily, NOW);
     const started = await startSession(db, {
-      sessionId: "s1", taskId: "diaria", date: MONDAY, variant: "full", now: lateMonday,
+      sessionId: "s1",
+      taskId: "diaria",
+      date: MONDAY,
+      variant: "full",
+      now: lateMonday,
     });
     const completed = await completeSession(db, "s1", afterMidnight);
 
@@ -887,7 +1180,11 @@ describe("cruce de medianoche", () => {
     const db = await testDb();
     await createTask(db, "diaria", daily, NOW);
     const started = await startSession(db, {
-      sessionId: "s1", taskId: "diaria", date: MONDAY, variant: "full", now: lateMonday,
+      sessionId: "s1",
+      taskId: "diaria",
+      date: MONDAY,
+      variant: "full",
+      now: lateMonday,
     });
     const paused = await pauseSession(db, "s1", lateMonday + 5 * 60_000);
     expect(paused).toMatchObject({ status: "paused", remainingSecAtStart: 10 * 60 });
@@ -895,11 +1192,14 @@ describe("cruce de medianoche", () => {
     const resumed = await resumeSession(db, "s1", afterMidnight);
     expect(resumed).toMatchObject({ status: "running", startedAt: afterMidnight });
     await completeSession(db, "s1", afterMidnight + 5 * 60_000);
-    expect((await db.occurrences.get(started.occurrenceId))).toMatchObject({
-      date: MONDAY, status: "completed", timerElapsedSec: 10 * 60,
+    expect(await db.occurrences.get(started.occurrenceId)).toMatchObject({
+      date: MONDAY,
+      status: "completed",
+      timerElapsedSec: 10 * 60,
     });
     expect(await ensureOccurrence(db, "diaria", TUESDAY, afterMidnight)).toMatchObject({
-      date: TUESDAY, status: "pending",
+      date: TUESDAY,
+      status: "pending",
     });
     expect(await db.ledger.count()).toBe(1);
   });
@@ -908,7 +1208,11 @@ describe("cruce de medianoche", () => {
     const db = await testDb();
     await createTask(db, "diaria", daily, NOW);
     const started = await startSession(db, {
-      sessionId: "s1", taskId: "diaria", date: MONDAY, variant: "full", now: lateMonday,
+      sessionId: "s1",
+      taskId: "diaria",
+      date: MONDAY,
+      variant: "full",
+      now: lateMonday,
     });
     const closed = await closeDay(db, MONDAY, afterMidnight);
     expect(closed.closedAt).toBe(afterMidnight);
@@ -932,7 +1236,9 @@ describe("economía fija", () => {
     expect((await db.occurrences.get(occurrenceIdFor("ropa", MONDAY)))!.creditedRc).toBe(15);
     expect(await db.ledger.count()).toBe(1);
     expect((await db.ledger.toArray())[0]).toMatchObject({
-      deltaRc: 15, reason: "full_completion", occurrenceId: occurrenceIdFor("ropa", MONDAY),
+      deltaRc: 15,
+      reason: "full_completion",
+      occurrenceId: occurrenceIdFor("ropa", MONDAY),
     });
 
     const retry = await completeSessionWithCredit(db, "s1", NOW + 20_000);
@@ -948,7 +1254,11 @@ describe("economía fija", () => {
     expect(short).toMatchObject({ creditedRc: 1, totalCreditedRc: 1 });
 
     const full = await startSession(db, {
-      sessionId: "full", taskId: "ropa", date: MONDAY, variant: "full", now: NOW + 61_000,
+      sessionId: "full",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW + 61_000,
     });
     expect(full).toMatchObject({ rewardTargetRc: 14, rewardCapRc: 15 });
     const completed = await completeSessionWithCredit(db, "full", NOW + 61_000 + 14 * 60_000);
@@ -968,14 +1278,26 @@ describe("economía fija", () => {
     await createTask(db, "ropa", taskInput(), NOW);
     await startSession(db, { sessionId: "short", taskId: "ropa", date: MONDAY, variant: "short", now: NOW });
     await completeSessionWithCredit(db, "short", NOW + 60_000);
-    await updateTask(db, "ropa", taskInput({ durationMin: 30, title: "Ropa nueva" }), NOW + 61_000, "edit-after-start");
+    await updateTask(
+      db,
+      "ropa",
+      taskInput({ durationMin: 30, title: "Ropa nueva" }),
+      NOW + 61_000,
+      "edit-after-start",
+    );
 
     const full = await startSession(db, {
-      sessionId: "full", taskId: "ropa", date: MONDAY, variant: "full", now: NOW + 62_000,
+      sessionId: "full",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW + 62_000,
     });
     expect(full).toMatchObject({
-      durationSec: 15 * 60, remainingSecAtStart: 14 * 60,
-      rewardTargetRc: 14, rewardCapRc: 15,
+      durationSec: 15 * 60,
+      remainingSecAtStart: 14 * 60,
+      rewardTargetRc: 14,
+      rewardCapRc: 15,
       taskSnapshot: { title: "Lavar ropa", durationMin: 15 },
     });
   });
@@ -991,7 +1313,11 @@ describe("economía fija", () => {
     expect(await reopened.ledger.count()).toBe(1);
     expect((await reopened.occurrences.get(occurrenceIdFor("ropa", MONDAY)))!.creditedRc).toBe(1);
     const full = await startSession(reopened, {
-      sessionId: "full", taskId: "ropa", date: MONDAY, variant: "full", now: NOW + 61_000,
+      sessionId: "full",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW + 61_000,
     });
     expect(full).toMatchObject({ rewardTargetRc: 14 });
     const completed = await completeSessionWithCredit(reopened, "full", NOW + 61_000 + 14 * 60_000);
@@ -1003,7 +1329,9 @@ describe("economía fija", () => {
 describe("ancla ligera", () => {
   const gymNow = new Date(2026, 9, 26, 18, 0).getTime();
   const gym = taskInput({
-    title: "Gym", fixedTime: "18:00", window: { start: "18:00", end: "18:30" },
+    title: "Gym",
+    fixedTime: "18:00",
+    window: { start: "18:00", end: "18:30" },
   });
 
   it("se reclama una vez, registra el evento y no se repite", async () => {
@@ -1013,12 +1341,20 @@ describe("ancla ligera", () => {
     await ensureOccurrence(db, "gym", MONDAY, NOW);
 
     const claimed = await claimAnchor(db, {
-      taskId: "gym", date: MONDAY, fixedTime: "18:00", now: gymNow,
+      taskId: "gym",
+      date: MONDAY,
+      fixedTime: "18:00",
+      now: gymNow,
     });
     expect(claimed).toMatchObject({ anchorPresentedAt: gymNow });
-    expect(await claimAnchor(db, {
-      taskId: "gym", date: MONDAY, fixedTime: "18:00", now: gymNow + 1000,
-    })).toBeNull();
+    expect(
+      await claimAnchor(db, {
+        taskId: "gym",
+        date: MONDAY,
+        fixedTime: "18:00",
+        now: gymNow + 1000,
+      }),
+    ).toBeNull();
     expect(await db.events.where("type").equals("anchor_presented").count()).toBe(1);
   });
 
@@ -1029,13 +1365,26 @@ describe("ancla ligera", () => {
     await ensureDay(db, MONDAY, NOW);
     await ensureOccurrence(db, "ropa", MONDAY, NOW);
     await ensureOccurrence(db, "gym", MONDAY, NOW);
-    await startSession(db, { sessionId: "ropa-session", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
+    await startSession(db, {
+      sessionId: "ropa-session",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW,
+    });
     await pauseSession(db, "ropa-session", NOW + 1000);
     await claimAnchor(db, { taskId: "gym", date: MONDAY, fixedTime: "18:00", now: gymNow });
 
-    await expect(startSession(db, {
-      sessionId: "gym-session", taskId: "gym", date: MONDAY, variant: "full", now: gymNow, anchor: true,
-    })).resolves.toMatchObject({ status: "running", taskSnapshot: { title: "Gym" } });
+    await expect(
+      startSession(db, {
+        sessionId: "gym-session",
+        taskId: "gym",
+        date: MONDAY,
+        variant: "full",
+        now: gymNow,
+        anchor: true,
+      }),
+    ).resolves.toMatchObject({ status: "running", taskSnapshot: { title: "Gym" } });
     expect(await db.sessions.get("ropa-session")).toMatchObject({ status: "paused" });
   });
 
@@ -1044,9 +1393,16 @@ describe("ancla ligera", () => {
     await createTask(db, "gym", gym, NOW);
     await ensureDay(db, MONDAY, NOW);
     await ensureOccurrence(db, "gym", MONDAY, NOW);
-    await expect(startSession(db, {
-      sessionId: "gym-session", taskId: "gym", date: MONDAY, variant: "full", now: gymNow, anchor: true,
-    })).rejects.toThrow("aviso");
+    await expect(
+      startSession(db, {
+        sessionId: "gym-session",
+        taskId: "gym",
+        date: MONDAY,
+        variant: "full",
+        now: gymNow,
+        anchor: true,
+      }),
+    ).rejects.toThrow("aviso");
   });
 
   it("no aplica desde el ancla sin abrir sesión", async () => {
@@ -1091,8 +1447,9 @@ describe("correcciones directas de la franja", () => {
     expect((await db.occurrences.get(id))!.status).toBe("not_applicable");
     expect(await db.sessions.count()).toBe(0);
     expect(await db.ledger.count()).toBe(0);
-    expect((await db.events.where("type").equals("not_applicable").first())!.context)
-      .toMatchObject({ source: "franja" });
+    expect((await db.events.where("type").equals("not_applicable").first())!.context).toMatchObject({
+      source: "franja",
+    });
   });
 
   it("rechaza corregir una ocurrencia en curso", async () => {
@@ -1125,18 +1482,32 @@ describe("atomicidad y concurrencia", () => {
   it("el índice único impide otro runningSlot aunque se salte el repositorio", async () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
-    const session = await startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW });
-    await expect(db.sessions.add({ ...session, id: "otro" })).rejects.toMatchObject({ name: "ConstraintError" });
+    const session = await startSession(db, {
+      sessionId: "s1",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW,
+    });
+    await expect(db.sessions.add({ ...session, id: "otro" })).rejects.toMatchObject({
+      name: "ConstraintError",
+    });
   });
 
   it("revierte sesión, acuerdo y ocurrencia si falla la escritura del evento", async () => {
     const db = await testDb();
     await createTask(db, "ropa", taskInput(), NOW);
     const collision: RunoEvent = {
-      id: eventIdFor("start:s1", "started"), actionId: "otra-accion", type: "started", at: NOW, context: {},
+      id: eventIdFor("start:s1", "started"),
+      actionId: "otra-accion",
+      type: "started",
+      at: NOW,
+      context: {},
     };
     await db.events.add(collision);
-    await expect(startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW })).rejects.toThrow();
+    await expect(
+      startSession(db, { sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW }),
+    ).rejects.toThrow();
     expect(await db.sessions.count()).toBe(0);
     expect(await db.occurrences.count()).toBe(0);
     expect(await db.events.count()).toBe(2);
@@ -1145,13 +1516,18 @@ describe("atomicidad y concurrencia", () => {
 
   it("el origen de un movimiento del ledger es único incluso con otro ID", async () => {
     const db = await testDb();
-    const fixture = { id: "l1", sourceKey: "ocurrencia:ropa:full", deltaRc: 15, reason: "full_completion" as const, at: NOW };
+    const fixture = {
+      id: "l1",
+      sourceKey: "ocurrencia:ropa:full",
+      deltaRc: 15,
+      reason: "full_completion" as const,
+      at: NOW,
+    };
     await db.ledger.add(fixture);
     await expect(db.ledger.add({ ...fixture, id: "l2" })).rejects.toMatchObject({ name: "ConstraintError" });
     expect(await db.ledger.count()).toBe(1);
   });
 });
-
 
 describe("reactivar una tarea resuelta", () => {
   it("vuelve a pendiente, conserva el crédito y registra un solo evento", async () => {
@@ -1161,7 +1537,11 @@ describe("reactivar una tarea resuelta", () => {
     await ensureDay(db, MONDAY, NOW);
     await ensureOccurrence(db, "ropa", MONDAY, NOW);
     await startSession(db, {
-      sessionId: "s1", taskId: "ropa", date: MONDAY, variant: "full", now: NOW,
+      sessionId: "s1",
+      taskId: "ropa",
+      date: MONDAY,
+      variant: "full",
+      now: NOW,
     });
     await completeSession(db, "s1", NOW + 60_000);
     const completed = (await db.occurrences.get(occurrenceId))!;
@@ -1171,8 +1551,11 @@ describe("reactivar una tarea resuelta", () => {
 
     const reactivated = await reactivateOccurrence(db, occurrenceId, NOW + 61_000);
     expect(reactivated).toMatchObject({
-      status: "pending", timerElapsedSec: 0, creditedRc: completed.creditedRc,
-      shortStepCompleted: false, agreement: null,
+      status: "pending",
+      timerElapsedSec: 0,
+      creditedRc: completed.creditedRc,
+      shortStepCompleted: false,
+      agreement: null,
     });
     expect(await db.ledger.count()).toBe(ledgerCount);
     expect(await db.events.where("type").equals("task_updated").count()).toBe(1);
@@ -1186,7 +1569,12 @@ describe("reactivar una tarea resuelta", () => {
 describe("reconciliación de propuestas, lote y exposición", () => {
   async function readyHand() {
     const db = await testDb();
-    for (const [id, title, priority] of [["a", "A", 3], ["b", "B", 2], ["c", "C", 2], ["d", "D", 1]] as const) {
+    for (const [id, title, priority] of [
+      ["a", "A", 3],
+      ["b", "B", 2],
+      ["c", "C", 2],
+      ["d", "D", 1],
+    ] as const) {
       await createTask(db, id, taskInput({ title, priority }), NOW);
       await ensureOccurrence(db, id, MONDAY, NOW);
     }
@@ -1203,12 +1591,16 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     const removed = hand.tasks[0];
 
     await updateTask(
-      db, removed.task.id,
+      db,
+      removed.task.id,
       taskInput({ title: removed.task.title, days: [2], shortStep: undefined }),
-      NOW + 1000, "mover-a-martes",
+      NOW + 1000,
+      "mover-a-martes",
     );
     const after = await ensureFranja(db, {
-      date: MONDAY, now: NOW + 2000, seed: "s",
+      date: MONDAY,
+      now: NOW + 2000,
+      seed: "s",
       tasks: await listTasks(db),
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
@@ -1230,23 +1622,34 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     expect(task).toBeDefined();
 
     await startSession(db, {
-      sessionId: "short", taskId: task.task.id, date: MONDAY, variant: "short",
-      now: NOW, handId: hand.hand!.id,
+      sessionId: "short",
+      taskId: task.task.id,
+      date: MONDAY,
+      variant: "short",
+      now: NOW,
+      handId: hand.hand!.id,
     });
     await completeSession(db, "short", NOW + 60_000);
     await archiveTask(db, task.task.id, NOW + 61_000);
 
     const after = await ensureFranja(db, {
-      date: MONDAY, now: NOW + 62_000, seed: "s",
+      date: MONDAY,
+      now: NOW + 62_000,
+      seed: "s",
       tasks: await listTasks(db),
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
     expect(after.tasks).toEqual([]);
     expect(after.hand).toBeNull();
-    await expect(startSession(db, {
-      sessionId: "after-archive", taskId: task.task.id, date: MONDAY,
-      variant: "full", now: NOW + 63_000,
-    })).rejects.toThrow("ya no está");
+    await expect(
+      startSession(db, {
+        sessionId: "after-archive",
+        taskId: task.task.id,
+        date: MONDAY,
+        variant: "full",
+        now: NOW + 63_000,
+      }),
+    ).rejects.toThrow("ya no está");
   });
 
   it("registra una exposición por carta y franja, no por render", async () => {
@@ -1256,24 +1659,32 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     expect(second).toBeDefined();
 
     await recordOffered(db, {
-      handId: hand.hand!.id, taskId: first.task.id,
-      occurrenceId: first.occurrenceId, now: NOW + 1000,
+      handId: hand.hand!.id,
+      taskId: first.task.id,
+      occurrenceId: first.occurrenceId,
+      now: NOW + 1000,
     });
     await recordOffered(db, {
-      handId: hand.hand!.id, taskId: first.task.id,
-      occurrenceId: first.occurrenceId, now: NOW + 2000,
+      handId: hand.hand!.id,
+      taskId: first.task.id,
+      occurrenceId: first.occurrenceId,
+      now: NOW + 2000,
     });
     expect(await db.events.where("type").equals("offered").count()).toBe(1);
 
     await recordOffered(db, {
-      handId: hand.hand!.id, taskId: second.task.id,
-      occurrenceId: second.occurrenceId, now: NOW + 3000,
+      handId: hand.hand!.id,
+      taskId: second.task.id,
+      occurrenceId: second.occurrenceId,
+      now: NOW + 3000,
     });
     const events = await db.events.where("type").equals("offered").toArray();
     expect(events).toHaveLength(2);
     expect(events[0]).toMatchObject({
-      handId: hand.hand!.id, taskId: first.task.id,
-      occurrenceId: first.occurrenceId, context: { source: "ahora" },
+      handId: hand.hand!.id,
+      taskId: first.task.id,
+      occurrenceId: first.occurrenceId,
+      context: { source: "ahora" },
     });
   });
 
@@ -1281,19 +1692,31 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     const { db, hand } = await readyHand();
     const task = hand.tasks[0];
     const session = await startSession(db, {
-      sessionId: "con-franja", taskId: task.task.id, date: MONDAY,
-      variant: "full", now: NOW, handId: hand.hand!.id,
+      sessionId: "con-franja",
+      taskId: task.task.id,
+      date: MONDAY,
+      variant: "full",
+      now: NOW,
+      handId: hand.hand!.id,
     });
     expect(session.handId).toBe(hand.hand!.id);
     const started = await db.events.where("type").equals("started").first();
     expect(started).toMatchObject({
-      handId: hand.hand!.id, taskId: task.task.id, occurrenceId: task.occurrenceId,
+      handId: hand.hand!.id,
+      taskId: task.task.id,
+      occurrenceId: task.occurrenceId,
     });
 
-    await expect(startSession(db, {
-      sessionId: "franja-ajena", taskId: hand.tasks[1].task.id, date: MONDAY,
-      variant: "full", now: NOW + 1000, handId: "hand:otra",
-    })).rejects.toThrow("lista");
+    await expect(
+      startSession(db, {
+        sessionId: "franja-ajena",
+        taskId: hand.tasks[1].task.id,
+        date: MONDAY,
+        variant: "full",
+        now: NOW + 1000,
+        handId: "hand:otra",
+      }),
+    ).rejects.toThrow("lista");
   });
 
   it("guarda un lote de tareas de forma atómica y reutiliza sus IDs al reintentar", async () => {
@@ -1304,7 +1727,10 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     ];
     const collision: RunoEvent = {
       id: eventIdFor("task:create:task:b", "task_created"),
-      actionId: "otra-accion", type: "task_created", at: NOW, context: {},
+      actionId: "otra-accion",
+      type: "task_created",
+      at: NOW,
+      context: {},
     };
     await db.events.add(collision);
 
@@ -1326,7 +1752,6 @@ describe("reconciliación de propuestas, lote y exposición", () => {
   });
 });
 
-
 describe("sesiones rápidas", () => {
   it("corre fuera de las tareas y del día cerrado sin pagar RC", async () => {
     const db = await testDb();
@@ -1341,16 +1766,23 @@ describe("sesiones rápidas", () => {
     });
 
     expect(session).toMatchObject({
-      quick: true, handId: null, variant: "full", status: "running",
-      durationSec: 30 * 60, remainingSecAtStart: 30 * 60,
-      rewardTargetRc: 0, rewardCapRc: 0,
+      quick: true,
+      handId: null,
+      variant: "full",
+      status: "running",
+      durationSec: 30 * 60,
+      remainingSecAtStart: 30 * 60,
+      rewardTargetRc: 0,
+      rewardCapRc: 0,
       taskSnapshot: { title: "Pagar las cuentas", durationMin: 30, days: [] },
     });
     expect(await db.tasks.count()).toBe(0);
     expect(await db.occurrences.count()).toBe(1);
     const started = await db.events.where("type").equals("started").first();
     expect(started).toMatchObject({
-      taskId: "quick:cuentas", sessionId: "quick-1", context: { quick: true },
+      taskId: "quick:cuentas",
+      sessionId: "quick-1",
+      context: { quick: true },
     });
 
     const result = await completeSessionWithCredit(db, "quick-1", NOW + 3);
@@ -1395,13 +1827,23 @@ describe("sesiones rápidas", () => {
     expect(await startQuickSession(db, input)).toEqual(first);
     expect(await db.events.where("type").equals("started").count()).toBe(1);
 
-    await expect(startQuickSession(db, {
-      sessionId: "quick-2", taskId: "quick:2", title: "Otra", durationMin: 5, now: NOW + 1,
-    })).rejects.toThrow("Primero termina");
+    await expect(
+      startQuickSession(db, {
+        sessionId: "quick-2",
+        taskId: "quick:2",
+        title: "Otra",
+        durationMin: 5,
+        now: NOW + 1,
+      }),
+    ).rejects.toThrow("Primero termina");
 
     await completeSessionWithCredit(db, "quick-1", NOW + 2);
     const second = await startQuickSession(db, {
-      sessionId: "quick-2", taskId: "quick:2", title: "Otra", durationMin: 5, now: NOW + 3,
+      sessionId: "quick-2",
+      taskId: "quick:2",
+      title: "Otra",
+      durationMin: 5,
+      now: NOW + 3,
     });
     expect(second).toMatchObject({ quick: true, status: "running", rewardTargetRc: 0 });
     expect(await db.tasks.count()).toBe(0);
@@ -1412,14 +1854,20 @@ describe("sesiones rápidas", () => {
     await ensureDay(db, MONDAY, NOW);
     await closeDay(db, MONDAY, NOW + 1);
     await startQuickSession(db, {
-      sessionId: "quick-1", taskId: "quick:1", title: "Pagar las cuentas",
-      durationMin: 5, now: NOW + 2,
+      sessionId: "quick-1",
+      taskId: "quick:1",
+      title: "Pagar las cuentas",
+      durationMin: 5,
+      now: NOW + 2,
     });
     db.close();
 
     const reopened = await testDb(db.name);
     expect(await reopened.sessions.get("quick-1")).toMatchObject({
-      quick: true, status: "running", rewardTargetRc: 0, handId: null,
+      quick: true,
+      status: "running",
+      rewardTargetRc: 0,
+      handId: null,
     });
     expect((await reopened.days.get(MONDAY))!.closedAt).toBe(NOW + 1);
     await completeSessionWithCredit(reopened, "quick-1", NOW + 3);
@@ -1428,36 +1876,75 @@ describe("sesiones rápidas", () => {
 
   it("rechaza nombre o duración inválidos antes de escribir", async () => {
     const db = await testDb();
-    await expect(startQuickSession(db, {
-      sessionId: "quick-1", taskId: "quick:1", title: "  ", durationMin: 10, now: NOW,
-    })).rejects.toThrow("nombre");
-    await expect(startQuickSession(db, {
-      sessionId: "quick-2", taskId: "quick:2", title: "Algo", durationMin: 0, now: NOW,
-    })).rejects.toThrow("cuántos minutos");
+    await expect(
+      startQuickSession(db, {
+        sessionId: "quick-1",
+        taskId: "quick:1",
+        title: "  ",
+        durationMin: 10,
+        now: NOW,
+      }),
+    ).rejects.toThrow("nombre");
+    await expect(
+      startQuickSession(db, {
+        sessionId: "quick-2",
+        taskId: "quick:2",
+        title: "Algo",
+        durationMin: 0,
+        now: NOW,
+      }),
+    ).rejects.toThrow("cuántos minutos");
     expect(await db.sessions.count()).toBe(0);
     expect(await db.occurrences.count()).toBe(0);
   });
 });
 
-
 describe("pendientes de una sola vez", () => {
   it("los guarda aparte, ordena por reciente y no crea tarea, ocurrencia ni ledger", async () => {
     const db = await testDb();
     await ensureDay(db, MONDAY, NOW);
-    const first = await createPending(db, "p1", {
-      title: "Pagar las cuentas", durationMin: 25,
-    }, NOW);
-    const second = await createPending(db, "p2", {
-      title: "Comprar pilas", durationMin: 5,
-    }, NOW + 1);
+    const first = await createPending(
+      db,
+      "p1",
+      {
+        title: "Pagar las cuentas",
+        durationMin: 25,
+      },
+      NOW,
+    );
+    const second = await createPending(
+      db,
+      "p2",
+      {
+        title: "Comprar pilas",
+        durationMin: 5,
+      },
+      NOW + 1,
+    );
 
     expect(await listPendings(db)).toEqual([second, first]);
-    expect(await createPending(db, "p1", {
-      title: "Pagar las cuentas", durationMin: 25,
-    }, NOW + 2)).toEqual(first);
-    await expect(createPending(db, "p1", {
-      title: "Otra cosa", durationMin: 25,
-    }, NOW + 3)).rejects.toThrow("otro pendiente");
+    expect(
+      await createPending(
+        db,
+        "p1",
+        {
+          title: "Pagar las cuentas",
+          durationMin: 25,
+        },
+        NOW + 2,
+      ),
+    ).toEqual(first);
+    await expect(
+      createPending(
+        db,
+        "p1",
+        {
+          title: "Otra cosa",
+          durationMin: 25,
+        },
+        NOW + 3,
+      ),
+    ).rejects.toThrow("otro pendiente");
     expect(await listPendings(db)).toHaveLength(2);
     expect(await db.tasks.count()).toBe(0);
     expect(await db.occurrences.count()).toBe(0);
@@ -1473,22 +1960,37 @@ describe("pendientes de una sola vez", () => {
     await createPending(db, "p2", { title: "Comprar pilas", durationMin: 5 }, NOW + 3);
 
     const session = await startPendingSession(db, {
-      sessionId: "ps1", pendingId: "p1", now: NOW + 4,
+      sessionId: "ps1",
+      pendingId: "p1",
+      now: NOW + 4,
     });
     expect(session).toMatchObject({
-      quick: true, pendingId: "p1", handId: null, status: "running",
-      durationSec: 25 * 60, rewardTargetRc: 0, rewardCapRc: 0,
+      quick: true,
+      pendingId: "p1",
+      handId: null,
+      status: "running",
+      durationSec: 25 * 60,
+      rewardTargetRc: 0,
+      rewardCapRc: 0,
       taskSnapshot: { title: "Pagar las cuentas", durationMin: 25, days: [] },
     });
-    expect(await startPendingSession(db, {
-      sessionId: "ps1", pendingId: "p1", now: NOW + 5,
-    })).toEqual(session);
+    expect(
+      await startPendingSession(db, {
+        sessionId: "ps1",
+        pendingId: "p1",
+        now: NOW + 5,
+      }),
+    ).toEqual(session);
     expect(await db.tasks.count()).toBe(0);
     expect(await db.hands.count()).toBe(0);
 
-    await expect(startPendingSession(db, {
-      sessionId: "ps2", pendingId: "p2", now: NOW + 6,
-    })).rejects.toThrow("Primero termina");
+    await expect(
+      startPendingSession(db, {
+        sessionId: "ps2",
+        pendingId: "p2",
+        now: NOW + 6,
+      }),
+    ).rejects.toThrow("Primero termina");
 
     const result = await completeSessionWithCredit(db, "ps1", NOW + 7);
     expect(result).toMatchObject({ creditedRc: 0, totalCreditedRc: 0 });
@@ -1499,7 +2001,9 @@ describe("pendientes de una sola vez", () => {
     expect((await db.occurrences.get(session.occurrenceId))!.status).toBe("completed");
 
     await startPendingSession(db, {
-      sessionId: "ps2", pendingId: "p2", now: NOW + 8,
+      sessionId: "ps2",
+      pendingId: "p2",
+      now: NOW + 8,
     });
   });
 
@@ -1531,7 +2035,9 @@ describe("pendientes de una sola vez", () => {
     const db = await testDb();
     await createPending(db, "p1", { title: "Pagar las cuentas", durationMin: 25 }, NOW);
     const first = await startPendingSession(db, {
-      sessionId: "ps1", pendingId: "p1", now: NOW + 1,
+      sessionId: "ps1",
+      pendingId: "p1",
+      now: NOW + 1,
     });
     await markOccurrenceNotApplicable(db, "ps1", NOW + 2);
 
@@ -1541,7 +2047,9 @@ describe("pendientes de una sola vez", () => {
     expect(await db.ledger.count()).toBe(0);
 
     const second = await startPendingSession(db, {
-      sessionId: "ps2", pendingId: "p1", now: NOW + 3,
+      sessionId: "ps2",
+      pendingId: "p1",
+      now: NOW + 3,
     });
     expect(second.occurrenceId).not.toBe(first.occurrenceId);
     expect(second.status).toBe("running");
@@ -1549,12 +2057,28 @@ describe("pendientes de una sola vez", () => {
 
   it("rechaza un pendiente inválido y no permite quitarlo mientras corre", async () => {
     const db = await testDb();
-    await expect(createPending(db, "p1", {
-      title: "  ", durationMin: 25,
-    }, NOW)).rejects.toThrow("nombre");
-    await expect(createPending(db, "p2", {
-      title: "Algo", durationMin: 0,
-    }, NOW)).rejects.toThrow("cuántos minutos");
+    await expect(
+      createPending(
+        db,
+        "p1",
+        {
+          title: "  ",
+          durationMin: 25,
+        },
+        NOW,
+      ),
+    ).rejects.toThrow("nombre");
+    await expect(
+      createPending(
+        db,
+        "p2",
+        {
+          title: "Algo",
+          durationMin: 0,
+        },
+        NOW,
+      ),
+    ).rejects.toThrow("cuántos minutos");
     expect(await db.pendings.count()).toBe(0);
 
     await createPending(db, "p3", { title: "Algo", durationMin: 5 }, NOW);

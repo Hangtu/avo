@@ -59,14 +59,18 @@ export function buildDayReview(input: {
     else later.push(item);
   }
 
-  missed.sort((a, b) =>
-    missedEndMinutes(a) - missedEndMinutes(b) ||
-    b.task.priority - a.task.priority ||
-    (a.task.id < b.task.id ? -1 : a.task.id > b.task.id ? 1 : 0));
-  later.sort((a, b) =>
-    timeMinutes(taskTime(a.task)) - timeMinutes(taskTime(b.task)) ||
-    b.task.priority - a.task.priority ||
-    (a.task.id < b.task.id ? -1 : a.task.id > b.task.id ? 1 : 0));
+  missed.sort(
+    (a, b) =>
+      missedEndMinutes(a) - missedEndMinutes(b) ||
+      b.task.priority - a.task.priority ||
+      (a.task.id < b.task.id ? -1 : a.task.id > b.task.id ? 1 : 0),
+  );
+  later.sort(
+    (a, b) =>
+      timeMinutes(taskTime(a.task)) - timeMinutes(taskTime(b.task)) ||
+      b.task.priority - a.task.priority ||
+      (a.task.id < b.task.id ? -1 : a.task.id > b.task.id ? 1 : 0),
+  );
 
   return { missed, later };
 }

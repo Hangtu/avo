@@ -13,12 +13,7 @@ export function RunoToaster() {
     <Toast.Portal className="runo-toast-portal">
       <Toast.Viewport className="runo-toast-viewport">
         {toasts.map((toast) => (
-          <Toast.Root
-            key={toast.id}
-            toast={toast}
-            className="runo-toast"
-            swipeDirection={["down", "right"]}
-          >
+          <Toast.Root key={toast.id} toast={toast} className="runo-toast" swipeDirection={["down", "right"]}>
             <Toast.Content className="runo-toast-content">
               <motion.div
                 className="runo-toast-inner"
@@ -28,14 +23,10 @@ export function RunoToaster() {
               >
                 <div className="runo-toast-copy">
                   <Toast.Title className="runo-toast-title" />
-                  {toast.description ? (
-                    <Toast.Description className="runo-toast-description" />
-                  ) : null}
+                  {toast.description ? <Toast.Description className="runo-toast-description" /> : null}
                 </div>
                 <div className="runo-toast-actions">
-                  {toast.actionProps ? (
-                    <Toast.Action className="runo-toast-action" />
-                  ) : null}
+                  {toast.actionProps ? <Toast.Action className="runo-toast-action" /> : null}
                   <Toast.Close className="runo-toast-close" aria-label={t("close")}>
                     ×
                   </Toast.Close>

@@ -7,7 +7,6 @@ export function occurrenceIdFor(taskId: string, date: LocalDate): string {
   return `${encodeURIComponent(taskId)}@${date}`;
 }
 
-
 /** The last @ is the separator; a task ID containing @ is encoded. */
 export function dateFromOccurrenceId(occurrenceId: string): LocalDate {
   const separator = occurrenceId.lastIndexOf("@");

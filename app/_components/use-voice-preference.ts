@@ -40,16 +40,19 @@ export function useVoicePreference() {
     };
   }, [t, revision]);
 
-  const setTone = useCallback(async (next: VoiceTone) => {
-    setError(null);
-    try {
-      await writePreferences(currentDatabaseName(), { maxTone: next });
-      setToneState(next);
-    } catch (cause) {
-      console.error("No se pudo guardar la voz", cause);
-      setError(t("voiceSave"));
-    }
-  }, [t]);
+  const setTone = useCallback(
+    async (next: VoiceTone) => {
+      setError(null);
+      try {
+        await writePreferences(currentDatabaseName(), { maxTone: next });
+        setToneState(next);
+      } catch (cause) {
+        console.error("No se pudo guardar la voz", cause);
+        setError(t("voiceSave"));
+      }
+    },
+    [t],
+  );
 
   return {
     tone,

@@ -1,12 +1,7 @@
 import { ACCOUNT_STORAGE_INFIX, ACCOUNT_STORAGE_PREFIX, SPACE_STORAGE_KEYS } from "@/lib/db/local-space";
 import { ACCESS_KEY } from "@/lib/sync/access-marker";
 
-import {
-  DARK_THEME_COLOR,
-  LIGHT_THEME_COLOR,
-  NIGHT_END_HOUR,
-  NIGHT_START_HOUR,
-} from "./theme";
+import { DARK_THEME_COLOR, LIGHT_THEME_COLOR, NIGHT_END_HOUR, NIGHT_START_HOUR } from "./theme";
 
 /**
  * Runs before hydration. An account reads only its own scoped mirror; the guest

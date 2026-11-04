@@ -10,7 +10,8 @@ App personal local-first de hábitos, pendientes y timer; ES/EN, Next.js 16.4.3,
 
 ## Fuente de verdad
 
-- [`AGENTS.md`](./AGENTS.md): reglas de trabajo.
+- [`AGENTS.md`](./AGENTS.md): reglas de trabajo, operaciones y límites de permiso.
+- [`docs/agent-kit/project-context.md`](./docs/agent-kit/project-context.md): contrato del proyecto y biblioteca de estándares adoptada (commit fijo; actualización manual).
 - [`STATUS.md`](./STATUS.md): estado, evidencia y siguiente paso.
 - [`plan.md`](./plan.md): contrato y pendientes E4.
 - [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md): decisiones de auth/migración.
@@ -46,14 +47,23 @@ Para auth/sync por LAN en desarrollo, `AVO_DEV_AUTH_ORIGINS` permite orígenes c
 ## Verificación
 
 ```bash
-npm test
-npm run typecheck
+npm run format:check
 npm run lint
+npm run typecheck
+npm test
 npm run db:check
 npm run build
-npm run start
+npm run test:e2e # requiere `npm run build` previo; viajes públicos
 ```
 
-Las pruebas locales usan Vitest/fake IndexedDB y PGlite; no certifican Neon, OAuth, navegador o móvil. Para build local se puede usar un `DATABASE_URL` ficticio solo si Next lo exige; eso no valida una conexión. Better Auth usa variables servidoras descritas en `.env.example`. El audit runtime informa 4 moderadas de Drizzle Kit/esbuild: revisar antes de publicar, sin `audit fix --force`.
+`npm run verify` encadena formato, lint, tipos, tests y `db:check` sin build. El build y `test:e2e` sustituyen o consumen `.next`: no los ejecutes mientras el dueño usa `next dev`; usa una copia aislada. La CI (`app-ci.yml`) corre los mismos checks con credenciales sintéticas.
 
-El dominio previsto para producción es <https://avo.frutit.app/>. Aún no se ha configurado ni verificado. El despliegue existente permanece en <https://runo-mu.vercel.app>; no se ha cambiado Vercel, DNS ni OAuth. Para Better Auth, `BETTER_AUTH_URL` debe usar el origen `https://avo.frutit.app` (sin ruta); los callbacks de proveedores deberán actualizarse al mismo dominio cuando se configure.
+Las pruebas locales usan Vitest/fake IndexedDB y PGlite; no certifican Neon, OAuth, navegador o móvil. Los E2E cubren solo superficies públicas (`/` sin JS, legales, 404, cabeceras, robots/sitemap, manifest) y axe sobre las páginas legales; no cubren una cuenta autenticada. Para build local se puede usar un `DATABASE_URL` ficticio solo si Next lo exige; eso no valida una conexión. Better Auth usa variables servidoras descritas en `.env.example`. El audit runtime informa 4 moderadas de Drizzle Kit/esbuild: revisar antes de publicar, sin `audit fix --force`.
+
+El dominio previsto para producción es <https://avo.frutit.app/>. Aún no se ha configurado ni verificado. El despliegue existente permanece en <https://runo-mu.vercel.app>; no se ha cambiado Vercel, DNS ni OAuth. Para Better Auth, `BETTER_AUTH_URL` debe usar el origen `https://avo.frutit.app` (sin ruta); los callbacks de proveedores deberán actualizarse al mismo dominio cuando se configure. `NEXT_PUBLIC_SITE_URL` fija el origen canónico de metadata, robots y sitemap; en Vercel se usa el host de producción como respaldo.
+
+`lib/env.ts` valida el entorno al arrancar: `DATABASE_URL` y `BETTER_AUTH_SECRET` son obligatorias, `BETTER_AUTH_URL` es obligatoria (HTTPS) en producción, y cada par de credenciales OAuth debe configurarse completo. Un valor faltante falla con un mensaje accionable en vez de en la primera petición.
+
+## Licencia
+
+[MIT](./LICENSE) © 2026 frutit.app.

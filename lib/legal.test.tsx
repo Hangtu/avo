@@ -33,7 +33,9 @@ describe("public legal pages", () => {
     const html = renderPage(Page);
     expect(html).toContain(`href="mailto:${SUPPORT_EMAIL}`);
     expect(html).toContain(`href="${otherPage}"`);
-    expect(html).not.toMatch(/\[FALTA|PENDIENTE DE CONFIGURAR|borrador|Antes de publicar|NEXT_PUBLIC_PRIVACY/);
+    expect(html).not.toMatch(
+      /\[FALTA|PENDIENTE DE CONFIGURAR|borrador|Antes de publicar|NEXT_PUBLIC_PRIVACY/,
+    );
   });
 
   it("describes optional social sign-in and preserves privacy responsibilities", () => {
@@ -53,13 +55,16 @@ describe("public legal pages", () => {
     expect(html).not.toMatch(/Ajustes → Copia en la nube|Conecta con tu clave/);
   });
 
-  it.each(["es", "en"] as const)("states guest-only local deletion in %s without executing it during SSR", (locale) => {
-    const html = renderPage(DataDeletionPage, locale);
-    const copy = (locale === "es" ? es : en).dataDeletion;
-    expect(html).toContain(copy.localTitle);
-    expect(html).toContain(copy.localCopy.replaceAll("'", "&#x27;"));
-    expect(html).toContain(copy.startButton);
-    expect(html).not.toContain(copy.confirmButton);
-    expect(html).not.toContain(copy.done);
-  });
+  it.each(["es", "en"] as const)(
+    "states guest-only local deletion in %s without executing it during SSR",
+    (locale) => {
+      const html = renderPage(DataDeletionPage, locale);
+      const copy = (locale === "es" ? es : en).dataDeletion;
+      expect(html).toContain(copy.localTitle);
+      expect(html).toContain(copy.localCopy.replaceAll("'", "&#x27;"));
+      expect(html).toContain(copy.startButton);
+      expect(html).not.toContain(copy.confirmButton);
+      expect(html).not.toContain(copy.done);
+    },
+  );
 });

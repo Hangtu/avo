@@ -4,13 +4,7 @@ import { Popover } from "@base-ui/react/popover";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-export function HelpTip({
-  children,
-  label,
-}: {
-  children: ReactNode;
-  label?: string;
-}) {
+export function HelpTip({ children, label }: { children: ReactNode; label?: string }) {
   const t = useTranslations("common");
 
   return (

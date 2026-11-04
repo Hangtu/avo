@@ -17,5 +17,7 @@ export async function signOutAccount() {
     const result = await authClient.signOut({ fetchOptions: { timeout: 8000, retry: 0 } });
     failed = Boolean(result.error);
     return result;
-  } finally { finishAccountSignOut(failed); }
+  } finally {
+    finishAccountSignOut(failed);
+  }
 }

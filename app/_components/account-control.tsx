@@ -16,7 +16,11 @@ export function AccountControl() {
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const workspace = useWorkspace();
-  const user = workspace.available ? (workspace.status === "expired" || workspace.status === "offline" ? null : workspace.identity) : session?.user;
+  const user = workspace.available
+    ? workspace.status === "expired" || workspace.status === "offline"
+      ? null
+      : workspace.identity
+    : session?.user;
 
   async function signIn(provider: "google" | "facebook") {
     setBusy(provider);
@@ -53,15 +57,15 @@ export function AccountControl() {
   return (
     <div className="space-y-3">
       {isPending ? (
-        <p className="text-sm text-muted" role="status">{t("checking")}</p>
+        <p className="text-sm text-muted" role="status">
+          {t("checking")}
+        </p>
       ) : user ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm">
             <p className="font-semibold">{t("titleSignedIn")}</p>
             <p>{user.name?.trim() || user.email}</p>
-            {user.name?.trim() ? (
-              <p className="text-muted">{user.email}</p>
-            ) : null}
+            {user.name?.trim() ? <p className="text-muted">{user.email}</p> : null}
           </div>
           <button
             type="button"
@@ -78,7 +82,15 @@ export function AccountControl() {
       ) : (
         <>
           <p className="text-sm leading-6 text-muted">{t("copy")}</p>
-          {session?.user && workspace.available ? <button type="button" className="min-h-11 text-sm font-semibold underline" onClick={workspace.unlock}>{sync("verifyExisting")}</button> : null}
+          {session?.user && workspace.available ? (
+            <button
+              type="button"
+              className="min-h-11 text-sm font-semibold underline"
+              onClick={workspace.unlock}
+            >
+              {sync("verifyExisting")}
+            </button>
+          ) : null}
           <div className="runo-account-providers">
             <button
               type="button"
@@ -102,7 +114,11 @@ export function AccountControl() {
         </>
       )}
 
-      {error ? <p className="runo-account-error" role="alert">{error}</p> : null}
+      {error ? (
+        <p className="runo-account-error" role="alert">
+          {error}
+        </p>
+      ) : null}
       {user ? (
         <ConfirmDialog
           open={confirmSignOut}

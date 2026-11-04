@@ -19,7 +19,8 @@ describe("copia local", () => {
 
     expect(await target.tasks.count()).toBe(2);
     expect((await listTasks(target)).map((task) => task.id).sort()).toEqual([
-      "seed:brush-teeth", "seed:shower",
+      "seed:brush-teeth",
+      "seed:shower",
     ]);
     expect(await getSettings(target, NOW)).toMatchObject({ audioEnabled: false });
     expect(await target.metadata.count()).toBe(1);
@@ -29,7 +30,8 @@ describe("copia local", () => {
     const db = await testDb();
     await seedDatabase(db, NOW);
     const snapshot = await exportLocalSnapshot(db, NOW);
-    await expect(importLocalSnapshot(db, { ...snapshot, schemaVersion: 2 } as never))
-      .rejects.toThrow(/versión/i);
+    await expect(importLocalSnapshot(db, { ...snapshot, schemaVersion: 2 } as never)).rejects.toThrow(
+      /versión/i,
+    );
   });
 });

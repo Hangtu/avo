@@ -46,13 +46,23 @@ describe("semilla del Mazo", () => {
   it("reabrir no pisa ediciones, archivos o preferencias", async () => {
     const db = await testDb();
     await seedDatabase(db, NOW);
-    await updateTask(db, "seed:brush-teeth", taskInput({ title: "Mi cepillo", days: [6], durationMin: 7 }), NOW + 1, "edit-brush");
+    await updateTask(
+      db,
+      "seed:brush-teeth",
+      taskInput({ title: "Mi cepillo", days: [6], durationMin: 7 }),
+      NOW + 1,
+      "edit-brush",
+    );
     await archiveTask(db, "seed:shower", NOW + 1);
     await db.settings.update("preferences", { theme: "dark", maxTone: 0 });
     db.close();
     const reopened = await testDb(db.name);
     expect(await seedDatabase(reopened, NOW + 1000)).toEqual({ createdTaskCount: 0 });
-    expect(await reopened.tasks.get("seed:brush-teeth")).toMatchObject({ title: "Mi cepillo", days: [6], durationMin: 7 });
+    expect(await reopened.tasks.get("seed:brush-teeth")).toMatchObject({
+      title: "Mi cepillo",
+      days: [6],
+      durationMin: 7,
+    });
     expect((await reopened.tasks.get("seed:shower"))!.archivedAt).toBe(NOW + 1);
     expect(await getSettings(reopened, NOW)).toMatchObject({ theme: "dark", maxTone: 0 });
   });

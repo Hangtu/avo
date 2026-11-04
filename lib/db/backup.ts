@@ -4,33 +4,20 @@ import { BACKUP_SCHEMA_VERSION, type RunoSnapshot } from "./snapshot-types";
 import { validateSettings } from "@/lib/domain/validation";
 
 /** Read a complete local snapshot; this does not upload or synchronize data. */
-export async function exportLocalSnapshot(
-  db: RunoDatabase,
-  exportedAt: number,
-): Promise<RunoSnapshot> {
-  const [
-    tasks,
-    pendings,
-    occurrences,
-    days,
-    hands,
-    sessions,
-    events,
-    ledger,
-    settings,
-    metadata,
-  ] = await Promise.all([
-    db.tasks.toArray(),
-    db.pendings.toArray(),
-    db.occurrences.toArray(),
-    db.days.toArray(),
-    db.hands.toArray(),
-    db.sessions.toArray(),
-    db.events.toArray(),
-    db.ledger.toArray(),
-    getSettings(db, exportedAt),
-    db.metadata.toArray(),
-  ]);
+export async function exportLocalSnapshot(db: RunoDatabase, exportedAt: number): Promise<RunoSnapshot> {
+  const [tasks, pendings, occurrences, days, hands, sessions, events, ledger, settings, metadata] =
+    await Promise.all([
+      db.tasks.toArray(),
+      db.pendings.toArray(),
+      db.occurrences.toArray(),
+      db.days.toArray(),
+      db.hands.toArray(),
+      db.sessions.toArray(),
+      db.events.toArray(),
+      db.ledger.toArray(),
+      getSettings(db, exportedAt),
+      db.metadata.toArray(),
+    ]);
 
   return {
     schemaVersion: BACKUP_SCHEMA_VERSION,
@@ -53,10 +40,7 @@ export async function exportLocalSnapshot(
  * Never use for account sync: lib/sync/local.ts merges only durable entities
  * and preserves runtime, pending local edits and their outbox.
  */
-export async function importLocalSnapshot(
-  db: RunoDatabase,
-  snapshot: RunoSnapshot,
-): Promise<void> {
+export async function importLocalSnapshot(db: RunoDatabase, snapshot: RunoSnapshot): Promise<void> {
   if (!snapshot || snapshot.schemaVersion !== BACKUP_SCHEMA_VERSION) {
     throw new Error("La versión de la copia no es compatible.");
   }

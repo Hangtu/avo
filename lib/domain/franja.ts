@@ -14,9 +14,7 @@ export interface FranjaView {
  * Builds the visible franja without touching storage. The pure selection engine
  * remains the only source of eligibility and ordering.
  */
-export function currentFranja(
-  input: SelectionInput & { occurrences: readonly Occurrence[] },
-): FranjaView {
+export function currentFranja(input: SelectionInput & { occurrences: readonly Occurrence[] }): FranjaView {
   const candidates = proposeHand(input);
   const excluded = new Set([
     ...(input.excludeOccurrenceIds ?? []),
@@ -28,8 +26,7 @@ export function currentFranja(
   }).length;
   const date = toLocalDate(input.now);
   const pendingToday = input.occurrences.filter(
-    (occurrence) =>
-      occurrence.date === date && !TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status),
+    (occurrence) => occurrence.date === date && !TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status),
   ).length;
 
   return { candidates, remainingEligible, pendingToday };

@@ -54,12 +54,7 @@ export function QuickTaskForm({
   }
 
   return (
-    <Form
-      noValidate
-      errors={errors}
-      onSubmit={submit}
-      className="mt-3 space-y-3"
-    >
+    <Form noValidate errors={errors} onSubmit={submit} className="mt-3 space-y-3">
       <Field.Root name="title" className="form-field">
         <Field.Label className="form-label">{t("what")}</Field.Label>
         <Field.Control
@@ -106,11 +101,7 @@ export function QuickTaskForm({
         aria-label={t("minutesAria")}
       >
         {[5, 15, 25, 30].map((value) => (
-          <Toggle
-            key={value}
-            value={String(value)}
-            className="day-toggle justify-center"
-          >
+          <Toggle key={value} value={String(value)} className="day-toggle justify-center">
             {common("minutes", { count: value })}
           </Toggle>
         ))}

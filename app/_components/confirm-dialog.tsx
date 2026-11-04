@@ -34,22 +34,13 @@ export function ConfirmDialog({
       <AlertDialog.Portal className="runo-dialog-portal">
         <AlertDialog.Backdrop className="runo-dialog-backdrop" />
         <AlertDialog.Popup className="runo-dialog">
-          <AlertDialog.Title className="runo-dialog-title">
-            {title}
-          </AlertDialog.Title>
+          <AlertDialog.Title className="runo-dialog-title">{title}</AlertDialog.Title>
           <AlertDialog.Description className="runo-dialog-copy">
             {description}
-            {note ? (
-              <span className="runo-dialog-note">
-                {" "}
-                {note}
-              </span>
-            ) : null}
+            {note ? <span className="runo-dialog-note"> {note}</span> : null}
           </AlertDialog.Description>
           <div className="runo-dialog-actions">
-            <AlertDialog.Close className="runo-dialog-cancel">
-              {common("cancel")}
-            </AlertDialog.Close>
+            <AlertDialog.Close className="runo-dialog-cancel">{common("cancel")}</AlertDialog.Close>
             <AlertDialog.Close
               className={tone === "danger" ? "runo-dialog-danger" : "runo-dialog-confirm"}
               onClick={onConfirm}

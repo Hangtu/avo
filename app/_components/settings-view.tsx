@@ -87,14 +87,16 @@ export function SettingsView({
   }
 
   if (!settings) {
-    return <p className="text-sm text-muted" role="status">{t("loading")}</p>;
+    return (
+      <p className="text-sm text-muted" role="status">
+        {t("loading")}
+      </p>
+    );
   }
 
   return (
     <section aria-labelledby="settings-title">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        {t("eyebrow")}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t("eyebrow")}</p>
       <h2 id="settings-title" className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
         {t("title")}
       </h2>
@@ -202,7 +204,11 @@ export function SettingsView({
         </nav>
       </div>
 
-      {error ? <p className="mt-5 text-sm" role="alert">{error}</p> : null}
+      {error ? (
+        <p className="mt-5 text-sm" role="alert">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }

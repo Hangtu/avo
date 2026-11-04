@@ -84,20 +84,23 @@ export function useThemePreference() {
     };
   }, [mode, storageKey]);
 
-  const setTheme = useCallback(async (next: ThemeMode) => {
-    if (!mode || mode === next || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await writePreferences(currentDatabaseName(), { theme: next });
-      setMode(next);
-    } catch (cause) {
-      console.error("No se pudo guardar el tema", cause);
-      setError(t("themeSave"));
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, mode, t]);
+  const setTheme = useCallback(
+    async (next: ThemeMode) => {
+      if (!mode || mode === next || busy) return;
+      setBusy(true);
+      setError(null);
+      try {
+        await writePreferences(currentDatabaseName(), { theme: next });
+        setMode(next);
+      } catch (cause) {
+        console.error("No se pudo guardar el tema", cause);
+        setError(t("themeSave"));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, mode, t],
+  );
 
   return {
     mode: mode ?? "auto",

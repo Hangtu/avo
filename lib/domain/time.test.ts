@@ -36,9 +36,8 @@ describe("fechas y horarios locales", () => {
     expect(clockMinutes("23:59")).toBe(1439);
   });
 
-  it.each(["24:00", "18:60", "6:00", "-1:00", "18:00:01", "hora"])(
-    "rechaza una hora inválida: %s",
-    (value) => expect(() => parseClockTime(value)).toThrow(),
+  it.each(["24:00", "18:60", "6:00", "-1:00", "18:00:01", "hora"])("rechaza una hora inválida: %s", (value) =>
+    expect(() => parseClockTime(value)).toThrow(),
   );
 
   it("rechaza relojes inválidos en vez de producir fechas corruptas", () => {

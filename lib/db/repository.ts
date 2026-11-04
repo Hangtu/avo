@@ -7,12 +7,25 @@ import { availabilityOf, eligibleCandidates, isMissedOccurrence, proposeHand } f
 import { blockForTime, taskTime, type TaskBlock } from "@/lib/domain/schedule";
 import { assertTimestamp, parseLocalDate, toLocalDate, weekdayOf, type LocalDate } from "@/lib/domain/time";
 import {
-  assertId, defaultSettings, DomainError, validatePendingInput, validateSettings, validateTaskInput,
+  assertId,
+  defaultSettings,
+  DomainError,
+  validatePendingInput,
+  validateSettings,
+  validateTaskInput,
 } from "@/lib/domain/validation";
 import {
   TERMINAL_OCCURRENCE_STATUSES,
-  type Day, type Hand, type Occurrence, type Pending, type PendingInput, type Session,
-  type SessionVariant, type Settings, type Task, type TaskInput,
+  type Day,
+  type Hand,
+  type Occurrence,
+  type Pending,
+  type PendingInput,
+  type Session,
+  type SessionVariant,
+  type Settings,
+  type Task,
+  type TaskInput,
 } from "@/lib/domain/types";
 
 export { occurrenceIdFor } from "@/lib/domain/occurrence";
@@ -28,7 +41,9 @@ export interface CreateTaskBatchItem {
  * Callers should keep the same IDs when retrying the same form content.
  */
 export async function createTasks(
-  db: RunoDatabase, items: readonly CreateTaskBatchItem[], now: number,
+  db: RunoDatabase,
+  items: readonly CreateTaskBatchItem[],
+  now: number,
 ): Promise<Task[]> {
   assertTimestamp(now);
   if (items.length === 0) return [];
@@ -46,8 +61,11 @@ export async function createTasks(
     const created: Task[] = [];
     for (const item of values) {
       const { inserted } = await appendEvent(db, {
-        actionId: `task:create:${item.id}`, type: "task_created", at: now,
-        taskId: item.id, context: taskEventContext(item.input),
+        actionId: `task:create:${item.id}`,
+        type: "task_created",
+        at: now,
+        taskId: item.id,
+        context: taskEventContext(item.input),
       });
       if (!inserted) {
         const existing = await db.tasks.get(item.id);
@@ -56,7 +74,11 @@ export async function createTasks(
         continue;
       }
       const task: Task = {
-        ...item.input, id: item.id, createdAt: now, updatedAt: now, archivedAt: null,
+        ...item.input,
+        id: item.id,
+        createdAt: now,
+        updatedAt: now,
+        archivedAt: null,
       };
       await db.tasks.add(task);
       await enqueue(db, "task", task);
@@ -66,15 +88,17 @@ export async function createTasks(
   });
 }
 
-export async function createTask(
-  db: RunoDatabase, id: string, input: TaskInput, now: number,
-): Promise<Task> {
+export async function createTask(db: RunoDatabase, id: string, input: TaskInput, now: number): Promise<Task> {
   const [task] = await createTasks(db, [{ id, input }], now);
   return task;
 }
 
 export async function updateTask(
-  db: RunoDatabase, id: string, input: TaskInput, now: number, actionId: string,
+  db: RunoDatabase,
+  id: string,
+  input: TaskInput,
+  now: number,
+  actionId: string,
 ): Promise<Task> {
   assertId(id);
   assertId(actionId);
@@ -84,7 +108,11 @@ export async function updateTask(
     const previous = await db.tasks.get(id);
     if (!previous) throw new DomainError("not_found", "Esa tarea ya no está.");
     const { inserted } = await appendEvent(db, {
-      actionId, type: "task_updated", at: now, taskId: id, context: taskEventContext(values),
+      actionId,
+      type: "task_updated",
+      at: now,
+      taskId: id,
+      context: taskEventContext(values),
     });
     if (!inserted) return previous;
     const task: Task = { ...previous, ...values, updatedAt: now };
@@ -107,8 +135,11 @@ export async function archiveTask(db: RunoDatabase, id: string, now: number): Pr
     if (!task) throw new DomainError("not_found", "Esa tarea ya no está.");
     if (task.archivedAt !== null) return;
     await appendEvent(db, {
-      actionId: `task:archive:${id}`, type: "task_archived", at: now,
-      taskId: id, context: {},
+      actionId: `task:archive:${id}`,
+      type: "task_archived",
+      at: now,
+      taskId: id,
+      context: {},
     });
     await db.tasks.update(id, { archivedAt: now, updatedAt: now });
     await enqueue(db, "task", { ...task, archivedAt: now, updatedAt: now });
@@ -116,9 +147,7 @@ export async function archiveTask(db: RunoDatabase, id: string, now: number): Pr
 }
 
 /** Restores an archived task for the short undo window in the UI. */
-export async function restoreArchivedTask(
-  db: RunoDatabase, id: string, now: number,
-): Promise<Task> {
+export async function restoreArchivedTask(db: RunoDatabase, id: string, now: number): Promise<Task> {
   assertId(id);
   assertTimestamp(now);
   return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
@@ -145,7 +174,10 @@ export async function listTasks(db: RunoDatabase, includeArchived = false): Prom
 
 /** Creates one one-off pending. The ID makes a retry safe without duplicating it. */
 export async function createPending(
-  db: RunoDatabase, id: string, input: PendingInput, now: number,
+  db: RunoDatabase,
+  id: string,
+  input: PendingInput,
+  now: number,
 ): Promise<Pending> {
   assertId(id);
   assertTimestamp(now);
@@ -159,8 +191,12 @@ export async function createPending(
       return previous;
     }
     const pending: Pending = {
-      ...values, id, createdAt: now, updatedAt: now,
-      completedAt: null, deletedAt: null,
+      ...values,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      deletedAt: null,
     };
     await db.pendings.add(pending);
     await enqueue(db, "pending", pending);
@@ -169,19 +205,19 @@ export async function createPending(
 }
 
 /** Active pending items, newest first. Completed and removed items stay out of the list. */
-export async function listPendings(
-  db: RunoDatabase, includeHidden = false,
-): Promise<Pending[]> {
+export async function listPendings(db: RunoDatabase, includeHidden = false): Promise<Pending[]> {
   const items = await db.pendings
-    .filter((pending) => includeHidden ||
-      (pending.completedAt === null && pending.deletedAt === null))
+    .filter((pending) => includeHidden || (pending.completedAt === null && pending.deletedAt === null))
     .sortBy("createdAt");
   return items.reverse();
 }
 
 /** Marks a pending as done without a timer, work time, occurrence or RC. */
 export async function completePendingDirect(
-  db: RunoDatabase, pendingId: string, now: number, source = "pending",
+  db: RunoDatabase,
+  pendingId: string,
+  now: number,
+  source = "pending",
 ): Promise<Pending> {
   assertId(pendingId);
   assertTimestamp(now);
@@ -192,15 +228,21 @@ export async function completePendingDirect(
     }
     if (pending.completedAt !== null) return pending;
     const active = await db.sessions
-      .filter((session) => session.pendingId === pendingId &&
-        ["running", "paused", "awaiting_confirmation"].includes(session.status))
+      .filter(
+        (session) =>
+          session.pendingId === pendingId &&
+          ["running", "paused", "awaiting_confirmation"].includes(session.status),
+      )
       .first();
     if (active) {
       throw new DomainError("conflict", "Primero termina el tiempo de este pendiente.");
     }
     await appendEvent(db, {
-      actionId: `pending-done:${pendingId}`, type: "already_done", at: now,
-      taskId: `pending:${pendingId}`, context: { source },
+      actionId: `pending-done:${pendingId}`,
+      type: "already_done",
+      at: now,
+      taskId: `pending:${pendingId}`,
+      context: { source },
     });
     const updated: Pending = { ...pending, completedAt: now, updatedAt: now };
     await db.pendings.put(updated);
@@ -211,9 +253,7 @@ export async function completePendingDirect(
 
 /** Hides a pending that is no longer relevant; it never deletes a running session. */
 /** Restores a pending hidden with deletePending; completed items stay completed. */
-export async function restorePending(
-  db: RunoDatabase, pendingId: string, now: number,
-): Promise<Pending> {
+export async function restorePending(db: RunoDatabase, pendingId: string, now: number): Promise<Pending> {
   assertId(pendingId);
   assertTimestamp(now);
   return db.transaction("rw", [db.pendings, ...syncTables(db)], async () => {
@@ -230,9 +270,7 @@ export async function restorePending(
   });
 }
 
-export async function deletePending(
-  db: RunoDatabase, pendingId: string, now: number,
-): Promise<void> {
+export async function deletePending(db: RunoDatabase, pendingId: string, now: number): Promise<void> {
   assertId(pendingId);
   assertTimestamp(now);
   await db.transaction("rw", [db.pendings, db.sessions, ...syncTables(db)], async () => {
@@ -240,8 +278,11 @@ export async function deletePending(
     if (!pending) throw new DomainError("not_found", "Ese pendiente ya no está.");
     if (pending.deletedAt !== null) return;
     const active = await db.sessions
-      .filter((session) => session.pendingId === pendingId &&
-        ["running", "paused", "awaiting_confirmation"].includes(session.status))
+      .filter(
+        (session) =>
+          session.pendingId === pendingId &&
+          ["running", "paused", "awaiting_confirmation"].includes(session.status),
+      )
       .first();
     if (active) {
       throw new DomainError("conflict", "Primero termina el tiempo de este pendiente.");
@@ -270,7 +311,11 @@ export async function getSettings(db: RunoDatabase, now: number): Promise<Settin
 
 export type SettingsPatch = Partial<Omit<Settings, "id" | "updatedAt">>;
 /** Read/patch/write/enqueue share one transaction: unrelated writers cannot clobber fields. */
-export async function updateSettings(db: RunoDatabase, patch: SettingsPatch, now = Date.now()): Promise<Settings> {
+export async function updateSettings(
+  db: RunoDatabase,
+  patch: SettingsPatch,
+  now = Date.now(),
+): Promise<Settings> {
   assertTimestamp(now);
   return db.transaction("rw", [db.settings, ...syncTables(db)], async () => {
     const existing = await db.settings.get("preferences");
@@ -308,8 +353,12 @@ export async function claimAnchor(
     const updated: Occurrence = { ...occurrence, anchorPresentedAt: now, updatedAt: now };
     await db.occurrences.put(updated);
     await appendEvent(db, {
-      actionId: `anchor-presented:${occurrence.id}`, type: "anchor_presented", at: now,
-      taskId, occurrenceId: occurrence.id, context: { fixedTime },
+      actionId: `anchor-presented:${occurrence.id}`,
+      type: "anchor_presented",
+      at: now,
+      taskId,
+      occurrenceId: occurrence.id,
+      context: { fixedTime },
     });
     return updated;
   });
@@ -330,10 +379,7 @@ export async function recordOffered(
   assertId(occurrenceId);
   assertTimestamp(now);
   await db.transaction("rw", db.hands, db.occurrences, db.events, async () => {
-    const [hand, occurrence] = await Promise.all([
-      db.hands.get(handId),
-      db.occurrences.get(occurrenceId),
-    ]);
+    const [hand, occurrence] = await Promise.all([db.hands.get(handId), db.occurrences.get(occurrenceId)]);
     if (!hand || !hand.occurrenceIds.includes(occurrenceId)) {
       throw new DomainError("not_found", "La carta ya no pertenece a esta franja.");
     }
@@ -341,15 +387,22 @@ export async function recordOffered(
       throw new DomainError("not_found", "La carta ya no coincide con esta franja.");
     }
     await appendEvent(db, {
-      actionId: `offer:${handId}:${occurrenceId}`, type: "offered", at: now,
-      taskId, occurrenceId, handId, context: { source: "ahora" },
+      actionId: `offer:${handId}:${occurrenceId}`,
+      type: "offered",
+      at: now,
+      taskId,
+      occurrenceId,
+      handId,
+      context: { source: "ahora" },
     });
   });
 }
 
 /** Resolves an occurrence without opening a session (anchor or franja correction). */
 export async function markOccurrenceNotApplicableDirect(
-  db: RunoDatabase, occurrenceId: string, now: number,
+  db: RunoDatabase,
+  occurrenceId: string,
+  now: number,
   source: "anchor" | "franja" | "review" = "anchor",
 ): Promise<Occurrence> {
   assertTimestamp(now);
@@ -364,8 +417,12 @@ export async function markOccurrenceNotApplicableDirect(
       throw new DomainError("invalid_transition", "Esa tarea ya está empezada. Primero termina su tiempo.");
     }
     await appendEvent(db, {
-      actionId: `direct-not-applicable:${occurrence.id}`, type: "not_applicable", at: now,
-      taskId: occurrence.taskId, occurrenceId: occurrence.id, context: { source },
+      actionId: `direct-not-applicable:${occurrence.id}`,
+      type: "not_applicable",
+      at: now,
+      taskId: occurrence.taskId,
+      occurrenceId: occurrence.id,
+      context: { source },
     });
     const updated: Occurrence = { ...occurrence, status: "not_applicable", updatedAt: now };
     await db.occurrences.put(updated);
@@ -375,7 +432,9 @@ export async function markOccurrenceNotApplicableDirect(
 
 /** Marks an occurrence as already done without a session, work time, or retroactive RC. */
 export async function markOccurrenceAlreadyDoneDirect(
-  db: RunoDatabase, occurrenceId: string, now: number,
+  db: RunoDatabase,
+  occurrenceId: string,
+  now: number,
   source: "franja" | "review" = "franja",
 ): Promise<Occurrence> {
   assertTimestamp(now);
@@ -390,8 +449,12 @@ export async function markOccurrenceAlreadyDoneDirect(
       throw new DomainError("invalid_transition", "Esa tarea ya está empezada. Primero termina su tiempo.");
     }
     await appendEvent(db, {
-      actionId: `direct-already-done:${occurrence.id}`, type: "already_done", at: now,
-      taskId: occurrence.taskId, occurrenceId: occurrence.id, context: { source },
+      actionId: `direct-already-done:${occurrence.id}`,
+      type: "already_done",
+      at: now,
+      taskId: occurrence.taskId,
+      occurrenceId: occurrence.id,
+      context: { source },
     });
     const updated: Occurrence = { ...occurrence, status: "already_done", updatedAt: now };
     await db.occurrences.put(updated);
@@ -401,7 +464,9 @@ export async function markOccurrenceAlreadyDoneDirect(
 
 /** Reopens a terminal occurrence after a mistaken completion; credit is kept, not duplicated. */
 export async function reactivateOccurrence(
-  db: RunoDatabase, occurrenceId: string, now: number,
+  db: RunoDatabase,
+  occurrenceId: string,
+  now: number,
 ): Promise<Occurrence> {
   assertId(occurrenceId);
   assertTimestamp(now);
@@ -414,7 +479,10 @@ export async function reactivateOccurrence(
     }
     await appendEvent(db, {
       actionId: `occurrence:reactivate:${occurrence.id}:${occurrence.updatedAt}`,
-      type: "task_updated", at: now, taskId: occurrence.taskId, occurrenceId: occurrence.id,
+      type: "task_updated",
+      at: now,
+      taskId: occurrence.taskId,
+      occurrenceId: occurrence.id,
       context: {
         reactivated: true,
         previousStatus: occurrence.status,
@@ -449,15 +517,25 @@ export async function ensureDay(db: RunoDatabase, date: LocalDate, now: number):
 
 function pendingOccurrence(taskId: string, date: LocalDate, now: number): Occurrence {
   return {
-    id: occurrenceIdFor(taskId, date), taskId, date,
-    status: "pending", timerElapsedSec: 0, creditedRc: 0,
-    shortStepCompleted: false, agreement: null, anchorPresentedAt: null,
-    createdAt: now, updatedAt: now,
+    id: occurrenceIdFor(taskId, date),
+    taskId,
+    date,
+    status: "pending",
+    timerElapsedSec: 0,
+    creditedRc: 0,
+    shortStepCompleted: false,
+    agreement: null,
+    anchorPresentedAt: null,
+    createdAt: now,
+    updatedAt: now,
   };
 }
 
 export async function ensureOccurrence(
-  db: RunoDatabase, taskId: string, date: LocalDate, now: number,
+  db: RunoDatabase,
+  taskId: string,
+  date: LocalDate,
+  now: number,
 ): Promise<Occurrence> {
   const id = occurrenceIdFor(taskId, date);
   assertTimestamp(now);
@@ -488,9 +566,7 @@ export interface StartSessionInput {
 }
 
 /** Atomically locks the first agreement, claims the running slot and logs the start. */
-export async function startSession(
-  db: RunoDatabase, input: StartSessionInput,
-): Promise<Session> {
+export async function startSession(db: RunoDatabase, input: StartSessionInput): Promise<Session> {
   const { sessionId, taskId, date, variant, now, handId, allowMissed = false, anchor } = input;
   assertId(sessionId);
   occurrenceIdFor(taskId, date);
@@ -499,95 +575,119 @@ export async function startSession(
     throw new DomainError("validation", "La versión de la tarea no es válida.");
   }
 
-  return db.transaction("rw", [
-    db.tasks, db.occurrences, db.days, db.hands, db.sessions, db.events,
-  ], async () => {
-    const previous = await db.sessions.get(sessionId);
-    if (previous) {
-      if (
-        previous.occurrenceId !== occurrenceIdFor(taskId, date) ||
-        previous.variant !== variant || previous.handId !== (handId ?? null)
-      ) {
-        throw new DomainError("conflict", "Ese identificador pertenece a otra sesión.");
+  return db.transaction(
+    "rw",
+    [db.tasks, db.occurrences, db.days, db.hands, db.sessions, db.events],
+    async () => {
+      const previous = await db.sessions.get(sessionId);
+      if (previous) {
+        if (
+          previous.occurrenceId !== occurrenceIdFor(taskId, date) ||
+          previous.variant !== variant ||
+          previous.handId !== (handId ?? null)
+        ) {
+          throw new DomainError("conflict", "Ese identificador pertenece a otra sesión.");
+        }
+        return previous;
       }
-      return previous;
-    }
-    const task = await db.tasks.get(taskId);
-    if (!task || task.archivedAt !== null) {
-      throw new DomainError("not_found", "Esa tarea ya no está.");
-    }
-    const day = await db.days.get(date);
-    if (day?.closedAt != null) {
-      throw new DomainError("invalid_transition", "El día ya terminó.");
-    }
-
-    const occurrence = await db.occurrences.get(occurrenceIdFor(taskId, date)) ??
-      pendingOccurrence(taskId, date, now);
-    if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
-      throw new DomainError("invalid_transition", "Esa tarea ya está resuelta para hoy.");
-    }
-    if (handId) {
-      const hand = await db.hands.get(handId);
-      if (
-        !hand || hand.status !== "open" || hand.date !== date ||
-        !hand.occurrenceIds.includes(occurrence.id)
-      ) {
-        throw new DomainError("invalid_transition", "Esa lista ya cambió. Vuelve a abrir Hoy.");
+      const task = await db.tasks.get(taskId);
+      if (!task || task.archivedAt !== null) {
+        throw new DomainError("not_found", "Esa tarea ya no está.");
       }
-    }
-    if (anchor && (!task.fixedTime || occurrence.anchorPresentedAt === null)) {
-      throw new DomainError("invalid_transition", "Ese aviso ya no está disponible.");
-    }
-    if (!occurrence.agreement &&
-      (date !== toLocalDate(now) ||
-        (!availabilityOf(task, occurrence, now).eligible &&
-          !(allowMissed && isMissedOccurrence(task, occurrence, now))))) {
-      throw new DomainError("invalid_transition", "Esa tarea no es para este momento.");
-    }
-    const active = await db.sessions
-      .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
-      .first();
-    if (active && !(anchor && active.status === "paused")) {
-      throw new DomainError("conflict", "Primero termina lo que ya empezaste.");
-    }
+      const day = await db.days.get(date);
+      if (day?.closedAt != null) {
+        throw new DomainError("invalid_transition", "El día ya terminó.");
+      }
 
-    const agreement = occurrence.agreement ?? {
-      task: structuredClone(task),
-      rewardCapRc: task.durationMin,
-      shortStepRc: task.shortStep?.durationMin ?? null,
-      lockedAt: now,
-    };
-    if (variant === "short" && (!agreement.task.shortStep || occurrence.shortStepCompleted)) {
-      throw new DomainError("invalid_transition", "Esta tarea no tiene un primer paso pendiente.");
-    }
-    const durationMin = variant === "short"
-      ? agreement.task.shortStep!.durationMin : agreement.task.durationMin;
-    const rewardTargetRc = variant === "short"
-      ? agreement.shortStepRc!
-      : Math.max(0, agreement.rewardCapRc - occurrence.creditedRc);
-    const durationSec = durationMin * 60;
-    const elapsedBefore = Math.min(durationSec, Math.max(0, occurrence.timerElapsedSec));
-    const remainingSec = variant === "short"
-      ? durationSec
-      : Math.max(60, durationSec - elapsedBefore);
-    const session: Session = {
-      id: sessionId, occurrenceId: occurrence.id, handId: handId ?? null, variant,
-      taskSnapshot: structuredClone(agreement.task),
-      durationSec, rewardTargetRc, rewardCapRc: agreement.rewardCapRc,
-      remainingSecAtStart: remainingSec, elapsedSec: elapsedBefore,
-      status: "running", startedAt: now, runningSlot: "running",
-      createdAt: now, updatedAt: now,
-    };
-    await db.occurrences.put({ ...occurrence, agreement, status: "in_progress", updatedAt: now });
-    await db.sessions.add(session);
-    await appendEvent(db, {
-      actionId: `start:${sessionId}`, type: "started", at: now,
-      taskId, occurrenceId: occurrence.id, sessionId,
-      ...(handId ? { handId } : {}),
-      context: { variant, ...(anchor ? { anchor: true } : {}), ...(allowMissed ? { late: true } : {}) },
-    });
-    return session;
-  });
+      const occurrence =
+        (await db.occurrences.get(occurrenceIdFor(taskId, date))) ?? pendingOccurrence(taskId, date, now);
+      if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) {
+        throw new DomainError("invalid_transition", "Esa tarea ya está resuelta para hoy.");
+      }
+      if (handId) {
+        const hand = await db.hands.get(handId);
+        if (
+          !hand ||
+          hand.status !== "open" ||
+          hand.date !== date ||
+          !hand.occurrenceIds.includes(occurrence.id)
+        ) {
+          throw new DomainError("invalid_transition", "Esa lista ya cambió. Vuelve a abrir Hoy.");
+        }
+      }
+      if (anchor && (!task.fixedTime || occurrence.anchorPresentedAt === null)) {
+        throw new DomainError("invalid_transition", "Ese aviso ya no está disponible.");
+      }
+      if (
+        !occurrence.agreement &&
+        (date !== toLocalDate(now) ||
+          (!availabilityOf(task, occurrence, now).eligible &&
+            !(allowMissed && isMissedOccurrence(task, occurrence, now))))
+      ) {
+        throw new DomainError("invalid_transition", "Esa tarea no es para este momento.");
+      }
+      const active = await db.sessions
+        .filter((session) => ["running", "paused", "awaiting_confirmation"].includes(session.status))
+        .first();
+      if (active && !(anchor && active.status === "paused")) {
+        throw new DomainError("conflict", "Primero termina lo que ya empezaste.");
+      }
+
+      const agreement = occurrence.agreement ?? {
+        task: structuredClone(task),
+        rewardCapRc: task.durationMin,
+        shortStepRc: task.shortStep?.durationMin ?? null,
+        lockedAt: now,
+      };
+      let durationMin: number;
+      let rewardTargetRc: number;
+      if (variant === "short") {
+        const shortStep = agreement.task.shortStep;
+        if (!shortStep || occurrence.shortStepCompleted) {
+          throw new DomainError("invalid_transition", "Esta tarea no tiene un primer paso pendiente.");
+        }
+        durationMin = shortStep.durationMin;
+        // Older agreements store the short-step cap separately; fall back to its duration.
+        rewardTargetRc = agreement.shortStepRc ?? shortStep.durationMin;
+      } else {
+        durationMin = agreement.task.durationMin;
+        rewardTargetRc = Math.max(0, agreement.rewardCapRc - occurrence.creditedRc);
+      }
+      const durationSec = durationMin * 60;
+      const elapsedBefore = Math.min(durationSec, Math.max(0, occurrence.timerElapsedSec));
+      const remainingSec = variant === "short" ? durationSec : Math.max(60, durationSec - elapsedBefore);
+      const session: Session = {
+        id: sessionId,
+        occurrenceId: occurrence.id,
+        handId: handId ?? null,
+        variant,
+        taskSnapshot: structuredClone(agreement.task),
+        durationSec,
+        rewardTargetRc,
+        rewardCapRc: agreement.rewardCapRc,
+        remainingSecAtStart: remainingSec,
+        elapsedSec: elapsedBefore,
+        status: "running",
+        startedAt: now,
+        runningSlot: "running",
+        createdAt: now,
+        updatedAt: now,
+      };
+      await db.occurrences.put({ ...occurrence, agreement, status: "in_progress", updatedAt: now });
+      await db.sessions.add(session);
+      await appendEvent(db, {
+        actionId: `start:${sessionId}`,
+        type: "started",
+        at: now,
+        taskId,
+        occurrenceId: occurrence.id,
+        sessionId,
+        ...(handId ? { handId } : {}),
+        context: { variant, ...(anchor ? { anchor: true } : {}), ...(allowMissed ? { late: true } : {}) },
+      });
+      return session;
+    },
+  );
 }
 
 export interface StartQuickSessionInput {
@@ -602,20 +702,21 @@ export interface StartQuickSessionInput {
  * Starts a one-off focus session that never becomes a task or enters a franja.
  * It can run after the day is closed and intentionally earns no RC.
  */
-export async function startQuickSession(
-  db: RunoDatabase, input: StartQuickSessionInput,
-): Promise<Session> {
+export async function startQuickSession(db: RunoDatabase, input: StartQuickSessionInput): Promise<Session> {
   const { sessionId, taskId, title, durationMin, now } = input;
   assertId(sessionId);
   assertId(taskId);
   assertTimestamp(now);
-  const values = validateTaskInput({
-    title,
-    days: [],
-    durationMin,
-    priority: 2,
-    category: "rápida",
-  }, { allowEmptyDays: true });
+  const values = validateTaskInput(
+    {
+      title,
+      days: [],
+      durationMin,
+      priority: 2,
+      category: "rápida",
+    },
+    { allowEmptyDays: true },
+  );
   const date = toLocalDate(now);
   const occurrenceId = occurrenceIdFor(taskId, date);
 
@@ -623,7 +724,8 @@ export async function startQuickSession(
     const previous = await db.sessions.get(sessionId);
     if (previous) {
       if (
-        previous.occurrenceId !== occurrenceId || previous.quick !== true ||
+        previous.occurrenceId !== occurrenceId ||
+        previous.quick !== true ||
         previous.taskSnapshot.title !== values.title ||
         previous.durationSec !== values.durationMin * 60
       ) {
@@ -642,7 +744,11 @@ export async function startQuickSession(
     }
 
     const task: Task = {
-      ...values, id: taskId, createdAt: now, updatedAt: now, archivedAt: null,
+      ...values,
+      id: taskId,
+      createdAt: now,
+      updatedAt: now,
+      archivedAt: null,
     };
     const durationSec = values.durationMin * 60;
     const agreement = {
@@ -685,8 +791,12 @@ export async function startQuickSession(
     await db.occurrences.add(occurrence);
     await db.sessions.add(session);
     await appendEvent(db, {
-      actionId: `start:${sessionId}`, type: "started", at: now,
-      taskId, occurrenceId, sessionId,
+      actionId: `start:${sessionId}`,
+      type: "started",
+      at: now,
+      taskId,
+      occurrenceId,
+      sessionId,
       context: { variant: "full", quick: true },
     });
     return session;
@@ -704,7 +814,8 @@ export interface StartPendingSessionInput {
  * so the pending never becomes a recurring Task or enters a franja; it earns 0 RC.
  */
 export async function startPendingSession(
-  db: RunoDatabase, input: StartPendingSessionInput,
+  db: RunoDatabase,
+  input: StartPendingSessionInput,
 ): Promise<Session> {
   const { sessionId, pendingId, now } = input;
   assertId(sessionId);
@@ -734,14 +845,21 @@ export async function startPendingSession(
     }
 
     const values = validatePendingInput({
-      title: pending.title, durationMin: pending.durationMin,
+      title: pending.title,
+      durationMin: pending.durationMin,
     });
     const date = toLocalDate(now);
     const taskId = `pending:${pendingId}:${sessionId}`;
     const occurrenceId = occurrenceIdFor(taskId, date);
     const task: Task = {
-      ...values, id: taskId, days: [], priority: 2, category: "pendiente",
-      createdAt: now, updatedAt: now, archivedAt: null,
+      ...values,
+      id: taskId,
+      days: [],
+      priority: 2,
+      category: "pendiente",
+      createdAt: now,
+      updatedAt: now,
+      archivedAt: null,
     };
     const durationSec = values.durationMin * 60;
     const agreement = {
@@ -785,8 +903,12 @@ export async function startPendingSession(
     await db.occurrences.add(occurrence);
     await db.sessions.add(session);
     await appendEvent(db, {
-      actionId: `start:${sessionId}`, type: "started", at: now,
-      taskId, occurrenceId, sessionId,
+      actionId: `start:${sessionId}`,
+      type: "started",
+      at: now,
+      taskId,
+      occurrenceId,
+      sessionId,
       context: { variant: "full", quick: true, pending: true },
     });
     return session;
@@ -797,9 +919,7 @@ export async function startPendingSession(
  * Moves a running session to confirmation at or after its wall-clock deadline.
  * Idempotent: retries return the already-expired session without another event.
  */
-export async function expireSession(
-  db: RunoDatabase, sessionId: string, now: number,
-): Promise<Session> {
+export async function expireSession(db: RunoDatabase, sessionId: string, now: number): Promise<Session> {
   assertId(sessionId);
   assertTimestamp(now);
   return db.transaction("rw", db.sessions, db.events, async () => {
@@ -816,17 +936,17 @@ export async function expireSession(
     }
 
     await appendEvent(db, {
-      actionId: `timer-expired:${sessionId}:${session.startedAt}`, type: "timer_expired", at: now,
-      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
-      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      actionId: `timer-expired:${sessionId}:${session.startedAt}`,
+      type: "timer_expired",
+      at: now,
+      taskId: session.taskSnapshot.id,
+      occurrenceId: session.occurrenceId,
+      sessionId,
+      ...(session.handId ? { handId: session.handId } : {}),
       context: { durationSec: session.durationSec },
     });
 
-    const {
-      runningSlot: _runningSlot,
-      startedAt: _startedAt,
-      ...rest
-    } = session;
+    const { runningSlot: _runningSlot, startedAt: _startedAt, ...rest } = session;
     void _runningSlot;
     void _startedAt;
     const elapsedSec = session.elapsedSec + session.remainingSecAtStart;
@@ -843,7 +963,6 @@ export async function expireSession(
   });
 }
 
-
 function elapsedSecondsFor(session: Session, now: number): number {
   if (session.status !== "running") return session.elapsedSec;
   const segmentSec = Math.min(
@@ -854,7 +973,10 @@ function elapsedSecondsFor(session: Session, now: number): number {
 }
 
 function closedSession(
-  session: Session, status: "completed" | "abandoned", elapsedSec: number, now: number,
+  session: Session,
+  status: "completed" | "abandoned",
+  elapsedSec: number,
+  now: number,
 ): Session {
   const closed = {
     ...session,
@@ -876,103 +998,111 @@ export interface CompletionResult {
 }
 
 export async function completeSessionWithCredit(
-  db: RunoDatabase, sessionId: string, now: number,
+  db: RunoDatabase,
+  sessionId: string,
+  now: number,
 ): Promise<CompletionResult> {
   assertId(sessionId);
   assertTimestamp(now);
   return db.transaction(
-    "rw", [db.sessions, db.occurrences, db.events, db.ledger, db.pendings, ...syncTables(db)],
+    "rw",
+    [db.sessions, db.occurrences, db.events, db.ledger, db.pendings, ...syncTables(db)],
     async () => {
-    const session = await db.sessions.get(sessionId);
-    if (!session) throw new DomainError("not_found", "Ese tiempo ya no existe.");
-    if (session.status === "completed") {
-      if (session.pendingId) {
-        const pending = await db.pendings.get(session.pendingId);
-        if (pending && pending.completedAt === null) {
-          const completedPending = { ...pending, completedAt: now, updatedAt: now };
-          await db.pendings.put(completedPending);
-          await enqueue(db, "pending", completedPending);
+      const session = await db.sessions.get(sessionId);
+      if (!session) throw new DomainError("not_found", "Ese tiempo ya no existe.");
+      if (session.status === "completed") {
+        if (session.pendingId) {
+          const pending = await db.pendings.get(session.pendingId);
+          if (pending && pending.completedAt === null) {
+            const completedPending = { ...pending, completedAt: now, updatedAt: now };
+            await db.pendings.put(completedPending);
+            await enqueue(db, "pending", completedPending);
+          }
         }
+        const occurrence = await db.occurrences.get(session.occurrenceId);
+        return { session, creditedRc: 0, totalCreditedRc: occurrence?.creditedRc ?? 0 };
+      }
+      if (session.status !== "running" && session.status !== "awaiting_confirmation") {
+        throw new DomainError("invalid_transition", "Ese tiempo ya no se puede terminar.");
       }
       const occurrence = await db.occurrences.get(session.occurrenceId);
-      return { session, creditedRc: 0, totalCreditedRc: occurrence?.creditedRc ?? 0 };
-    }
-    if (session.status !== "running" && session.status !== "awaiting_confirmation") {
-      throw new DomainError("invalid_transition", "Ese tiempo ya no se puede terminar.");
-    }
-    const occurrence = await db.occurrences.get(session.occurrenceId);
-    if (!occurrence) throw new DomainError("not_found", "Esa tarea ya no está.");
-    if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status) && occurrence.status !== "completed") {
-      throw new DomainError("invalid_transition", "Esa tarea ya está resuelta de otra forma.");
-    }
-    if (session.pendingId) {
-      const pending = await db.pendings.get(session.pendingId);
-      if (!pending || pending.deletedAt !== null) {
-        throw new DomainError("not_found", "Ese pendiente ya no está.");
+      if (!occurrence) throw new DomainError("not_found", "Esa tarea ya no está.");
+      if (TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status) && occurrence.status !== "completed") {
+        throw new DomainError("invalid_transition", "Esa tarea ya está resuelta de otra forma.");
       }
-    }
+      if (session.pendingId) {
+        const pending = await db.pendings.get(session.pendingId);
+        if (!pending || pending.deletedAt !== null) {
+          throw new DomainError("not_found", "Ese pendiente ya no está.");
+        }
+      }
 
-    const elapsedSec = elapsedSecondsFor(session, now);
-    const isShort = session.variant === "short";
-    const creditedRc = Math.max(
-      0,
-      Math.min(session.rewardTargetRc, session.rewardCapRc - occurrence.creditedRc),
-    );
-    const totalCreditedRc = occurrence.creditedRc + creditedRc;
+      const elapsedSec = elapsedSecondsFor(session, now);
+      const isShort = session.variant === "short";
+      const creditedRc = Math.max(
+        0,
+        Math.min(session.rewardTargetRc, session.rewardCapRc - occurrence.creditedRc),
+      );
+      const totalCreditedRc = occurrence.creditedRc + creditedRc;
 
-    await appendEvent(db, {
-      actionId: `complete:${sessionId}`, type: "completed", at: now,
-      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
-      sessionId, ...(session.handId ? { handId: session.handId } : {}),
-      context: {
-        early: session.status === "running",
-        elapsedSec,
-        shortStep: isShort,
-        creditedRc,
-        totalCreditedRc,
-        ...(session.quick ? { quick: true } : {}),
-        ...(session.pendingId ? { pending: true } : {}),
-      },
-    });
-    if (creditedRc > 0) {
-      await appendLedgerEntry(db, {
-        sourceKey: creditSourceKey(session.occurrenceId, isShort ? "short" : "full"),
-        occurrenceId: session.occurrenceId,
-        deltaRc: creditedRc,
-        reason: isShort ? "short_step" : "full_completion",
+      await appendEvent(db, {
+        actionId: `complete:${sessionId}`,
+        type: "completed",
         at: now,
+        taskId: session.taskSnapshot.id,
+        occurrenceId: session.occurrenceId,
+        sessionId,
+        ...(session.handId ? { handId: session.handId } : {}),
+        context: {
+          early: session.status === "running",
+          elapsedSec,
+          shortStep: isShort,
+          creditedRc,
+          totalCreditedRc,
+          ...(session.quick ? { quick: true } : {}),
+          ...(session.pendingId ? { pending: true } : {}),
+        },
       });
-    }
-    await db.occurrences.put({
-      ...occurrence,
-      status: isShort ? "partial" : "completed",
-      shortStepCompleted: occurrence.shortStepCompleted || isShort,
-      timerElapsedSec: elapsedSec,
-      creditedRc: totalCreditedRc,
-      updatedAt: now,
-    });
-    const completed = closedSession(session, "completed", elapsedSec, now);
-    await db.sessions.put(completed);
-    if (session.pendingId) {
-      const pending = (await db.pendings.get(session.pendingId))!;
-      const completedPending = { ...pending, completedAt: now, updatedAt: now };
-      await db.pendings.put(completedPending);
-      await enqueue(db, "pending", completedPending);
-    }
-    return { session: completed, creditedRc, totalCreditedRc };
-  });
+      if (creditedRc > 0) {
+        await appendLedgerEntry(db, {
+          sourceKey: creditSourceKey(session.occurrenceId, isShort ? "short" : "full"),
+          occurrenceId: session.occurrenceId,
+          deltaRc: creditedRc,
+          reason: isShort ? "short_step" : "full_completion",
+          at: now,
+        });
+      }
+      await db.occurrences.put({
+        ...occurrence,
+        status: isShort ? "partial" : "completed",
+        shortStepCompleted: occurrence.shortStepCompleted || isShort,
+        timerElapsedSec: elapsedSec,
+        creditedRc: totalCreditedRc,
+        updatedAt: now,
+      });
+      const completed = closedSession(session, "completed", elapsedSec, now);
+      await db.sessions.put(completed);
+      if (session.pendingId) {
+        const pending = (await db.pendings.get(session.pendingId))!;
+        const completedPending = { ...pending, completedAt: now, updatedAt: now };
+        await db.pendings.put(completedPending);
+        await enqueue(db, "pending", completedPending);
+      }
+      return { session: completed, creditedRc, totalCreditedRc };
+    },
+  );
 }
 
 /** Backwards-compatible session-only result; UI actions use the credit result. */
-export async function completeSession(
-  db: RunoDatabase, sessionId: string, now: number,
-): Promise<Session> {
+export async function completeSession(db: RunoDatabase, sessionId: string, now: number): Promise<Session> {
   return (await completeSessionWithCredit(db, sessionId, now)).session;
 }
 
 /** Resolves the occurrence as not applicable and abandons its open session. */
 export async function markOccurrenceNotApplicable(
-  db: RunoDatabase, sessionId: string, now: number,
+  db: RunoDatabase,
+  sessionId: string,
+  now: number,
 ): Promise<Session> {
   assertId(sessionId);
   assertTimestamp(now);
@@ -995,9 +1125,13 @@ export async function markOccurrenceNotApplicable(
 
     const elapsedSec = elapsedSecondsFor(session, now);
     await appendEvent(db, {
-      actionId: `not-applicable:${sessionId}`, type: "not_applicable", at: now,
-      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
-      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      actionId: `not-applicable:${sessionId}`,
+      type: "not_applicable",
+      at: now,
+      taskId: session.taskSnapshot.id,
+      occurrenceId: session.occurrenceId,
+      sessionId,
+      ...(session.handId ? { handId: session.handId } : {}),
       context: { elapsedSec },
     });
     await db.occurrences.put({
@@ -1017,7 +1151,11 @@ export async function markOccurrenceNotApplicable(
  * The caller supplies a stable actionId so a double tap cannot open two segments.
  */
 export async function retrySession(
-  db: RunoDatabase, sessionId: string, actionId: string, now: number, extensionMin = 5,
+  db: RunoDatabase,
+  sessionId: string,
+  actionId: string,
+  now: number,
+  extensionMin = 5,
 ): Promise<Session> {
   assertId(sessionId);
   assertId(actionId);
@@ -1037,9 +1175,13 @@ export async function retrySession(
     }
 
     const { inserted } = await appendEvent(db, {
-      actionId: `retry:${actionId}`, type: "resumed", at: now,
-      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
-      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      actionId: `retry:${actionId}`,
+      type: "resumed",
+      at: now,
+      taskId: session.taskSnapshot.id,
+      occurrenceId: session.occurrenceId,
+      sessionId,
+      ...(session.handId ? { handId: session.handId } : {}),
       context: { extensionMin, remainingSec: extensionSec },
     });
     if (!inserted) return session;
@@ -1057,10 +1199,12 @@ export async function retrySession(
   });
 }
 
-
 /** Freezes the current segment. Paused time never counts toward the task. */
 export async function pauseSession(
-  db: RunoDatabase, sessionId: string, now: number, reason?: "baby" | "life_real",
+  db: RunoDatabase,
+  sessionId: string,
+  now: number,
+  reason?: "baby" | "life_real",
 ): Promise<Session> {
   assertId(sessionId);
   assertTimestamp(now);
@@ -1080,25 +1224,29 @@ export async function pauseSession(
     const segmentSec = session.remainingSecAtStart - remainingSec;
 
     await appendEvent(db, {
-      actionId: `pause:${sessionId}:${session.startedAt}`, type: "paused", at: now,
-      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
-      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      actionId: `pause:${sessionId}:${session.startedAt}`,
+      type: "paused",
+      at: now,
+      taskId: session.taskSnapshot.id,
+      occurrenceId: session.occurrenceId,
+      sessionId,
+      ...(session.handId ? { handId: session.handId } : {}),
       context: { remainingSec, reason: reason ?? null },
     });
     if (reason) {
       await appendEvent(db, {
-        actionId: `life-real:${sessionId}:${session.startedAt}`, type: "life_real", at: now,
-        taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
-        sessionId, ...(session.handId ? { handId: session.handId } : {}),
+        actionId: `life-real:${sessionId}:${session.startedAt}`,
+        type: "life_real",
+        at: now,
+        taskId: session.taskSnapshot.id,
+        occurrenceId: session.occurrenceId,
+        sessionId,
+        ...(session.handId ? { handId: session.handId } : {}),
         context: { reason },
       });
     }
 
-    const {
-      runningSlot: _runningSlot,
-      startedAt: _startedAt,
-      ...rest
-    } = session;
+    const { runningSlot: _runningSlot, startedAt: _startedAt, ...rest } = session;
     void _runningSlot;
     void _startedAt;
     const paused: Session = {
@@ -1115,9 +1263,7 @@ export async function pauseSession(
 }
 
 /** Reopens the frozen segment exactly where it stopped. */
-export async function resumeSession(
-  db: RunoDatabase, sessionId: string, now: number,
-): Promise<Session> {
+export async function resumeSession(db: RunoDatabase, sessionId: string, now: number): Promise<Session> {
   assertId(sessionId);
   assertTimestamp(now);
   return db.transaction("rw", db.sessions, db.events, async () => {
@@ -1129,9 +1275,13 @@ export async function resumeSession(
     }
 
     await appendEvent(db, {
-      actionId: `resume:${sessionId}:${session.updatedAt}`, type: "resumed", at: now,
-      taskId: session.taskSnapshot.id, occurrenceId: session.occurrenceId,
-      sessionId, ...(session.handId ? { handId: session.handId } : {}),
+      actionId: `resume:${sessionId}:${session.updatedAt}`,
+      type: "resumed",
+      at: now,
+      taskId: session.taskSnapshot.id,
+      occurrenceId: session.occurrenceId,
+      sessionId,
+      ...(session.handId ? { handId: session.handId } : {}),
       context: { remainingSec: session.remainingSecAtStart },
     });
 
@@ -1146,7 +1296,6 @@ export async function resumeSession(
     return resumed;
   });
 }
-
 
 export interface FranjaTaskView {
   occurrenceId: string;
@@ -1175,7 +1324,10 @@ function pendingCount(occurrences: readonly Occurrence[], date: LocalDate): numb
 }
 
 function taskViewsForHand(
-  hand: Hand, tasks: readonly Task[], occurrences: readonly Occurrence[], now: number,
+  hand: Hand,
+  tasks: readonly Task[],
+  occurrences: readonly Occurrence[],
+  now: number,
 ): FranjaTaskView[] {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const occurrenceById = new Map(occurrences.map((occurrence) => [occurrence.id, occurrence]));
@@ -1186,33 +1338,41 @@ function taskViewsForHand(
     if (!liveTask || liveTask.archivedAt !== null) return [];
     // A pending proposal follows the current template; a started agreement keeps
     // its frozen snapshot, but archiving still hides the task.
-    if (!occurrence.agreement &&
+    if (
+      !occurrence.agreement &&
       !availabilityOf(liveTask, occurrence, now).eligible &&
-      !isMissedOccurrence(liveTask, occurrence, now)) return [];
+      !isMissedOccurrence(liveTask, occurrence, now)
+    )
+      return [];
     const task = occurrence.agreement?.task ?? liveTask;
-    return [{
-      occurrenceId,
-      task,
-      shortStepCompleted: occurrence.shortStepCompleted,
-      remainingMin: Math.max(
-        1,
-        Math.ceil((task.durationMin * 60 - occurrence.timerElapsedSec) / 60),
-      ),
-      creditedRc: occurrence.creditedRc,
-      remainingRc: Math.max(0, task.durationMin - occurrence.creditedRc),
-      block: blockForTime(taskTime(task)),
-      isMissed: isMissedOccurrence(liveTask, occurrence, now),
-    }];
+    return [
+      {
+        occurrenceId,
+        task,
+        shortStepCompleted: occurrence.shortStepCompleted,
+        remainingMin: Math.max(1, Math.ceil((task.durationMin * 60 - occurrence.timerElapsedSec) / 60)),
+        creditedRc: occurrence.creditedRc,
+        remainingRc: Math.max(0, task.durationMin - occurrence.creditedRc),
+        block: blockForTime(taskTime(task)),
+        isMissed: isMissedOccurrence(liveTask, occurrence, now),
+      },
+    ];
   });
 }
 
 async function closeHand(
-  db: RunoDatabase, hand: Hand, now: number, reason: "resolved" | "end_day",
+  db: RunoDatabase,
+  hand: Hand,
+  now: number,
+  reason: "resolved" | "end_day",
 ): Promise<void> {
   if (hand.status === "closed") return;
   await db.hands.update(hand.id, { status: "closed", closedAt: now });
   await appendEvent(db, {
-    actionId: `hand-closed:${hand.id}`, type: "hand_closed", at: now, handId: hand.id,
+    actionId: `hand-closed:${hand.id}`,
+    type: "hand_closed",
+    at: now,
+    handId: hand.id,
     context: { reason },
   });
 }
@@ -1243,22 +1403,29 @@ export async function ensureFranja(
     const swapsRemaining = Math.max(0, 3 - (day?.swapsUsed ?? 0));
     if (day?.closedAt != null) {
       return {
-        hand: null, tasks: [], pendingToday, remainingEligible: 0,
-        swapsRemaining, canSwap: false,
+        hand: null,
+        tasks: [],
+        pendingToday,
+        remainingEligible: 0,
+        swapsRemaining,
+        canSwap: false,
       };
     }
 
     let hand = await db.hands
-      .where("date").equals(date)
+      .where("date")
+      .equals(date)
       .filter((candidate) => candidate.status === "open")
       .first();
 
     if (hand) {
-      const currentOccurrences = (await db.occurrences.bulkGet(hand.occurrenceIds))
-        .filter((occurrence): occurrence is Occurrence => occurrence !== undefined);
+      const currentOccurrences = (await db.occurrences.bulkGet(hand.occurrenceIds)).filter(
+        (occurrence): occurrence is Occurrence => occurrence !== undefined,
+      );
       const currentTaskIds = [...new Set(currentOccurrences.map((occurrence) => occurrence.taskId))];
-      const currentTasks = (await db.tasks.bulkGet(currentTaskIds))
-        .filter((task): task is Task => task !== undefined);
+      const currentTasks = (await db.tasks.bulkGet(currentTaskIds)).filter(
+        (task): task is Task => task !== undefined,
+      );
       let views = taskViewsForHand(hand, currentTasks, currentOccurrences, now);
       if (views.length === 0) {
         await closeHand(db, hand, now, "resolved");
@@ -1275,10 +1442,15 @@ export async function ensureFranja(
           if (!occurrence || TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) return false;
           const task = taskById.get(occurrence.taskId);
           if (!task || task.archivedAt !== null) return false;
-          return occurrence.shortStepCompleted || occurrence.agreement !== null || occurrence.timerElapsedSec > 0;
+          return (
+            occurrence.shortStepCompleted || occurrence.agreement !== null || occurrence.timerElapsedSec > 0
+          );
         });
         const ranked = proposeHand({
-          tasks, occurrences, now, seed,
+          tasks,
+          occurrences,
+          now,
+          seed,
           excludeOccurrenceIds: hand.deferredOccurrenceIds,
         });
         const occurrenceIds: string[] = [];
@@ -1293,7 +1465,8 @@ export async function ensureFranja(
         }
         const nextIds = occurrenceIds.slice(0, 3);
         const previousIds = hand.occurrenceIds;
-        const unchanged = nextIds.length === previousIds.length &&
+        const unchanged =
+          nextIds.length === previousIds.length &&
           nextIds.every((occurrenceId, index) => occurrenceId === previousIds[index]);
         if (!unchanged) {
           await db.hands.update(hand.id, { occurrenceIds: nextIds });
@@ -1306,16 +1479,28 @@ export async function ensureFranja(
         } else {
           const excluded = new Set(hand.occurrenceIds);
           const remainingEligible = eligibleCandidates({
-            tasks, occurrences, now, seed,
+            tasks,
+            occurrences,
+            now,
+            seed,
             excludeOccurrenceIds: [...excluded],
           }).length;
-          const canSwap = swapsRemaining > 0 && eligibleCandidates({
-            tasks, occurrences, now, seed,
-            excludeOccurrenceIds: [...excluded, ...hand.deferredOccurrenceIds],
-          }).length > 0;
+          const canSwap =
+            swapsRemaining > 0 &&
+            eligibleCandidates({
+              tasks,
+              occurrences,
+              now,
+              seed,
+              excludeOccurrenceIds: [...excluded, ...hand.deferredOccurrenceIds],
+            }).length > 0;
           return {
-            hand, tasks: views, pendingToday, remainingEligible,
-            swapsRemaining, canSwap,
+            hand,
+            tasks: views,
+            pendingToday,
+            remainingEligible,
+            swapsRemaining,
+            canSwap,
           };
         }
       }
@@ -1324,8 +1509,12 @@ export async function ensureFranja(
     const candidates = proposeHand({ tasks, occurrences, now, seed });
     if (candidates.length === 0) {
       return {
-        hand: null, tasks: [], pendingToday, remainingEligible: 0,
-        swapsRemaining, canSwap: false,
+        hand: null,
+        tasks: [],
+        pendingToday,
+        remainingEligible: 0,
+        swapsRemaining,
+        canSwap: false,
       };
     }
 
@@ -1345,7 +1534,10 @@ export async function ensureFranja(
 
     const excluded = new Set(created.occurrenceIds);
     const remainingEligible = eligibleCandidates({
-      tasks, occurrences, now, seed,
+      tasks,
+      occurrences,
+      now,
+      seed,
       excludeOccurrenceIds: [...excluded],
     }).length;
     return {
@@ -1360,9 +1552,7 @@ export async function ensureFranja(
 }
 
 /** Explicit end-of-day exit: preserves elapsed work, pays nothing pending, closes the day. */
-export async function closeDay(
-  db: RunoDatabase, date: LocalDate, now: number,
-): Promise<Day> {
+export async function closeDay(db: RunoDatabase, date: LocalDate, now: number): Promise<Day> {
   parseLocalDate(date);
   assertTimestamp(now);
   await ensureDay(db, date, now);
@@ -1395,7 +1585,8 @@ export async function closeDay(
     }
 
     const hand = await db.hands
-      .where("date").equals(date)
+      .where("date")
+      .equals(date)
       .filter((candidate) => candidate.status === "open")
       .first();
     if (hand) {
@@ -1404,7 +1595,9 @@ export async function closeDay(
     }
 
     await appendEvent(db, {
-      actionId: `end-day:${date}`, type: "hand_closed", at: now,
+      actionId: `end-day:${date}`,
+      type: "hand_closed",
+      at: now,
       ...(hand ? { handId: hand.id } : {}),
       ...(active ? { sessionId: active.id, taskId: active.taskSnapshot.id } : {}),
       context,
@@ -1416,13 +1609,7 @@ export async function closeDay(
   });
 }
 
-
-export type SwapReason =
-  | "closed"
-  | "no_swaps"
-  | "no_alternative"
-  | "not_in_hand"
-  | "active_session";
+export type SwapReason = "closed" | "no_swaps" | "no_alternative" | "not_in_hand" | "active_session";
 
 export type SwapResult =
   | { swapped: true; hand: Hand; day: Day; replacementOccurrenceId: string }
@@ -1470,21 +1657,24 @@ export async function swapFranjaTask(
     const original = occurrenceById.get(occurrenceId);
     if (!original) return { swapped: false, reason: "not_in_hand" };
 
-    const excluded = new Set([
-      ...hand.occurrenceIds,
-      ...hand.deferredOccurrenceIds,
-      occurrenceId,
-    ]);
+    const excluded = new Set([...hand.occurrenceIds, ...hand.deferredOccurrenceIds, occurrenceId]);
     const alternative = eligibleCandidates({
-      tasks, occurrences, now, seed,
+      tasks,
+      occurrences,
+      now,
+      seed,
       excludeOccurrenceIds: [...excluded],
     }).find((candidate) => occurrenceById.has(candidate.occurrenceId));
     if (!alternative) return { swapped: false, reason: "no_alternative" };
 
     const nextSwaps = Math.min(3, swapsUsed + 1) as Day["swapsUsed"];
     const { inserted } = await appendEvent(db, {
-      actionId: `swap:${hand.id}:${occurrenceId}`, type: "swapped", at: now,
-      taskId: original.taskId, occurrenceId, handId: hand.id,
+      actionId: `swap:${hand.id}:${occurrenceId}`,
+      type: "swapped",
+      at: now,
+      taskId: original.taskId,
+      occurrenceId,
+      handId: hand.id,
       context: {
         fromOccurrenceId: occurrenceId,
         toOccurrenceId: alternative.occurrenceId,

@@ -10,12 +10,31 @@ vi.mock("./server-repository", () => ({ readAccountData: mocks.read, mutateAccou
 import { GET, POST } from "@/app/api/account/data/route";
 
 const origin = "https://avo.example.test";
-const mutation = () => ({ operationId: crypto.randomUUID(), kind: "pending", id: "p1", baseRevision: 0,
-  value: { id: "p1", title: "Buro", durationMin: 25, createdAt: NOW, updatedAt: NOW, completedAt: null, deletedAt: null } });
+const mutation = () => ({
+  operationId: crypto.randomUUID(),
+  kind: "pending",
+  id: "p1",
+  baseRevision: 0,
+  value: {
+    id: "p1",
+    title: "Buro",
+    durationMin: 25,
+    createdAt: NOW,
+    updatedAt: NOW,
+    completedAt: null,
+    deletedAt: null,
+  },
+});
 function req(method = "GET", body?: unknown, headers: Record<string, string> = {}) {
-  return new Request(`${origin}/api/account/data`, { method,
-    headers: { "x-avo-account": "auth-A", ...(method === "POST" ? { origin, "content-type": "application/json" } : {}), ...headers },
-    ...(body !== undefined ? { body: typeof body === "string" ? body : JSON.stringify(body) } : {}) });
+  return new Request(`${origin}/api/account/data`, {
+    method,
+    headers: {
+      "x-avo-account": "auth-A",
+      ...(method === "POST" ? { origin, "content-type": "application/json" } : {}),
+      ...headers,
+    },
+    ...(body !== undefined ? { body: typeof body === "string" ? body : JSON.stringify(body) } : {}),
+  });
 }
 beforeEach(() => {
   vi.clearAllMocks();
@@ -32,24 +51,41 @@ describe("private account API — mocked session/DB, no external services", () =
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("vary")).toContain("Cookie");
-    expect(mocks.session).toHaveBeenCalledWith(expect.objectContaining({ query: { disableCookieCache: true } }));
+    expect(mocks.session).toHaveBeenCalledWith(
+      expect.objectContaining({ query: { disableCookieCache: true } }),
+    );
     expect(mocks.read).toHaveBeenCalledWith({}, "auth-A");
   });
   it("uses a private ETag and returns 304 only after authenticating the same account", async () => {
-    const first = await GET(req()); const etag = first.headers.get("etag");
+    const first = await GET(req());
+    const etag = first.headers.get("etag");
     expect(etag).toBeTruthy();
     const again = await GET(req("GET", undefined, { "if-none-match": etag! }));
-    expect(again.status).toBe(304); expect(await again.text()).toBe("");
+    expect(again.status).toBe(304);
+    expect(await again.text()).toBe("");
     expect(again.headers.get("cache-control")).toBe("private, no-store");
     mocks.session.mockResolvedValue(null);
     expect((await GET(req("GET", undefined, { "if-none-match": etag! }))).status).toBe(401);
   });
   it("allows exact configured LAN origins only in development", async () => {
-    vi.stubEnv("NODE_ENV", "development"); vi.stubEnv("AVO_DEV_AUTH_ORIGINS", "http://192.168.68.109:3000");
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("AVO_DEV_AUTH_ORIGINS", "http://192.168.68.109:3000");
     const original = mutation();
-    expect((await POST(req("POST", { version: 1, mutations: [original] }, { origin: "http://192.168.68.109:3000" }))).status).toBe(200);
+    expect(
+      (
+        await POST(
+          req("POST", { version: 1, mutations: [original] }, { origin: "http://192.168.68.109:3000" }),
+        )
+      ).status,
+    ).toBe(200);
     vi.stubEnv("NODE_ENV", "production");
-    expect((await POST(req("POST", { version: 1, mutations: [original] }, { origin: "http://192.168.68.109:3000" }))).status).toBe(403);
+    expect(
+      (
+        await POST(
+          req("POST", { version: 1, mutations: [original] }, { origin: "http://192.168.68.109:3000" }),
+        )
+      ).status,
+    ).toBe(403);
   });
   it("rejects a missing session before accessing domain data", async () => {
     mocks.session.mockResolvedValue(null);
@@ -65,32 +101,51 @@ describe("private account API — mocked session/DB, no external services", () =
     expect(await response.json()).toEqual({ error: "account_changed" });
     expect(mocks.mutate).not.toHaveBeenCalled();
   });
-  it.each(["https://foreign.example.test", "null", ""])("rejects an invalid mutation Origin %s", async value => {
-    expect((await POST(req("POST", { version: 1, mutations: [mutation()] }, { origin: value }))).status).toBe(403);
-    expect(mocks.session).not.toHaveBeenCalled();
-  });
+  it.each(["https://foreign.example.test", "null", ""])(
+    "rejects an invalid mutation Origin %s",
+    async (value) => {
+      expect(
+        (await POST(req("POST", { version: 1, mutations: [mutation()] }, { origin: value }))).status,
+      ).toBe(403);
+      expect(mocks.session).not.toHaveBeenCalled();
+    },
+  );
   it("rejects a cross-site fetch and non-JSON requests", async () => {
     expect((await POST(req("POST", {}, { "sec-fetch-site": "cross-site" }))).status).toBe(403);
     expect((await POST(req("POST", {}, { "content-type": "text/plain" }))).status).toBe(415);
     expect(mocks.mutate).not.toHaveBeenCalled();
   });
   it("does not accept a claimed owner from the body", async () => {
-    expect((await POST(req("POST", { version: 1, userId: "auth-B", mutations: [mutation()] }))).status).toBe(400);
+    expect((await POST(req("POST", { version: 1, userId: "auth-B", mutations: [mutation()] }))).status).toBe(
+      400,
+    );
     expect(mocks.mutate).not.toHaveBeenCalled();
   });
   it("accepts only durable entities, never timer/events/runtime fields", async () => {
     for (const kind of ["session", "event", "ledger", "occurrence", "day", "hand", "metadata"]) {
-      expect((await POST(req("POST", { version: 1, mutations: [{ ...mutation(), kind }] }))).status).toBe(400);
+      expect((await POST(req("POST", { version: 1, mutations: [{ ...mutation(), kind }] }))).status).toBe(
+        400,
+      );
     }
     const value = mutation();
-    expect((await POST(req("POST", { version: 1, mutations: [{ ...value, value: { ...value.value, elapsedSec: 60 } }] }))).status).toBe(400);
+    expect(
+      (
+        await POST(
+          req("POST", { version: 1, mutations: [{ ...value, value: { ...value.value, elapsedSec: 60 } }] }),
+        )
+      ).status,
+    ).toBe(400);
     expect(mocks.mutate).not.toHaveBeenCalled();
   });
   it("rejects invalid revisions, overflow, duplicate IDs and oversized batches", async () => {
     const original = mutation();
-    for (const mutations of [[], [original, { ...original, operationId: crypto.randomUUID() }],
-      [{ ...original, baseRevision: -1 }], [{ ...original, value: { ...original.value, durationMin: 2 ** 31 } }],
-      Array.from({ length: 41 }, (_, i) => ({ ...mutation(), id: `p${i}` }))]) {
+    for (const mutations of [
+      [],
+      [original, { ...original, operationId: crypto.randomUUID() }],
+      [{ ...original, baseRevision: -1 }],
+      [{ ...original, value: { ...original.value, durationMin: 2 ** 31 } }],
+      Array.from({ length: 41 }, (_, i) => ({ ...mutation(), id: `p${i}` })),
+    ]) {
       expect((await POST(req("POST", { version: 1, mutations }))).status).toBe(400);
     }
     expect(mocks.mutate).not.toHaveBeenCalled();

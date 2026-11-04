@@ -38,18 +38,27 @@ describe("selección visual de las tarjetas de Hoy", () => {
   });
 
   it("conserva la selección por ID aunque cambie el orden de los datos", () => {
-    expect(resolveDeckSelection(["c", "b", "a"], {
-      primaryId: "b", secondaryId: "a",
-    })).toEqual({ primaryId: "b", secondaryId: "a" });
+    expect(
+      resolveDeckSelection(["c", "b", "a"], {
+        primaryId: "b",
+        secondaryId: "a",
+      }),
+    ).toEqual({ primaryId: "b", secondaryId: "a" });
   });
 
   it("resuelve tarjetas retiradas sin repetir la principal como alternativa", () => {
-    expect(resolveDeckSelection(["b", "c"], {
-      primaryId: "a", secondaryId: "b",
-    })).toEqual({ primaryId: "b", secondaryId: "c" });
-    expect(resolveDeckSelection(["a", "b"], {
-      primaryId: "a", secondaryId: "a",
-    })).toEqual({ primaryId: "a", secondaryId: "b" });
+    expect(
+      resolveDeckSelection(["b", "c"], {
+        primaryId: "a",
+        secondaryId: "b",
+      }),
+    ).toEqual({ primaryId: "b", secondaryId: "c" });
+    expect(
+      resolveDeckSelection(["a", "b"], {
+        primaryId: "a",
+        secondaryId: "a",
+      }),
+    ).toEqual({ primaryId: "a", secondaryId: "b" });
   });
 });
 

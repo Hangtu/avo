@@ -46,7 +46,12 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-lexend), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family:
+    var(--font-lexend),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
   overflow-wrap: break-word;
 }
 
@@ -105,7 +110,14 @@ select {
   --card-shadow: 0 22px 55px -35px rgba(35, 65, 95, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.7);
   --radius: 32px;
   --card-radius: 24px;
-  --timer-bg: radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.35) 34%, transparent 68%), linear-gradient(135deg, rgba(197, 240, 241, 0.8), rgba(217, 207, 255, 0.72));
+  --timer-bg:
+    radial-gradient(
+      circle at 32% 22%,
+      rgba(255, 255, 255, 0.95),
+      rgba(255, 255, 255, 0.35) 34%,
+      transparent 68%
+    ),
+    linear-gradient(135deg, rgba(197, 240, 241, 0.8), rgba(217, 207, 255, 0.72));
   --timer-border: rgba(255, 255, 255, 0.85);
   --timer-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 30px 80px -35px rgba(58, 80, 150, 0.55);
   --timer-radius: 50%;
@@ -139,7 +151,14 @@ select {
   --surface-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --card: rgba(255, 255, 255, 0.05);
   --card-shadow: 0 22px 55px -35px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --timer-bg: radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.04) 36%, transparent 70%), linear-gradient(135deg, rgba(34, 70, 78, 0.9), rgba(47, 42, 80, 0.86));
+  --timer-bg:
+    radial-gradient(
+      circle at 32% 22%,
+      rgba(255, 255, 255, 0.2),
+      rgba(255, 255, 255, 0.04) 36%,
+      transparent 70%
+    ),
+    linear-gradient(135deg, rgba(34, 70, 78, 0.9), rgba(47, 42, 80, 0.86));
   --timer-border: rgba(255, 255, 255, 0.16);
   --timer-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 30px 80px -35px rgba(0, 0, 0, 0.85);
   --progress-track: rgba(255, 255, 255, 0.1);
@@ -149,8 +168,7 @@ select {
   background:
     radial-gradient(circle at 10% 0%, #cfeff0 0, transparent 34%),
     radial-gradient(circle at 100% 10%, #e5d6ff 0, transparent 36%),
-    radial-gradient(circle at 50% 100%, #f8e5d8 0, transparent 40%),
-    #eff6f5;
+    radial-gradient(circle at 50% 100%, #f8e5d8 0, transparent 40%), #eff6f5;
   background-attachment: fixed;
 }
 
@@ -158,8 +176,7 @@ select {
   background:
     radial-gradient(circle at 10% 0%, #16343b 0, transparent 36%),
     radial-gradient(circle at 100% 10%, #2c2445 0, transparent 38%),
-    radial-gradient(circle at 50% 100%, #3a2820 0, transparent 40%),
-    #0a1519;
+    radial-gradient(circle at 50% 100%, #3a2820 0, transparent 40%), #0a1519;
 }
 
 :root[data-ui="liquid"] body::before {
@@ -242,7 +259,10 @@ select {
 :root[data-ui="liquid"] button {
   border-radius: 999px;
   text-decoration: none;
-  transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 :root[data-ui="liquid"] button.bg-foreground {
@@ -267,7 +287,6 @@ select {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-
 
 :root[data-ui="liquid"] select,
 :root[data-ui="liquid"] input:not([type="checkbox"]) {
@@ -326,9 +345,6 @@ select {
   white-space: nowrap;
 }
 
-
-
-
 :root[data-ui="liquid"] {
   --surface-solid: #f4fbf9;
 }
@@ -364,7 +380,6 @@ select {
     -webkit-backdrop-filter: none;
   }
 }
-
 
 /* Small contextual help: tooltip on hover/focus, pinned on tap. */
 .help-tip-button {
@@ -420,7 +435,9 @@ select {
   text-transform: none;
   white-space: normal;
   transform-origin: var(--transform-origin);
-  transition: opacity 140ms ease, transform 140ms ease;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
 }
 
 .help-tip-panel[data-starting-style],
@@ -450,7 +467,9 @@ select {
   border: 1px solid var(--surface-border);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.84);
-  box-shadow: 0 24px 60px -28px rgba(35, 65, 95, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 24px 60px -28px rgba(35, 65, 95, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
@@ -458,7 +477,9 @@ select {
 :root[data-ui="liquid"][data-theme="dark"] .runo-dock {
   background: rgba(22, 37, 42, 0.9);
   border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 24px 60px -28px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 :root[data-ui="liquid"] .runo-dock button {
@@ -687,7 +708,9 @@ body > * {
   background: var(--surface-solid, var(--surface-2));
   box-shadow: 0 18px 40px -24px rgba(23, 37, 42, 0.45);
   transform-origin: var(--transform-origin);
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
 }
 
 .first-menu[data-starting-style],
@@ -741,7 +764,6 @@ body > * {
     font-size: 2rem;
   }
 }
-
 
 /* Task editor: compact rows, not nested cards. */
 :root[data-ui="liquid"] .task-list > li {
@@ -1047,7 +1069,9 @@ body > * {
 
 .peek-layout button,
 :root[data-ui="liquid"] .peek-layout button {
-  transition: background-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .peek-back,
@@ -1294,7 +1318,9 @@ body > * {
   background: var(--surface-solid, var(--surface-2));
   box-shadow: 0 18px 40px -24px rgba(23, 37, 42, 0.45);
   transform-origin: var(--transform-origin);
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
 }
 
 .select-popup[data-starting-style],
@@ -1377,7 +1403,9 @@ body > * {
   box-shadow: 0 20px 45px -28px rgba(23, 37, 42, 0.5);
   color: var(--foreground);
   pointer-events: auto;
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
 }
 
 .runo-toast[data-starting-style],
@@ -1387,8 +1415,7 @@ body > * {
 }
 
 .runo-toast[data-swiping] {
-  transform: translateX(var(--toast-swipe-movement-x))
-    translateY(var(--toast-swipe-movement-y));
+  transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--toast-swipe-movement-y));
   transition: none;
 }
 
@@ -1612,7 +1639,9 @@ body > * {
   border-radius: 999px;
   background: var(--surface-2);
   cursor: pointer;
-  transition: background-color 160ms ease, border-color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
 }
 
 .runo-switch[data-checked] {
@@ -1625,7 +1654,9 @@ body > * {
   height: 1.3rem;
   border-radius: 50%;
   background: var(--foreground);
-  transition: translate 160ms ease, background-color 160ms ease;
+  transition:
+    translate 160ms ease,
+    background-color 160ms ease;
 }
 
 .runo-switch[data-checked] .runo-switch-thumb {
@@ -1706,7 +1737,9 @@ body > * {
   box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.65);
   color: var(--foreground);
   transform: translate(-50%, -50%);
-  transition: opacity 150ms ease, transform 150ms ease;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
 }
 
 .runo-dialog[data-starting-style],
@@ -1959,5 +1992,3 @@ body > * {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-

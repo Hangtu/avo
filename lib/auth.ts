@@ -7,31 +7,24 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { authOrigins } from "@/lib/auth-origins";
-
-function configuredValue(value: string | undefined): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
+import { env } from "@/lib/env";
 
 function socialProviders() {
-  const googleId = process.env.GOOGLE_CLIENT_ID;
-  const googleSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const facebookId = process.env.FACEBOOK_CLIENT_ID;
-  const facebookSecret = process.env.FACEBOOK_CLIENT_SECRET;
+  const { GOOGLE_CLIENT_ID: googleId, GOOGLE_CLIENT_SECRET: googleSecret } = env;
+  const { FACEBOOK_CLIENT_ID: facebookId, FACEBOOK_CLIENT_SECRET: facebookSecret } = env;
 
   return {
-    ...(configuredValue(googleId) && configuredValue(googleSecret)
-      ? { google: { clientId: googleId, clientSecret: googleSecret } }
-      : {}),
-    ...(configuredValue(facebookId) && configuredValue(facebookSecret)
+    ...(googleId && googleSecret ? { google: { clientId: googleId, clientSecret: googleSecret } } : {}),
+    ...(facebookId && facebookSecret
       ? { facebook: { clientId: facebookId, clientSecret: facebookSecret } }
       : {}),
   };
 }
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  baseURL: env.BETTER_AUTH_URL ?? "http://localhost:3000",
   ...(authOrigins().length > 1 ? { trustedOrigins: authOrigins().slice(1) } : {}),
-  secret: process.env.BETTER_AUTH_SECRET,
+  secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -62,9 +55,8 @@ export const auth = betterAuth({
         // verified, so Google can link into a Facebook-created user. This does
         // not mean the mailbox was verified by Avo; it records that a provider
         // authenticated the person and gave that email (MVP policy).
-        before: async (user) => (user.email && !user.emailVerified
-          ? { data: { emailVerified: true } }
-          : undefined),
+        before: async (user) =>
+          user.email && !user.emailVerified ? { data: { emailVerified: true } } : undefined,
         after: async (user) => {
           await db
             .insert(schema.users)

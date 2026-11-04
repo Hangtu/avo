@@ -33,10 +33,10 @@ function fillPinkNoise(data: Float32Array): void {
     const white = Math.random() * 2 - 1;
     b0 = 0.99886 * b0 + white * 0.0555179;
     b1 = 0.99332 * b1 + white * 0.0750759;
-    b2 = 0.96900 * b2 + white * 0.1538520;
-    b3 = 0.86650 * b3 + white * 0.3104856;
-    b4 = 0.55000 * b4 + white * 0.5329522;
-    b5 = -0.7616 * b5 - white * 0.0168980;
+    b2 = 0.969 * b2 + white * 0.153852;
+    b3 = 0.8665 * b3 + white * 0.3104856;
+    b4 = 0.55 * b4 + white * 0.5329522;
+    b5 = -0.7616 * b5 - white * 0.016898;
     data[index] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
     b6 = white * 0.115926;
   }
@@ -73,8 +73,7 @@ function createRainBuffer(ctx: AudioContext, seconds = 6): AudioBuffer {
       const splash = white - previous * 0.92;
       previous = white;
       const body = Math.sin(2 * Math.PI * frequency * t) * 0.3;
-      data[(start + index) % length] +=
-        (splash * 0.75 + body) * amplitude * envelope;
+      data[(start + index) % length] += (splash * 0.75 + body) * amplitude * envelope;
     }
   }
   return buffer;
@@ -213,11 +212,16 @@ function startOcean(ctx: AudioContext): () => void {
 
 function startSound(ctx: AudioContext, sound: Settings["sound"]): () => void {
   switch (sound) {
-    case "brown": return startBrown(ctx);
-    case "pink": return startPink(ctx);
-    case "rain": return startRain(ctx);
-    case "ocean": return startOcean(ctx);
-    case "tick": return startTick(ctx);
+    case "brown":
+      return startBrown(ctx);
+    case "pink":
+      return startPink(ctx);
+    case "rain":
+      return startRain(ctx);
+    case "ocean":
+      return startOcean(ctx);
+    case "tick":
+      return startTick(ctx);
   }
 }
 
@@ -280,15 +284,19 @@ export function useSessionAudio(running: boolean) {
     };
   }, [t, revision]);
 
-  useEffect(() => () => {
-    void contextRef.current?.close().catch(() => {});
-    contextRef.current = null;
-  }, []);
+  useEffect(
+    () => () => {
+      void contextRef.current?.close().catch(() => {});
+      contextRef.current = null;
+    },
+    [],
+  );
 
   const ensureContext = useCallback((): AudioContext | null => {
     if (contextRef.current) return contextRef.current;
     try {
-      const Ctor = window.AudioContext ??
+      const Ctor =
+        window.AudioContext ??
         (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Ctor) return null;
       contextRef.current = new Ctor();
@@ -300,11 +308,12 @@ export function useSessionAudio(running: boolean) {
   }, []);
 
   /** Patch only the fields this screen owns; never resend a stale snapshot. */
-  const persistAudio = useCallback(async (
-    patch: { audioEnabled?: boolean; sound?: Settings["sound"] },
-  ): Promise<Settings> => {
-    return writePreferences(currentDatabaseName(), patch);
-  }, []);
+  const persistAudio = useCallback(
+    async (patch: { audioEnabled?: boolean; sound?: Settings["sound"] }): Promise<Settings> => {
+      return writePreferences(currentDatabaseName(), patch);
+    },
+    [],
+  );
 
   const toggle = useCallback(async () => {
     if (!settings) return;
@@ -328,17 +337,20 @@ export function useSessionAudio(running: boolean) {
     }
   }, [ensureContext, persistAudio, settings, t]);
 
-  const choose = useCallback(async (sound: Settings["sound"]) => {
-    if (!settings || settings.sound === sound) return;
-    setError(null);
-    try {
-      const next = await persistAudio({ sound });
-      setSettings(next);
-    } catch (cause) {
-      console.error("No se pudo guardar el sonido", cause);
-      setError(t("soundSave"));
-    }
-  }, [persistAudio, settings, t]);
+  const choose = useCallback(
+    async (sound: Settings["sound"]) => {
+      if (!settings || settings.sound === sound) return;
+      setError(null);
+      try {
+        const next = await persistAudio({ sound });
+        setSettings(next);
+      } catch (cause) {
+        console.error("No se pudo guardar el sonido", cause);
+        setError(t("soundSave"));
+      }
+    },
+    [persistAudio, settings, t],
+  );
 
   const ringBell = useCallback(() => {
     if (!settings?.audioEnabled) return;

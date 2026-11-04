@@ -11,9 +11,7 @@ try {
 
 const databaseUrl = env.DATABASE_URL_UNPOOLED;
 if (!databaseUrl) {
-  throw new Error(
-    ".env.prod must define DATABASE_URL_UNPOOLED with a direct Neon connection string.",
-  );
+  throw new Error(".env.prod must define DATABASE_URL_UNPOOLED with a direct Neon connection string.");
 }
 
 let hostname: string;
@@ -23,9 +21,7 @@ try {
   throw new Error("DATABASE_URL_UNPOOLED in .env.prod is not a valid URL.");
 }
 if (hostname.includes("-pooler.")) {
-  throw new Error(
-    "db:migrate:prod requires a direct connection, not a pooled Neon URL.",
-  );
+  throw new Error("db:migrate:prod requires a direct connection, not a pooled Neon URL.");
 }
 
 export default defineConfig({

@@ -19,8 +19,9 @@ describe("OAuth error redirect cleanup", () => {
   });
   it("handles a provider denial and an error-only URL", () => {
     const history = { state: null, replaceState: vi.fn() };
-    expect(takeAuthCallbackError({ pathname: "/settings", search: "?error=access_denied", hash: "" }, history))
-      .toBe("access_denied");
+    expect(
+      takeAuthCallbackError({ pathname: "/settings", search: "?error=access_denied", hash: "" }, history),
+    ).toBe("access_denied");
     expect(history.replaceState).toHaveBeenCalledWith(null, "", "/settings");
   });
 });

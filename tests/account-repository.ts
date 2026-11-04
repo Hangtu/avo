@@ -65,4 +65,3 @@ export async function deleteAccountFixture(
     await tx.delete(schema.users).where(eq(schema.users.id, ownerId));
   });
 }
-

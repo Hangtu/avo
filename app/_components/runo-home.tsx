@@ -97,10 +97,7 @@ function toReviewTask(item: DayReviewItem): ReviewTask {
       shortStepTitle: task.shortStep?.title,
       shortStepMin: task.shortStep?.durationMin,
       shortStepDone: occurrence.shortStepCompleted,
-      remainingMin: Math.max(
-        1,
-        Math.ceil((task.durationMin * 60 - occurrence.timerElapsedSec) / 60),
-      ),
+      remainingMin: Math.max(1, Math.ceil((task.durationMin * 60 - occurrence.timerElapsedSec) / 60)),
       remainingRc: Math.max(0, task.durationMin - occurrence.creditedRc),
       block,
       isMissed: missed,
@@ -145,9 +142,8 @@ export function RunoHome() {
   const [pendingComposerFocus, setPendingComposerFocus] = useState(0);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState<number | null>(null);
-  const pendingLabel = pendingCount === null || pendingCount <= 0
-    ? null
-    : pendingCount > 99 ? "99+" : String(pendingCount);
+  const pendingLabel =
+    pendingCount === null || pendingCount <= 0 ? null : pendingCount > 99 ? "99+" : String(pendingCount);
   const [refreshKey, setRefreshKey] = useState(0);
   const [anchorBusy, setAnchorBusy] = useState(false);
   const [correctingId, setCorrectingId] = useState<string | null>(null);
@@ -222,22 +218,22 @@ export function RunoHome() {
             dateLabel,
             handId: franja.hand.id,
             ordinal: franja.hand.ordinal,
-            tasks: franja.tasks.map(({
-              task, occurrenceId, shortStepCompleted, remainingMin, remainingRc, block, isMissed,
-            }) => ({
-              id: task.id,
-              occurrenceId,
-              title: task.title,
-              durationMin: task.durationMin,
-              category: task.category,
-              shortStepTitle: task.shortStep?.title,
-              shortStepMin: task.shortStep?.durationMin,
-              shortStepDone: shortStepCompleted,
-              remainingMin,
-              remainingRc,
-              block,
-              isMissed,
-            })),
+            tasks: franja.tasks.map(
+              ({ task, occurrenceId, shortStepCompleted, remainingMin, remainingRc, block, isMissed }) => ({
+                id: task.id,
+                occurrenceId,
+                title: task.title,
+                durationMin: task.durationMin,
+                category: task.category,
+                shortStepTitle: task.shortStep?.title,
+                shortStepMin: task.shortStep?.durationMin,
+                shortStepDone: shortStepCompleted,
+                remainingMin,
+                remainingRc,
+                block,
+                isMissed,
+              }),
+            ),
             pendingToday: franja.pendingToday,
             remainingEligible: franja.remainingEligible,
             swapsRemaining: franja.swapsRemaining,
@@ -301,10 +297,13 @@ export function RunoHome() {
       const next = new Date(now);
       next.setMinutes(0, 0, 0);
       next.setHours(next.getHours() + 1);
-      timer = window.setTimeout(() => {
-        autoRefresh();
-        scheduleNextHour();
-      }, Math.max(1000, next.getTime() - now + 250));
+      timer = window.setTimeout(
+        () => {
+          autoRefresh();
+          scheduleNextHour();
+        },
+        Math.max(1000, next.getTime() - now + 250),
+      );
     };
 
     const refreshWhenVisible = () => {
@@ -322,83 +321,95 @@ export function RunoHome() {
     };
   }, [autoRefresh, autoRefreshEnabled]);
 
-  const finishSession = useCallback((offerBreak = false, message?: string) => {
-    const fromPending = view.kind === "session" && view.session.pendingId !== undefined;
-    setQuickFormOpen(false);
-    setShowBreak(offerBreak);
-    if (fromPending) {
-      setShowPending(true);
-      setPendingMessage(message ?? (offerBreak ? t("common.done") : t("common.ready")));
-    } else {
-      setShowPending(false);
-    }
-    refreshView(message ?? (offerBreak ? t("common.done") : t("common.ready")));
-  }, [refreshView, view, t]);
-
-  const openAnchor = useCallback((task: Task, occurrence: Occurrence) => {
-    setShowBreak(false);
-    setShowPending(false);
-    setQuickFormOpen(false);
-    setNotice(null);
-    setView({
-      kind: "anchor",
-      dateLabel: formatDate(Date.now(), intlLocales[locale]),
-      task,
-      occurrence,
-    });
-  }, [locale]);
-
-  const beginAnchor = useCallback(async (task: Task, occurrence: Occurrence) => {
-    if (anchorBusy) return;
-    setAnchorBusy(true);
-    setNotice(null);
-    try {
-      const db = await openDatabase();
-      try {
-        const now = Date.now();
-        const session = await startSession(db, {
-          sessionId: newSessionId(),
-          taskId: task.id,
-          date: occurrence.date,
-          variant: "full",
-          now,
-          anchor: true,
-        });
-        setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
-      } finally {
-        db.close();
+  const finishSession = useCallback(
+    (offerBreak = false, message?: string) => {
+      const fromPending = view.kind === "session" && view.session.pendingId !== undefined;
+      setQuickFormOpen(false);
+      setShowBreak(offerBreak);
+      if (fromPending) {
+        setShowPending(true);
+        setPendingMessage(message ?? (offerBreak ? t("common.done") : t("common.ready")));
+      } else {
+        setShowPending(false);
       }
-    } catch (error) {
-      console.error("No se pudo iniciar el ancla", error);
-      setNotice(t("errors.startAnchor"));
-    } finally {
-      setAnchorBusy(false);
-    }
-  }, [anchorBusy, locale, t]);
+      refreshView(message ?? (offerBreak ? t("common.done") : t("common.ready")));
+    },
+    [refreshView, view, t],
+  );
+
+  const openAnchor = useCallback(
+    (task: Task, occurrence: Occurrence) => {
+      setShowBreak(false);
+      setShowPending(false);
+      setQuickFormOpen(false);
+      setNotice(null);
+      setView({
+        kind: "anchor",
+        dateLabel: formatDate(Date.now(), intlLocales[locale]),
+        task,
+        occurrence,
+      });
+    },
+    [locale],
+  );
+
+  const beginAnchor = useCallback(
+    async (task: Task, occurrence: Occurrence) => {
+      if (anchorBusy) return;
+      setAnchorBusy(true);
+      setNotice(null);
+      try {
+        const db = await openDatabase();
+        try {
+          const now = Date.now();
+          const session = await startSession(db, {
+            sessionId: newSessionId(),
+            taskId: task.id,
+            date: occurrence.date,
+            variant: "full",
+            now,
+            anchor: true,
+          });
+          setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
+        } finally {
+          db.close();
+        }
+      } catch (error) {
+        console.error("No se pudo iniciar el ancla", error);
+        setNotice(t("errors.startAnchor"));
+      } finally {
+        setAnchorBusy(false);
+      }
+    },
+    [anchorBusy, locale, t],
+  );
 
   const leaveAnchor = useCallback(() => {
     refreshView(null);
   }, [refreshView]);
 
-  const notApplicableAnchor = useCallback(async (occurrence: Occurrence) => {
-    if (anchorBusy) return;
-    setAnchorBusy(true);
-    setNotice(null);
-    try {
-      const db = await openDatabase();
+  const notApplicableAnchor = useCallback(
+    async (occurrence: Occurrence) => {
+      if (anchorBusy) return;
+      setAnchorBusy(true);
+      setNotice(null);
       try {
-        await markOccurrenceNotApplicableDirect(db, occurrence.id, Date.now());
+        const db = await openDatabase();
+        try {
+          await markOccurrenceNotApplicableDirect(db, occurrence.id, Date.now());
+        } finally {
+          db.close();
+        }
+        refreshView(null);
+      } catch (error) {
+        console.error("No se pudo marcar el ancla", error);
+        setNotice(t("errors.markAnchor"));
       } finally {
-        db.close();
+        setAnchorBusy(false);
       }
-      refreshView(null);
-    } catch (error) {
-      console.error("No se pudo marcar el ancla", error);
-      setNotice(t("errors.markAnchor"));
-    } finally {
-      setAnchorBusy(false);
-    }
-  }, [anchorBusy, refreshView, t]);
+    },
+    [anchorBusy, refreshView, t],
+  );
 
   const anchorWatcherEnabled =
     !showEditor &&
@@ -451,7 +462,7 @@ export function RunoHome() {
     setNotice(null);
     setPendingMessage(null);
     setShowPending(true);
-    setPendingComposerFocus((value) => focusComposer ? value + 1 : 0);
+    setPendingComposerFocus((value) => (focusComposer ? value + 1 : 0));
   }, []);
 
   const closeSecondary = useCallback(() => {
@@ -502,8 +513,7 @@ export function RunoHome() {
       try {
         const now = Date.now();
         const tasks = await listTasks(db);
-        const occurrences = await db.occurrences
-          .where("date").equals(toLocalDate(now)).toArray();
+        const occurrences = await db.occurrences.where("date").equals(toLocalDate(now)).toArray();
         review = buildDayReview({ tasks, occurrences, now });
       } finally {
         db.close();
@@ -519,121 +529,127 @@ export function RunoHome() {
     }
   }, [endDay, endingDay, t]);
 
-  const correctReviewTask = useCallback(async (
-    task: FranjaTask,
-    kind: "already_done" | "not_applicable",
-  ) => {
-    if (reviewBusyId !== null) return;
-    setReviewBusyId(task.occurrenceId);
-    setNotice(null);
-    try {
-      const db = await openDatabase();
+  const correctReviewTask = useCallback(
+    async (task: FranjaTask, kind: "already_done" | "not_applicable") => {
+      if (reviewBusyId !== null) return;
+      setReviewBusyId(task.occurrenceId);
+      setNotice(null);
       try {
-        const now = Date.now();
-        if (kind === "already_done") {
-          await markOccurrenceAlreadyDoneDirect(db, task.occurrenceId, now, "review");
-        } else {
-          await markOccurrenceNotApplicableDirect(db, task.occurrenceId, now, "review");
+        const db = await openDatabase();
+        try {
+          const now = Date.now();
+          if (kind === "already_done") {
+            await markOccurrenceAlreadyDoneDirect(db, task.occurrenceId, now, "review");
+          } else {
+            await markOccurrenceNotApplicableDirect(db, task.occurrenceId, now, "review");
+          }
+        } finally {
+          db.close();
         }
+        setEndDayReview((current) =>
+          current ? withoutReviewOccurrence(current, task.occurrenceId) : current,
+        );
+        refreshView(null);
+      } catch (error) {
+        console.error("No se pudo corregir la tarea del cierre", error);
+        setEndDayReview(null);
+        setNotice(t("errors.correctTask"));
       } finally {
-        db.close();
+        setReviewBusyId(null);
       }
-      setEndDayReview((current) => current
-        ? withoutReviewOccurrence(current, task.occurrenceId)
-        : current);
-      refreshView(null);
-    } catch (error) {
-      console.error("No se pudo corregir la tarea del cierre", error);
+    },
+    [refreshView, reviewBusyId, t],
+  );
+
+  const startReviewTask = useCallback(
+    (task: FranjaTask) => {
+      const handId =
+        view.kind === "ready" && view.tasks.some((item) => item.occurrenceId === task.occurrenceId)
+          ? view.handId
+          : null;
       setEndDayReview(null);
-      setNotice(t("errors.correctTask"));
-    } finally {
-      setReviewBusyId(null);
-    }
-  }, [refreshView, reviewBusyId, t]);
+      setShowBreak(false);
+      setQuickFormOpen(false);
+      setPendingStart({ task, variant: "full", handId });
+    },
+    [view],
+  );
 
-  const startReviewTask = useCallback((task: FranjaTask) => {
-    const handId = view.kind === "ready" &&
-      view.tasks.some((item) => item.occurrenceId === task.occurrenceId)
-      ? view.handId
-      : null;
-    setEndDayReview(null);
-    setShowBreak(false);
-    setQuickFormOpen(false);
-    setPendingStart({ task, variant: "full", handId });
-  }, [view]);
-
-  const correctTask = useCallback(async (
-    task: FranjaTask,
-    kind: "already_done" | "not_applicable",
-  ) => {
-    if (correctBusy.current) return;
-    correctBusy.current = true;
-    setCorrectingId(task.occurrenceId);
-    setNotice(null);
-    try {
-      const db = await openDatabase();
+  const correctTask = useCallback(
+    async (task: FranjaTask, kind: "already_done" | "not_applicable") => {
+      if (correctBusy.current) return;
+      correctBusy.current = true;
+      setCorrectingId(task.occurrenceId);
+      setNotice(null);
       try {
-        const now = Date.now();
-        if (kind === "already_done") {
-          await markOccurrenceAlreadyDoneDirect(db, task.occurrenceId, now, "franja");
-        } else {
-          await markOccurrenceNotApplicableDirect(db, task.occurrenceId, now, "franja");
+        const db = await openDatabase();
+        try {
+          const now = Date.now();
+          if (kind === "already_done") {
+            await markOccurrenceAlreadyDoneDirect(db, task.occurrenceId, now, "franja");
+          } else {
+            await markOccurrenceNotApplicableDirect(db, task.occurrenceId, now, "franja");
+          }
+        } finally {
+          db.close();
         }
+        refreshView(kind === "already_done" ? t("home.notices.alreadyDone") : t("home.notices.notToday"));
+      } catch (error) {
+        console.error("No se pudo corregir la tarea", error);
+        setNotice(t("errors.correctTask"));
       } finally {
-        db.close();
+        correctBusy.current = false;
+        setCorrectingId(null);
       }
-      refreshView(kind === "already_done" ? t("home.notices.alreadyDone") : t("home.notices.notToday"));
-    } catch (error) {
-      console.error("No se pudo corregir la tarea", error);
-      setNotice(t("errors.correctTask"));
-    } finally {
-      correctBusy.current = false;
-      setCorrectingId(null);
-    }
-  }, [refreshView, t]);
+    },
+    [refreshView, t],
+  );
 
-  const swapTask = useCallback(async (task: FranjaTask) => {
-    if (swapBusy.current || view.kind !== "ready") return;
-    swapBusy.current = true;
-    setSwapping(true);
-    setNotice(null);
-    try {
-      const db = await openDatabase();
+  const swapTask = useCallback(
+    async (task: FranjaTask) => {
+      if (swapBusy.current || view.kind !== "ready") return;
+      swapBusy.current = true;
+      setSwapping(true);
+      setNotice(null);
       try {
-        const now = Date.now();
-        const date = toLocalDate(now);
-        const tasks = await listTasks(db);
-        const occurrences = await db.occurrences.where("date").equals(date).toArray();
-        const result = await swapFranjaTask(db, {
-          handId: view.handId,
-          occurrenceId: task.occurrenceId,
-          now,
-          seed: date,
-          tasks,
-          occurrences,
-        });
-        if (result.swapped) {
-          refreshView(t("home.notices.swapped"));
-        } else if (result.reason === "no_alternative") {
-          setNotice(t("home.notices.noAlternative"));
-        } else if (result.reason === "no_swaps") {
-          setNotice(t("home.notices.noSwaps"));
-        } else if (result.reason === "active_session") {
-          setNotice(t("home.notices.active"));
-        } else {
-          setNotice(t("errors.swapTask"));
+        const db = await openDatabase();
+        try {
+          const now = Date.now();
+          const date = toLocalDate(now);
+          const tasks = await listTasks(db);
+          const occurrences = await db.occurrences.where("date").equals(date).toArray();
+          const result = await swapFranjaTask(db, {
+            handId: view.handId,
+            occurrenceId: task.occurrenceId,
+            now,
+            seed: date,
+            tasks,
+            occurrences,
+          });
+          if (result.swapped) {
+            refreshView(t("home.notices.swapped"));
+          } else if (result.reason === "no_alternative") {
+            setNotice(t("home.notices.noAlternative"));
+          } else if (result.reason === "no_swaps") {
+            setNotice(t("home.notices.noSwaps"));
+          } else if (result.reason === "active_session") {
+            setNotice(t("home.notices.active"));
+          } else {
+            setNotice(t("errors.swapTask"));
+          }
+        } finally {
+          db.close();
         }
+      } catch (error) {
+        console.error("No se pudo cambiar la tarea", error);
+        setNotice(t("errors.swapTask"));
       } finally {
-        db.close();
+        swapBusy.current = false;
+        setSwapping(false);
       }
-    } catch (error) {
-      console.error("No se pudo cambiar la tarea", error);
-      setNotice(t("errors.swapTask"));
-    } finally {
-      swapBusy.current = false;
-      setSwapping(false);
-    }
-  }, [refreshView, view, t]);
+    },
+    [refreshView, view, t],
+  );
 
   const offerTask = useCallback(async (handId: string, task: FranjaTask) => {
     try {
@@ -654,102 +670,103 @@ export function RunoHome() {
     }
   }, []);
 
-  const beginQuickSession = useCallback(async (title: string, durationMin: number) => {
-    if (quickBusyRef.current) return;
-    quickBusyRef.current = true;
-    setQuickBusy(true);
-    setNotice(null);
-    try {
-      const db = await openDatabase();
+  const beginQuickSession = useCallback(
+    async (title: string, durationMin: number) => {
+      if (quickBusyRef.current) return;
+      quickBusyRef.current = true;
+      setQuickBusy(true);
+      setNotice(null);
       try {
-        const now = Date.now();
-        const session = await startQuickSession(db, {
-          sessionId: newSessionId(),
-          taskId: `quick:${newSessionId()}`,
-          title,
-          durationMin,
-          now,
-        });
-        setShowBreak(false);
-        setShowPending(false);
-        setQuickFormOpen(false);
-        setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
+        const db = await openDatabase();
+        try {
+          const now = Date.now();
+          const session = await startQuickSession(db, {
+            sessionId: newSessionId(),
+            taskId: `quick:${newSessionId()}`,
+            title,
+            durationMin,
+            now,
+          });
+          setShowBreak(false);
+          setShowPending(false);
+          setQuickFormOpen(false);
+          setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
+        } finally {
+          db.close();
+        }
+      } catch (error) {
+        console.error("No se pudo iniciar la sesión rápida", error);
+        setNotice(t("errors.startQuick"));
       } finally {
-        db.close();
+        quickBusyRef.current = false;
+        setQuickBusy(false);
       }
-    } catch (error) {
-      console.error("No se pudo iniciar la sesión rápida", error);
-      setNotice(
-        t("errors.startQuick"),
-      );
-    } finally {
-      quickBusyRef.current = false;
-      setQuickBusy(false);
-    }
-  }, [locale, t]);
+    },
+    [locale, t],
+  );
 
-  const beginPendingSession = useCallback(async (pending: Pending) => {
-    if (pendingBusyRef.current) return;
-    pendingBusyRef.current = true;
-    setNotice(null);
-    try {
-      const db = await openDatabase();
+  const beginPendingSession = useCallback(
+    async (pending: Pending) => {
+      if (pendingBusyRef.current) return;
+      pendingBusyRef.current = true;
+      setNotice(null);
       try {
-        const now = Date.now();
-        const session = await startPendingSession(db, {
-          sessionId: newSessionId(),
-          pendingId: pending.id,
-          now,
-        });
-        setShowBreak(false);
-        setShowPending(false);
-        setQuickFormOpen(false);
-        setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
+        const db = await openDatabase();
+        try {
+          const now = Date.now();
+          const session = await startPendingSession(db, {
+            sessionId: newSessionId(),
+            pendingId: pending.id,
+            now,
+          });
+          setShowBreak(false);
+          setShowPending(false);
+          setQuickFormOpen(false);
+          setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
+        } finally {
+          db.close();
+        }
+      } catch (error) {
+        console.error("No se pudo empezar el pendiente", error);
+        throw new Error(t("errors.startPending"));
       } finally {
-        db.close();
+        pendingBusyRef.current = false;
       }
-    } catch (error) {
-      console.error("No se pudo empezar el pendiente", error);
-      throw new Error(t("errors.startPending"));
-    } finally {
-      pendingBusyRef.current = false;
-    }
-  }, [locale, t]);
+    },
+    [locale, t],
+  );
 
-  const beginSession = useCallback(async (
-    task: FranjaTask,
-    variant: "full" | "short",
-    handId: string | null,
-  ) => {
-    setShowBreak(false);
-    setNotice(null);
-    try {
-      const db = await openDatabase();
+  const beginSession = useCallback(
+    async (task: FranjaTask, variant: "full" | "short", handId: string | null) => {
+      setShowBreak(false);
+      setNotice(null);
       try {
-        const now = Date.now();
-        const session = await startSession(db, {
-          sessionId: newSessionId(),
-          taskId: task.id,
-          date: toLocalDate(now),
-          variant,
-          now,
-          ...(handId ? { handId } : {}),
-          allowMissed: task.isMissed,
-        });
-        setQuickFormOpen(false);
-        setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
+        const db = await openDatabase();
+        try {
+          const now = Date.now();
+          const session = await startSession(db, {
+            sessionId: newSessionId(),
+            taskId: task.id,
+            date: toLocalDate(now),
+            variant,
+            now,
+            ...(handId ? { handId } : {}),
+            allowMissed: task.isMissed,
+          });
+          setQuickFormOpen(false);
+          setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
+        } finally {
+          db.close();
+        }
+      } catch (error) {
+        console.error("No se pudo iniciar la tarea", error);
+        setNotice(t("errors.startTask"));
       } finally {
-        db.close();
+        setPendingStart(null);
       }
-    } catch (error) {
-      console.error("No se pudo iniciar la tarea", error);
-      setNotice(
-        t("errors.startTask"),
-      );
-    } finally {
-      setPendingStart(null);
-    }
-  }, [locale, t]);
+    },
+    [locale, t],
+  );
 
   const screenKey = showPending
     ? "pending"
@@ -776,262 +793,276 @@ export function RunoHome() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <Toast.Provider limit={2} timeout={4000}>
-    <main className="min-h-screen bg-background text-foreground">
-      <div
-        className="runo-shell mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16"
-        data-task-choices={
-          (view.kind === "ready" && !showEditor && !showWallet && !showSettings && !showPending) || undefined
-        }
-      >
-        <header className="runo-header flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
-          <div>
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-              <Image
-                src="/icon-192.png"
-                alt=""
-                width={28}
-                height={28}
-                unoptimized
-                className="size-18 shrink-0"
-              />
-              <span>Avo</span>
-            </p>
-            <h1 className={`runo-tagline mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet || showPending ? "hidden" : ""}`}>
-              {t("header.tagline")}
-            </h1>
-          </div>
-          <div className="runo-header-controls flex flex-wrap items-center justify-end gap-3 pb-1">
-            {showTodayGreeting ? <AccountGreeting /> : null}
-            {!showEditor && !showWallet && !showSettings && !showPending && view.kind !== "session" && view.kind !== "anchor" ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => openPendings(true)}
-                  disabled={pendingStart !== null}
-                  className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
-                  aria-label={t("nav.addPendingAria")}
-                >
-                  {t("nav.addPending")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQuickFormOpen((value) => !value)}
-                  disabled={quickBusy || pendingStart !== null}
-                  aria-expanded={quickFormOpen}
-                  aria-controls="quick-task-panel"
-                  className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
-                >
-                  {t("nav.quickTask")}
-                </button>
-              </div>
-            ) : null}
-            {view.kind !== "loading" && view.kind !== "error" ? (
-              <p className="text-sm text-muted">{view.dateLabel}</p>
-            ) : null}
-          </div>
-        </header>
-        {!showPending && !showSettings && view.kind !== "session" && view.kind !== "anchor" ? <PersistenceNotice /> : null}
-
-        <div className="runo-content flex flex-1 flex-col justify-center py-8">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={screenKey}
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-              transition={{ duration: reduceMotion ? 0.12 : 0.18, ease: "easeOut" }}
-            >
-          {showPending ? (
-            <PendingView
-              focusComposer={pendingComposerFocus}
-              message={pendingMessage}
-              onStart={beginPendingSession}
-              onCountChange={setPendingCount}
-            />
-          ) : null}
-          {showEditor ? <TaskEditor initialTaskId={editorTaskId} /> : null}
-          {showSettings ? (
-            <SettingsView
-              tone={voice.tone ?? 0}
-              voiceReady={voice.ready}
-              onTone={voice.setTone}
-              theme={theme.mode}
-              themeReady={theme.ready}
-              themeBusy={theme.busy}
-              themeError={theme.error}
-              onThemeChange={(next) => void theme.setTheme(next)}
-            />
-          ) : null}
-          {showWallet ? <WalletView /> : null}
-          {!showEditor && !showWallet && !showSettings && !showPending && quickFormOpen ? (
-            <section
-              id="quick-task-panel"
-              aria-labelledby="quick-task-title"
-              className="mb-6 border-y border-line py-5"
-            >
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-                  {t("quick.eyebrow")}
+      <Toast.Provider limit={2} timeout={4000}>
+        <main className="min-h-screen bg-background text-foreground">
+          <div
+            className="runo-shell mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16"
+            data-task-choices={
+              (view.kind === "ready" && !showEditor && !showWallet && !showSettings && !showPending) ||
+              undefined
+            }
+          >
+            <header className="runo-header flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+              <div>
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-muted">
+                  <Image
+                    src="/icon-192.png"
+                    alt=""
+                    width={28}
+                    height={28}
+                    unoptimized
+                    className="size-18 shrink-0"
+                  />
+                  <span>Avo</span>
                 </p>
-                <HelpTip label={t("quick.helpLabel")}>{t("quick.help")}</HelpTip>
+                <h1
+                  className={`runo-tagline mt-2 text-4xl font-semibold tracking-tight sm:text-5xl ${showEditor || showSettings || showWallet || showPending ? "hidden" : ""}`}
+                >
+                  {t("header.tagline")}
+                </h1>
               </div>
-              <h2 id="quick-task-title" className="mt-2 text-xl font-semibold tracking-tight">
-                {t("quick.title")}
-              </h2>
-              <QuickTaskForm
-                busy={quickBusy}
-                autoFocus
-                onStart={beginQuickSession}
-                onCancel={() => setQuickFormOpen(false)}
-              />
-            </section>
-          ) : null}
-          <AnimatePresence initial={false}>
-            {!showEditor && !showWallet && !showSettings && !showPending && notice ? (
-              <motion.p
-                key={notice}
-                role="alert"
-                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: reduceMotion ? 0.1 : 0.15 }}
-                className="mb-4 border-l-2 border-line pl-4 text-sm leading-6"
-              >
-                {notice}
-              </motion.p>
+              <div className="runo-header-controls flex flex-wrap items-center justify-end gap-3 pb-1">
+                {showTodayGreeting ? <AccountGreeting /> : null}
+                {!showEditor &&
+                !showWallet &&
+                !showSettings &&
+                !showPending &&
+                view.kind !== "session" &&
+                view.kind !== "anchor" ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openPendings(true)}
+                      disabled={pendingStart !== null}
+                      className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
+                      aria-label={t("nav.addPendingAria")}
+                    >
+                      {t("nav.addPending")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickFormOpen((value) => !value)}
+                      disabled={quickBusy || pendingStart !== null}
+                      aria-expanded={quickFormOpen}
+                      aria-controls="quick-task-panel"
+                      className="min-h-11 whitespace-nowrap border border-control px-3 text-sm font-semibold disabled:opacity-60"
+                    >
+                      {t("nav.quickTask")}
+                    </button>
+                  </div>
+                ) : null}
+                {view.kind !== "loading" && view.kind !== "error" ? (
+                  <p className="text-sm text-muted">{view.dateLabel}</p>
+                ) : null}
+              </div>
+            </header>
+            {!showPending && !showSettings && view.kind !== "session" && view.kind !== "anchor" ? (
+              <PersistenceNotice />
             ) : null}
-          </AnimatePresence>
 
-          {!showEditor && !showWallet && !showSettings && !showPending && pendingStart ? (
-            <Countdown
-              task={pendingStart.task}
-              variant={pendingStart.variant}
-              handId={pendingStart.handId}
-              onDone={beginSession}
-              onCancel={() => setPendingStart(null)}
-            />
-          ) : null}
-          {!showEditor && !showWallet && !showSettings && !showPending && !pendingStart ? (
-            <>
-              {view.kind === "loading" ? <LoadingState /> : null}
-              {view.kind === "error" ? (
-                <ErrorState message={view.message} onRetry={() => refreshView(null)} />
-              ) : null}
-              {showBreak && (view.kind === "ready" || view.kind === "empty") ? (
-                <BreakCard onClose={() => setShowBreak(false)} />
-              ) : null}
-              {view.kind === "session" ? (
-                <SessionView
-                  key={view.session.id}
-                  session={view.session}
-                  onFinished={finishSession}
-                  tone={voice.tone ?? 0}
-                />
-              ) : null}
-              {view.kind === "anchor" ? (
-                <AnchorView
-                  task={view.task}
-                  busy={anchorBusy}
-                  onStart={() => void beginAnchor(view.task, view.occurrence)}
-                  onLeave={leaveAnchor}
-                  onNotApplicable={() => void notApplicableAnchor(view.occurrence)}
-                />
-              ) : null}
-              {view.kind === "ready" ? (
-                <Franja
-                  view={view}
-                  onStart={(task, variant) => {
-                    setQuickFormOpen(false);
-                    setPendingStart({ task, variant, handId: view.handId });
-                  }}
-                  onOffer={offerTask}
-                  onSwap={swapTask}
-                  onAlreadyDone={(task) => void correctTask(task, "already_done")}
-                  onNotApplicable={(task) => void correctTask(task, "not_applicable")}
-                  onEdit={(task) => openEditorForTask(task.id)}
-                  onEndDay={() => void openEndDayReview()}
-                  swapping={swapping}
-                  correctingId={correctingId}
-                  tone={voice.tone ?? 0}
-                />
-              ) : null}
-              {view.kind === "empty" ? (
-                <EmptyState onEndDay={() => void openEndDayReview()} />
-              ) : null}
-              {view.kind === "closed" ? <DayClosed view={view} /> : null}
-            </>
-          ) : null}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+            <div className="runo-content flex flex-1 flex-col justify-center py-8">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={screenKey}
+                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                  transition={{ duration: reduceMotion ? 0.12 : 0.18, ease: "easeOut" }}
+                >
+                  {showPending ? (
+                    <PendingView
+                      focusComposer={pendingComposerFocus}
+                      message={pendingMessage}
+                      onStart={beginPendingSession}
+                      onCountChange={setPendingCount}
+                    />
+                  ) : null}
+                  {showEditor ? <TaskEditor initialTaskId={editorTaskId} /> : null}
+                  {showSettings ? (
+                    <SettingsView
+                      tone={voice.tone ?? 0}
+                      voiceReady={voice.ready}
+                      onTone={voice.setTone}
+                      theme={theme.mode}
+                      themeReady={theme.ready}
+                      themeBusy={theme.busy}
+                      themeError={theme.error}
+                      onThemeChange={(next) => void theme.setTheme(next)}
+                    />
+                  ) : null}
+                  {showWallet ? <WalletView /> : null}
+                  {!showEditor && !showWallet && !showSettings && !showPending && quickFormOpen ? (
+                    <section
+                      id="quick-task-panel"
+                      aria-labelledby="quick-task-title"
+                      className="mb-6 border-y border-line py-5"
+                    >
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                          {t("quick.eyebrow")}
+                        </p>
+                        <HelpTip label={t("quick.helpLabel")}>{t("quick.help")}</HelpTip>
+                      </div>
+                      <h2 id="quick-task-title" className="mt-2 text-xl font-semibold tracking-tight">
+                        {t("quick.title")}
+                      </h2>
+                      <QuickTaskForm
+                        busy={quickBusy}
+                        autoFocus
+                        onStart={beginQuickSession}
+                        onCancel={() => setQuickFormOpen(false)}
+                      />
+                    </section>
+                  ) : null}
+                  <AnimatePresence initial={false}>
+                    {!showEditor && !showWallet && !showSettings && !showPending && notice ? (
+                      <motion.p
+                        key={notice}
+                        role="alert"
+                        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: reduceMotion ? 0.1 : 0.15 }}
+                        className="mb-4 border-l-2 border-line pl-4 text-sm leading-6"
+                      >
+                        {notice}
+                      </motion.p>
+                    ) : null}
+                  </AnimatePresence>
 
-        <div aria-hidden className="runo-dock-scrim" />
-        <nav className="runo-dock" aria-label={t("common.mainNav")}>
-          <button
-            type="button"
-            onClick={() => {
-              if (showEditor || showWallet || showSettings || showPending) closeSecondary();
+                  {!showEditor && !showWallet && !showSettings && !showPending && pendingStart ? (
+                    <Countdown
+                      task={pendingStart.task}
+                      variant={pendingStart.variant}
+                      handId={pendingStart.handId}
+                      onDone={beginSession}
+                      onCancel={() => setPendingStart(null)}
+                    />
+                  ) : null}
+                  {!showEditor && !showWallet && !showSettings && !showPending && !pendingStart ? (
+                    <>
+                      {view.kind === "loading" ? <LoadingState /> : null}
+                      {view.kind === "error" ? (
+                        <ErrorState message={view.message} onRetry={() => refreshView(null)} />
+                      ) : null}
+                      {showBreak && (view.kind === "ready" || view.kind === "empty") ? (
+                        <BreakCard onClose={() => setShowBreak(false)} />
+                      ) : null}
+                      {view.kind === "session" ? (
+                        <SessionView
+                          key={view.session.id}
+                          session={view.session}
+                          onFinished={finishSession}
+                          tone={voice.tone ?? 0}
+                        />
+                      ) : null}
+                      {view.kind === "anchor" ? (
+                        <AnchorView
+                          task={view.task}
+                          busy={anchorBusy}
+                          onStart={() => void beginAnchor(view.task, view.occurrence)}
+                          onLeave={leaveAnchor}
+                          onNotApplicable={() => void notApplicableAnchor(view.occurrence)}
+                        />
+                      ) : null}
+                      {view.kind === "ready" ? (
+                        <Franja
+                          view={view}
+                          onStart={(task, variant) => {
+                            setQuickFormOpen(false);
+                            setPendingStart({ task, variant, handId: view.handId });
+                          }}
+                          onOffer={offerTask}
+                          onSwap={swapTask}
+                          onAlreadyDone={(task) => void correctTask(task, "already_done")}
+                          onNotApplicable={(task) => void correctTask(task, "not_applicable")}
+                          onEdit={(task) => openEditorForTask(task.id)}
+                          onEndDay={() => void openEndDayReview()}
+                          swapping={swapping}
+                          correctingId={correctingId}
+                          tone={voice.tone ?? 0}
+                        />
+                      ) : null}
+                      {view.kind === "empty" ? <EmptyState onEndDay={() => void openEndDayReview()} /> : null}
+                      {view.kind === "closed" ? <DayClosed view={view} /> : null}
+                    </>
+                  ) : null}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            <div aria-hidden className="runo-dock-scrim" />
+            <nav className="runo-dock" aria-label={t("common.mainNav")}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (showEditor || showWallet || showSettings || showPending) closeSecondary();
+                }}
+                disabled={pendingStart !== null}
+                aria-current={
+                  !showEditor && !showWallet && !showSettings && !showPending ? "page" : undefined
+                }
+              >
+                {!showEditor && !showWallet && !showSettings && !showPending ? <DockIndicator /> : null}
+                {t("nav.today")}
+              </button>
+              <button
+                type="button"
+                onClick={openEditor}
+                disabled={pendingStart !== null}
+                aria-current={showEditor ? "page" : undefined}
+              >
+                {showEditor ? <DockIndicator /> : null}
+                {t("nav.tasks")}
+              </button>
+              <button
+                type="button"
+                onClick={() => openPendings(false)}
+                disabled={pendingStart !== null}
+                aria-current={showPending ? "page" : undefined}
+                aria-label={
+                  pendingCount === null || pendingCount === 0
+                    ? t("nav.pending")
+                    : t("nav.pendingNavAria", { count: pendingCount })
+                }
+              >
+                {showPending ? <DockIndicator /> : null}
+                <span className="dock-label-full">{t("nav.pending")}</span>
+                <span className="dock-label-short" aria-hidden>
+                  {t("nav.pendingShort")}
+                </span>
+                <PendingBadge label={pendingLabel} />
+              </button>
+              <button
+                type="button"
+                onClick={openSettings}
+                disabled={pendingStart !== null}
+                aria-current={showSettings ? "page" : undefined}
+              >
+                {showSettings ? <DockIndicator /> : null}
+                {t("nav.settings")}
+              </button>
+            </nav>
+          </div>
+        </main>
+        {endDayReview ? (
+          <EndDayReview
+            open
+            onOpenChange={(open) => {
+              if (!open) setEndDayReview(null);
             }}
-            disabled={pendingStart !== null}
-            aria-current={!showEditor && !showWallet && !showSettings && !showPending ? "page" : undefined}
-          >
-            {!showEditor && !showWallet && !showSettings && !showPending ? <DockIndicator /> : null}
-            {t("nav.today")}
-          </button>
-          <button
-            type="button"
-            onClick={openEditor}
-            disabled={pendingStart !== null}
-            aria-current={showEditor ? "page" : undefined}
-          >
-            {showEditor ? <DockIndicator /> : null}
-            {t("nav.tasks")}
-          </button>
-          <button
-            type="button"
-            onClick={() => openPendings(false)}
-            disabled={pendingStart !== null}
-            aria-current={showPending ? "page" : undefined}
-            aria-label={pendingCount === null || pendingCount === 0
-              ? t("nav.pending")
-              : t("nav.pendingNavAria", { count: pendingCount })}
-          >
-            {showPending ? <DockIndicator /> : null}
-            <span className="dock-label-full">{t("nav.pending")}</span>
-            <span className="dock-label-short" aria-hidden>{t("nav.pendingShort")}</span>
-            <PendingBadge label={pendingLabel} />
-          </button>
-          <button
-            type="button"
-            onClick={openSettings}
-            disabled={pendingStart !== null}
-            aria-current={showSettings ? "page" : undefined}
-          >
-            {showSettings ? <DockIndicator /> : null}
-            {t("nav.settings")}
-          </button>
-        </nav>
-      </div>
-    </main>
-    {endDayReview ? (
-      <EndDayReview
-        open
-        onOpenChange={(open) => {
-          if (!open) setEndDayReview(null);
-        }}
-        review={endDayReview}
-        tone={voice.tone ?? 0}
-        busyId={reviewBusyId}
-        ending={endingDay}
-        onStart={startReviewTask}
-        onAlreadyDone={(task) => void correctReviewTask(task, "already_done")}
-        onNotApplicable={(task) => void correctReviewTask(task, "not_applicable")}
-        onEndDay={() => void endDay()}
-      />
-    ) : null}
-    <RunoToaster />
-    </Toast.Provider>
+            review={endDayReview}
+            tone={voice.tone ?? 0}
+            busyId={reviewBusyId}
+            ending={endingDay}
+            onStart={startReviewTask}
+            onAlreadyDone={(task) => void correctReviewTask(task, "already_done")}
+            onNotApplicable={(task) => void correctReviewTask(task, "not_applicable")}
+            onEndDay={() => void endDay()}
+          />
+        ) : null}
+        <RunoToaster />
+      </Toast.Provider>
     </MotionConfig>
   );
 }
@@ -1061,9 +1092,9 @@ function PendingBadge({ label }: { label: string | null }) {
       className="dock-badge"
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.45 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={reduceMotion
-        ? { duration: 0.12 }
-        : { type: "spring", stiffness: 560, damping: 24, mass: 0.45 }}
+      transition={
+        reduceMotion ? { duration: 0.12 } : { type: "spring", stiffness: 560, damping: 24, mass: 0.45 }
+      }
     >
       {label}
     </motion.span>
@@ -1088,8 +1119,8 @@ function Countdown({
   const reduceMotion = useReducedMotion();
   const [count, setCount] = useState(3);
   const fired = useRef(false);
-  const title = variant === "short" ? task.shortStepTitle ?? task.title : task.title;
-  const duration = variant === "short" ? task.shortStepMin ?? task.durationMin : task.remainingMin;
+  const title = variant === "short" ? (task.shortStepTitle ?? task.title) : task.title;
+  const duration = variant === "short" ? (task.shortStepMin ?? task.durationMin) : task.remainingMin;
 
   useEffect(() => {
     if (count === 0) {
@@ -1104,10 +1135,7 @@ function Countdown({
   }, [count, handId, onDone, task, variant]);
 
   return (
-    <section
-      className="border-y border-line py-8 text-center sm:py-10"
-      aria-live="polite"
-    >
+    <section className="border-y border-line py-8 text-center sm:py-10" aria-live="polite">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         {variant === "short" ? t("firstStep") : t("starting")}
       </p>
@@ -1124,9 +1152,7 @@ function Countdown({
           {count === 0 ? "…" : count}
         </motion.p>
       </AnimatePresence>
-      <p className="mt-4 text-sm leading-6 text-muted">
-        {t("cancelHelp", { duration })}
-      </p>
+      <p className="mt-4 text-sm leading-6 text-muted">{t("cancelHelp", { duration })}</p>
       {count > 0 ? (
         <button
           type="button"
@@ -1151,13 +1177,7 @@ function LoadingState() {
   );
 }
 
-function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   const t = useTranslations("home");
   const common = useTranslations("common");
   return (
@@ -1213,14 +1233,10 @@ function Franja({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const reduceMotion = useReducedMotion();
   const busy = swapping || correctingId !== null;
-  const encouragement = correction?.kind === "not_applicable"
-    ? chooseVoicePhrase(
-        tone,
-        "work",
-        `${correction.task.occurrenceId}:not-today`,
-        voicePhrases,
-      )
-    : null;
+  const encouragement =
+    correction?.kind === "not_applicable"
+      ? chooseVoicePhrase(tone, "work", `${correction.task.occurrenceId}:not-today`, voicePhrases)
+      : null;
 
   if (!view.tasks.length) return null;
 
@@ -1228,7 +1244,10 @@ function Franja({
     <>
       <p className="first-prompt">{t("prompt")}</p>
       <TaskDeck
-        key={`${view.handId}:${view.tasks.map((task) => task.occurrenceId).sort().join("|")}`}
+        key={`${view.handId}:${view.tasks
+          .map((task) => task.occurrenceId)
+          .sort()
+          .join("|")}`}
         tasks={view.tasks}
         handId={view.handId}
         busy={busy}
@@ -1246,17 +1265,15 @@ function Franja({
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
               transition={{ duration: 0.12 }}
             >
-              <span id={ids.start}>{task.shortStepDone
-                ? t("continue", { remaining: task.remainingMin })
-                : t("start")}</span> <span aria-hidden className="first-start-icon">▶️</span>
+              <span id={ids.start}>
+                {task.shortStepDone ? t("continue", { remaining: task.remainingMin }) : t("start")}
+              </span>{" "}
+              <span aria-hidden className="first-start-icon">
+                ▶️
+              </span>
             </motion.button>
             {view.tasks.length > 2 ? (
-              <button
-                type="button"
-                className="first-secondary"
-                disabled={disabled}
-                onClick={showAnother}
-              >
+              <button type="button" className="first-secondary" disabled={disabled} onClick={showAnother}>
                 {t("showAnother")}
               </button>
             ) : null}
@@ -1270,11 +1287,7 @@ function Franja({
                 ⋯
               </Menu.Trigger>
               <Menu.Portal>
-                <Menu.Positioner
-                  className="first-menu-positioner"
-                  sideOffset={8}
-                  align="end"
-                >
+                <Menu.Positioner className="first-menu-positioner" sideOffset={8} align="end">
                   <Menu.Popup className="first-menu">
                     {task.shortStepMin && !task.shortStepDone ? (
                       <Menu.Item
@@ -1314,11 +1327,7 @@ function Franja({
                     >
                       {t("notToday")}
                     </Menu.Item>
-                    <Menu.Item
-                      className="first-menu-item"
-                      disabled={disabled}
-                      onClick={() => onEdit(task)}
-                    >
+                    <Menu.Item className="first-menu-item" disabled={disabled} onClick={() => onEdit(task)}>
                       {t("edit")}
                     </Menu.Item>
                     <Menu.Item
@@ -1341,16 +1350,18 @@ function Franja({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={correction?.kind === "already_done"
-          ? t("confirm.alreadyDoneTitle")
-          : t("confirm.notTodayTitle", { title: correction?.task.title ?? "" })}
-        description={correction?.kind === "already_done"
-          ? t("confirm.alreadyDoneCopy")
-          : t("confirm.notTodayCopy")}
+        title={
+          correction?.kind === "already_done"
+            ? t("confirm.alreadyDoneTitle")
+            : t("confirm.notTodayTitle", { title: correction?.task.title ?? "" })
+        }
+        description={
+          correction?.kind === "already_done" ? t("confirm.alreadyDoneCopy") : t("confirm.notTodayCopy")
+        }
         note={encouragement}
-        confirmLabel={correction?.kind === "already_done"
-          ? t("confirm.alreadyDoneConfirm")
-          : t("confirm.notTodayConfirm")}
+        confirmLabel={
+          correction?.kind === "already_done" ? t("confirm.alreadyDoneConfirm") : t("confirm.notTodayConfirm")
+        }
         onConfirm={() => {
           if (!correction) return;
           if (correction.kind === "already_done") onAlreadyDone(correction.task);
@@ -1365,13 +1376,9 @@ function EmptyState({ onEndDay }: { onEndDay: () => void }) {
   const t = useTranslations("home");
   return (
     <section className="border-t border-line pt-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        {t("emptyEyebrow")}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t("emptyEyebrow")}</p>
       <div className="mt-3 flex items-start gap-2">
-        <h2 className="text-2xl font-semibold tracking-tight">
-          {t("emptyTitle")}
-        </h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{t("emptyTitle")}</h2>
         <HelpTip label={t("emptyHelpLabel")}>{t("emptyHelp")}</HelpTip>
       </div>
       <button
@@ -1392,15 +1399,9 @@ function DayClosed({ view }: { view: Extract<View, { kind: "closed" }> }) {
       aria-label={t("closedAria", { date: view.dateLabel })}
       className="border-y border-line py-8 sm:py-10"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-        {t("closedEyebrow")}
-      </p>
-      <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-        {t("closedTitle")}
-      </h2>
-      <p className="mt-3 text-base leading-7 text-muted">
-        {t("closedCopy")}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t("closedEyebrow")}</p>
+      <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">{t("closedTitle")}</h2>
+      <p className="mt-3 text-base leading-7 text-muted">{t("closedCopy")}</p>
       <p className="mt-2 text-sm leading-6 text-muted">{t("closedTomorrow")}</p>
     </section>
   );

@@ -34,12 +34,7 @@ export interface Pending extends PendingInput {
 }
 
 export type OccurrenceStatus =
-  | "pending"
-  | "in_progress"
-  | "partial"
-  | "completed"
-  | "already_done"
-  | "not_applicable";
+  "pending" | "in_progress" | "partial" | "completed" | "already_done" | "not_applicable";
 
 export interface TaskAgreement {
   task: Task;
@@ -83,12 +78,7 @@ export interface Hand {
 
 export type SessionVariant = "full" | "short";
 export type SessionStatus =
-  | "running"
-  | "paused"
-  | "awaiting_confirmation"
-  | "completed"
-  | "partial"
-  | "abandoned";
+  "running" | "paused" | "awaiting_confirmation" | "completed" | "partial" | "abandoned";
 
 interface SessionBase {
   id: string;
@@ -121,10 +111,24 @@ export type Session = SessionBase &
   );
 
 export const EVENT_TYPES = [
-  "offered", "started", "paused", "resumed", "timer_expired",
-  "completed", "partial", "abandoned", "swapped", "already_done",
-  "not_applicable", "life_real", "hand_closed", "redeemed",
-  "task_created", "task_updated", "task_archived", "anchor_presented",
+  "offered",
+  "started",
+  "paused",
+  "resumed",
+  "timer_expired",
+  "completed",
+  "partial",
+  "abandoned",
+  "swapped",
+  "already_done",
+  "not_applicable",
+  "life_real",
+  "hand_closed",
+  "redeemed",
+  "task_created",
+  "task_updated",
+  "task_archived",
+  "anchor_presented",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 export type EventReason = "distracted" | "baby" | "cannot_continue" | "not_applicable";
@@ -174,5 +178,8 @@ export interface Metadata {
   value: JsonValue;
 }
 
-export const TERMINAL_OCCURRENCE_STATUSES: ReadonlySet<OccurrenceStatus> =
-  new Set(["completed", "already_done", "not_applicable"]);
+export const TERMINAL_OCCURRENCE_STATUSES: ReadonlySet<OccurrenceStatus> = new Set([
+  "completed",
+  "already_done",
+  "not_applicable",
+]);

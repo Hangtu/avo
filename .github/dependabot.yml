@@ -1,0 +1,56 @@
+# Grouped weekly updates with a cooldown so freshly published (possibly
+# compromised) versions are not installed immediately. Security updates bypass
+# the cooldown. Review every major changelog before merging.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+      semver-patch-days: 3
+      semver-minor-days: 7
+      semver-major-days: 14
+    groups:
+      production:
+        dependency-type: production
+        update-types:
+          - patch
+          - minor
+      development:
+        dependency-type: development
+        update-types:
+          - patch
+          - minor
+    ignore:
+      # Next.js, React, TypeScript, Tailwind, Drizzle, Better Auth, next-intl,
+      # Zod, and ESLint majors require an approved upgrade plan (DEP-6).
+      - dependency-name: next
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-dom
+        update-types: ["version-update:semver-major"]
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: tailwindcss
+        update-types: ["version-update:semver-major"]
+      - dependency-name: drizzle-orm
+        update-types: ["version-update:semver-major"]
+      - dependency-name: better-auth
+        update-types: ["version-update:semver-major"]
+      - dependency-name: next-intl
+        update-types: ["version-update:semver-major"]
+      - dependency-name: zod
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci(deps)"

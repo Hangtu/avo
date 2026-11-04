@@ -1,25 +1,43 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { openDatabaseForSpace, resetActiveDatabaseName, setActiveUserDatabase, type RunoDatabase } from "@/lib/db/database";
+import {
+  openDatabaseForSpace,
+  resetActiveDatabaseName,
+  setActiveUserDatabase,
+  type RunoDatabase,
+} from "@/lib/db/database";
 import { preferenceWriteState, retryPreferenceWrites, writePreferences } from "./preference-writer";
 import { getSettings } from "@/lib/db/repository";
 
 const connections: RunoDatabase[] = [];
 afterEach(async () => {
-  vi.restoreAllMocks(); resetActiveDatabaseName();
-  for (const db of connections) { db.close(); if (!db.name.startsWith("runo-user-runo-test-")) throw new Error("Unsafe cleanup"); await db.delete(); }
+  vi.restoreAllMocks();
+  resetActiveDatabaseName();
+  for (const db of connections) {
+    db.close();
+    if (!db.name.startsWith("runo-user-runo-test-")) throw new Error("Unsafe cleanup");
+    await db.delete();
+  }
   connections.length = 0;
 });
 async function local() {
   const id = `runo-test-${crypto.randomUUID()}`;
   setActiveUserDatabase(id);
-  const db = await openDatabaseForSpace({ kind: "account", userId: id }); connections.push(db); return db;
+  const db = await openDatabaseForSpace({ kind: "account", userId: id });
+  connections.push(db);
+  return db;
 }
 describe("retryable, scoped preference persistence", () => {
   it("serializes quick reorders and preserves a simultaneous language change", async () => {
     const db = await local();
-    await Promise.all([writePreferences(db.name, { taskOrder: { a: 0, b: 1, c: 2 } }),
-      writePreferences(db.name, { taskOrder: { b: 0, c: 1, a: 2 } }), writePreferences(db.name, { locale: "en" })]);
-    expect(await getSettings(db, Date.now())).toMatchObject({ taskOrder: { b: 0, c: 1, a: 2 }, locale: "en" });
+    await Promise.all([
+      writePreferences(db.name, { taskOrder: { a: 0, b: 1, c: 2 } }),
+      writePreferences(db.name, { taskOrder: { b: 0, c: 1, a: 2 } }),
+      writePreferences(db.name, { locale: "en" }),
+    ]);
+    expect(await getSettings(db, Date.now())).toMatchObject({
+      taskOrder: { b: 0, c: 1, a: 2 },
+      locale: "en",
+    });
     expect(preferenceWriteState(db.name)).toEqual({ pending: 0, failed: 0 });
   });
   it("keeps a failed patch retryable without undoing newer unrelated preferences", async () => {
@@ -43,11 +61,16 @@ describe("retryable, scoped preference persistence", () => {
     expect((await getSettings(db, Date.now())).locale).toBe("es");
   });
   it("does not write a queued patch under a different selected space", async () => {
-    const a = await local(), pending = writePreferences(a.name, { locale: "en" });
+    const a = await local(),
+      pending = writePreferences(a.name, { locale: "en" });
     setActiveUserDatabase(`runo-test-${crypto.randomUUID()}`);
     await expect(pending).rejects.toThrow("space_changed");
     const inspected = await openDatabaseForSpace({ kind: "account", userId: a.accountId! });
-    try { expect(await inspected.settings.get("preferences")).toBeUndefined(); } finally { inspected.close(); }
+    try {
+      expect(await inspected.settings.get("preferences")).toBeUndefined();
+    } finally {
+      inspected.close();
+    }
     expect(preferenceWriteState(a.name).failed).toBe(1);
   });
 });
