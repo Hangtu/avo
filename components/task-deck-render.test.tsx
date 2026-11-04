@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
-import { TaskDeck } from "@/app/_components/task-deck";
-import type { FranjaTask } from "@/app/_components/franja-task";
+import { TaskDeck } from "./task-deck";
+import type { FranjaTask } from "./franja-task";
 import es from "@/messages/es.json";
 import en from "@/messages/en.json";
 

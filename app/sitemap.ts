@@ -1,23 +1,12 @@
 import type { MetadataRoute } from "next";
 
-import { siteUrl } from "@/lib/site";
+import { publicRoutes, toAbsoluteUrl } from "@/lib/config/routes";
+import { siteUrl } from "@/lib/config/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    {
-      url: `${siteUrl}/`,
-      changeFrequency: "monthly",
-      priority: 1,
-    },
-    {
-      url: `${siteUrl}/privacy`,
-      changeFrequency: "yearly",
-      priority: 0.4,
-    },
-    {
-      url: `${siteUrl}/data-deletion`,
-      changeFrequency: "yearly",
-      priority: 0.4,
-    },
-  ];
+  return publicRoutes.map((route) => ({
+    url: toAbsoluteUrl(siteUrl, route.path),
+    changeFrequency: route.changeFrequency,
+    priority: route.priority,
+  }));
 }

@@ -1,5 +1,5 @@
-import { RunoHome } from "./_components/runo-home";
-import { AccountWorkspace } from "./_components/account-workspace";
+import { RunoHome } from "@/components/runo-home";
+import { AccountWorkspace } from "@/components/account-workspace";
 
 export default function Home() {
   return (

@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MAX_BODY_BYTES } from "./protocol";
+import { MAX_BODY_BYTES } from "@/lib/sync/protocol";
 import { NOW } from "@/tests/fixtures";
 
 const mocks = vi.hoisted(() => ({ session: vi.fn(), read: vi.fn(), mutate: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: mocks.session } } }));
 vi.mock("@/lib/db/client", () => ({ db: {} }));
-vi.mock("./server-repository", () => ({ readAccountData: mocks.read, mutateAccountData: mocks.mutate }));
+vi.mock("@/lib/sync/server-repository", () => ({
+  readAccountData: mocks.read,
+  mutateAccountData: mocks.mutate,
+}));
 import { GET, POST } from "@/app/api/account/data/route";
 
 const origin = "https://avo.example.test";

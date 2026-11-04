@@ -37,12 +37,12 @@ remain per-request operations.
 
 | Capability | State | Decision / evidence |
 |---|---|---|
-| ui | active | `app/` and `app/_components/` render the habit deck, timer, settings, and legal pages. |
+| ui | active | `app/` routes compose the deck, timer, settings, and legal pages from the root `components/` folder. |
 | public-pages | active | `/`, `/privacy`, and `/data-deletion` are public and indexable; metadata lives in `app/layout.tsx`, `app/privacy/page.tsx`, and `app/data-deletion/page.tsx`. |
-| forms | active | `app/_components/quick-task-form.tsx`, `task-editor.tsx`, and the account controls submit data; account writes cross the boundary at `app/api/account/data/route.ts`. |
+| forms | active | `components/quick-task-form.tsx`, `components/task-editor.tsx`, and the account controls submit data; account writes cross the boundary at `app/api/account/data/route.ts`. |
 | database | active | Drizzle schema in `lib/db/schema.ts` and `lib/db/auth-schema.ts`; migrations in `drizzle/`; Neon PostgreSQL via `DATABASE_URL`. |
 | auth | active | Better Auth in `lib/auth.ts`; session and ownership checks in `lib/sync/server-auth.ts`; per-account isolation in `lib/sync/server-repository.ts`. |
-| i18n | active | ES/EN catalogs in `messages/`, configuration in `lib/i18n/config.ts`, client provider in `app/_components/i18n-provider.tsx`. |
+| i18n | active | ES/EN catalogs in `messages/`, configuration in `lib/i18n/config.ts`, client provider in `components/i18n-provider.tsx`. |
 | url-state | inactive | Shareable filter/pagination state does not exist. The only URL parameter is the transient OAuth `?error=` notice, which is read and removed (`lib/platform/auth-callback-error.ts`). |
 | analytics | inactive | No third-party analytics or LLM calls by product decision (`plan.md`, "Fuera de alcance"). |
 | shared-cache | active | `next.config.ts` enables Cache Components and Partial Prefetching. Only public, non-permission-dependent pages are prerendered; account data is served with `private, no-store`. |
@@ -55,12 +55,21 @@ in the agreed scope", not "forbidden".
 
 - Instruction entry point: [`AGENTS.md`](../../AGENTS.md). The adoption block at
   the end points back to this contract.
-- Routes and UI: `app/`. Components used only by the app live in
-  `app/_components/`; anything reusable or testable in isolation lives in
-  `lib/ui/`.
+- Routes: `app/` is routing only (pages, layouts, route handlers, metadata,
+  error/not-found boundaries). It composes UI from `components/` and calls
+  `lib/`; it holds no domain rules.
+- UI: the root `components/` folder owns app UI. Server Components are the
+  default; `"use client"` marks the smallest interactive leaf. `lib/ui/` holds
+  pure layout/selection logic with no JSX.
 - Domain and data: `lib/domain/` (pure rules), `lib/db/` (Dexie and Drizzle
   schema/repositories), `lib/sync/` (protocol, client, server repository,
   authorization), `lib/platform/` (browser capabilities), `lib/i18n/`.
+- Configuration: `lib/config/site.ts` (canonical origin and site name) and
+  `lib/config/routes.ts` (public routes, shared by the sitemap and robots).
+  Secrets stay in `lib/env.ts`; never add server values to `lib/public-env.ts`.
+- Dependency direction: `app/` → `components/` → `lib/`; `lib/` must never
+  import `app/`. ESLint enforces the last rule. Tests that exercise a route,
+  page, or component boundary live in `tests/`, not inside `lib/`.
 - Server-only modules start with `import "server-only"` (`lib/db/client.ts`,
   `lib/auth.ts`, `lib/sync/server-auth.ts`).
 - Database schema: `lib/db/schema.ts` and `lib/db/auth-schema.ts`. Generated SQL
@@ -69,7 +78,11 @@ in the agreed scope", not "forbidden".
   own ADRs stay under `docs/agent-kit/architecture/decisions/` as reference
   material and are not decisions about Avo.
 - Technical notes and incident records: `docs/cloud/`. Design references:
-  `docs/design/`. Product brief: `docs/product/brief.md`.
+  `docs/design/`. Product brief: `docs/product/brief.md`. Vocabulary and the
+  `franja`/`runo` exceptions: `docs/product/glossary.md`.
+- Tests: `lib/**/*.test.ts` next to domain/data code; component tests in
+  `components/**/*.test.tsx`; route/page/boundary tests in `tests/`; browser
+  journeys in `e2e/*.spec.ts`.
 - Local storage keys and database names keep the `runo` prefix on purpose;
   renaming them would orphan existing user data (`plan.md`).
 - Tools to preserve: npm, ESLint flat config (`eslint.config.mjs`), Prettier
@@ -105,8 +118,8 @@ credentials; they do not validate Neon, OAuth, a real browser, or a device.
 - CSP: a nonce-based policy needs `proxy.ts`, makes pages dynamic, and must be
   measured against the theme bootstrap script, the loading curtain, and the
   service worker. Decide through an ADR before enforcing.
-- Oversized modules: `app/_components/task-editor.tsx` (~1.6k lines),
-  `lib/db/repository.ts` (~1.5k), and `app/_components/runo-home.tsx` (~1.4k)
+- Oversized modules: `components/task-editor.tsx` (~1.6k lines),
+  `lib/db/repository.ts` (~1.5k), and `components/runo-home.tsx` (~1.4k)
   exceed the library's soft limits and need characterization tests before any
   split.
 - Security headers are limited to the static set in `next.config.ts`; HSTS is a

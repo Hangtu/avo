@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Lexend } from "next/font/google";
 import "./globals.css";
-import { ShellI18nProvider } from "./_components/shell-i18n-provider";
-import { ServiceWorkerRegister } from "./_components/service-worker-register";
+import { ShellI18nProvider } from "@/components/shell-i18n-provider";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { defaultLocale, messages } from "@/lib/i18n/config";
 import { themeBootScript } from "@/lib/domain/theme-boot";
-import { siteName, siteUrl } from "@/lib/site";
+import { siteName, siteUrl } from "@/lib/config/site";
 
 const lexend = Lexend({
   variable: "--font-lexend",

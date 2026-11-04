@@ -7,7 +7,7 @@ import PrivacyPage from "@/app/privacy/page";
 import DataDeletionPage from "@/app/data-deletion/page";
 import es from "@/messages/es.json";
 import en from "@/messages/en.json";
-import { SUPPORT_EMAIL } from "./legal";
+import { SUPPORT_EMAIL } from "@/lib/legal";
 
 function renderPage(Page: ComponentType, locale: "es" | "en" = "es") {
   return renderToStaticMarkup(
