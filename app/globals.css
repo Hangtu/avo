@@ -169,7 +169,6 @@ select {
     radial-gradient(circle at 10% 0%, #cfeff0 0, transparent 34%),
     radial-gradient(circle at 100% 10%, #e5d6ff 0, transparent 36%),
     radial-gradient(circle at 50% 100%, #f8e5d8 0, transparent 40%), #eff6f5;
-  background-attachment: fixed;
 }
 
 :root[data-ui="liquid"][data-theme="dark"] body {
@@ -177,6 +176,13 @@ select {
     radial-gradient(circle at 10% 0%, #16343b 0, transparent 36%),
     radial-gradient(circle at 100% 10%, #2c2445 0, transparent 38%),
     radial-gradient(circle at 50% 100%, #3a2820 0, transparent 40%), #0a1519;
+}
+
+/* Apply after both theme shorthands: long pages must not tile the root canvas. */
+:root[data-ui="liquid"] body,
+:root[data-ui="liquid"][data-theme="dark"] body {
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 :root[data-ui="liquid"] body::before {

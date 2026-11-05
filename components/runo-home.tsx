@@ -49,6 +49,7 @@ import { useThemePreference } from "./use-theme-preference";
 import { EndDayReview, type ReviewGroups, type ReviewTask } from "./end-day-review";
 import type { FranjaTask } from "./franja-task";
 import { TaskDeck } from "./task-deck";
+import { TaskDeckSkeleton } from "./task-deck-skeleton";
 
 type View =
   | { kind: "loading" }
@@ -798,7 +799,11 @@ export function RunoHome() {
           <div
             className="runo-shell mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-10 sm:px-10 sm:py-16"
             data-task-choices={
-              (view.kind === "ready" && !showEditor && !showWallet && !showSettings && !showPending) ||
+              ((view.kind === "ready" || view.kind === "loading") &&
+                !showEditor &&
+                !showWallet &&
+                !showSettings &&
+                !showPending) ||
               undefined
             }
           >
@@ -853,6 +858,8 @@ export function RunoHome() {
                 ) : null}
                 {view.kind !== "loading" && view.kind !== "error" ? (
                   <p className="text-sm text-muted">{view.dateLabel}</p>
+                ) : view.kind === "loading" ? (
+                  <span aria-hidden="true" className="h-5 w-48 shrink-0" />
                 ) : null}
               </div>
             </header>
@@ -861,7 +868,11 @@ export function RunoHome() {
             ) : null}
 
             <div className="runo-content flex flex-1 flex-col justify-center py-8">
-              <AnimatePresence mode="wait" initial={false}>
+              <AnimatePresence
+                key={screenKey === "loading" ? "loading" : "content"}
+                mode="wait"
+                initial={false}
+              >
                 <motion.div
                   key={screenKey}
                   initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
@@ -941,7 +952,7 @@ export function RunoHome() {
                   ) : null}
                   {!showEditor && !showWallet && !showSettings && !showPending && !pendingStart ? (
                     <>
-                      {view.kind === "loading" ? <LoadingState /> : null}
+                      {view.kind === "loading" ? <TaskDeckSkeleton /> : null}
                       {view.kind === "error" ? (
                         <ErrorState message={view.message} onRetry={() => refreshView(null)} />
                       ) : null}
@@ -1163,17 +1174,6 @@ function Countdown({
         </button>
       ) : null}
     </section>
-  );
-}
-
-function LoadingState() {
-  const t = useTranslations("home");
-  return (
-    <div className="space-y-3" role="status">
-      <p className="text-sm text-muted">{t("loading")}</p>
-      <div className="h-24 animate-pulse rounded-none bg-surface motion-reduce:animate-none motion-reduce:opacity-60" />
-      <div className="h-24 animate-pulse rounded-none bg-surface motion-reduce:animate-none motion-reduce:opacity-60" />
-    </div>
   );
 }
 

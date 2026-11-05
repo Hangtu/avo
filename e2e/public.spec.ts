@@ -51,7 +51,7 @@ test.describe("public shell", () => {
     const response = await page.goto("/");
 
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole("heading", { name: "Recuerda lo que importa." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Retoma donde te quedaste." })).toBeVisible();
     await expect(page.getByRole("link", { name: "Privacidad" })).toHaveAttribute("href", "/privacy");
     await expect(page.getByRole("link", { name: "Eliminación de datos" })).toHaveAttribute(
       "href",
@@ -59,6 +59,48 @@ test.describe("public shell", () => {
     );
 
     await context.close();
+  });
+
+  test("keeps guest account guidance in Settings and the dark backdrop fixed while scrolling", async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 1025, height: 345 });
+    const response = await page.goto("/");
+
+    expect(response?.status()).toBe(200);
+    const settingsButton = page.getByRole("button", { name: "Ajustes", exact: true });
+    await expect(settingsButton).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/Al iniciar sesión, podrás respaldar/)).toHaveCount(0);
+    await expect(
+      page.getByText("Guardado solo en este navegador. Sin cuenta, no hay respaldo en la nube.", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+
+    await settingsButton.click();
+    await expect(page.getByRole("heading", { level: 2, name: "Ajustes" })).toBeVisible();
+    await expect(
+      page.getByText(/Al iniciar sesión, podrás respaldar tus hábitos y pendientes/),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Guardado solo en este navegador. Sin cuenta, no hay respaldo en la nube.", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = "dark";
+      window.scrollTo(0, document.documentElement.scrollHeight);
+    });
+    const background = await page.locator("body").evaluate((element) => ({
+      attachment: getComputedStyle(element).backgroundAttachment,
+      scrollY: window.scrollY,
+    }));
+    expect(background.attachment.split(",").every((attachment) => attachment.trim() === "fixed")).toBe(true);
+    expect(background.scrollY).toBeGreaterThan(0);
+    const screenshot = testInfo.outputPath("settings-bottom.png");
+    await page.screenshot({ path: screenshot });
+    console.log(`Settings bottom screenshot: ${screenshot}`);
   });
 
   test("renders the not-found page for unknown routes", async ({ page }) => {
