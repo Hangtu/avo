@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parse } from "dotenv";
 import { sql } from "drizzle-orm";
+import { createInspectionDatabase, inspectionTarget } from "@/lib/db/inspection";
 
 /**
  * Read-only check. Usage: `tsx scripts/db-verify.ts [envFile]`
@@ -17,17 +18,14 @@ function loadEnv(path: string) {
   } catch {
     throw new Error(`No pude leer ${path}.`);
   }
-  const databaseUrl = env.DATABASE_URL_UNPOOLED ?? env.DATABASE_URL;
-  if (!databaseUrl) throw new Error(`${path} debe definir DATABASE_URL_UNPOOLED o DATABASE_URL.`);
-  // The app client reads DATABASE_URL; set it before the dynamic import.
-  process.env.DATABASE_URL = databaseUrl;
-  return new URL(databaseUrl).hostname;
+  return inspectionTarget(env, path);
 }
 
 async function main() {
-  const hostname = loadEnv(envPath);
-  const development = envPath === ".env";
-  const { db, pool } = await import("../lib/db/client");
+  const target = loadEnv(envPath);
+  const development = target.development;
+  console.log(`entorno: ${envPath}  host: ${target.hostname}`);
+  const { db, pool } = createInspectionDatabase(target.connectionString);
   try {
     const tables = await db.execute<{ table_name: string }>(sql`
       select table_name
@@ -36,7 +34,6 @@ async function main() {
       order by table_name
     `);
     const found = tables.rows.map((row) => row.table_name);
-    console.log(`entorno: ${envPath}  host: ${hostname}`);
     console.log("tablas:", found.join(", ") || "(ninguna)");
     if (found.length === 0) {
       console.log("resultado: sin tablas del dominio; falta migrar");

@@ -36,10 +36,11 @@ the MVP:
   someone else's address inherits that identity. A provider that changes or
   omits the email changes the outcome. This is weaker than proof-of-control and
   must be revisited before the app stores anything more sensitive.
-- **Follow-up work:** define email verification / proof of control before a
-  public launch (E4.3.1). Cover the matrix with real OAuth: both orders, a
-  provider that omits the email (`email_not_found`), and a changed email. Keep
-  the `?error=` notice on `/`.
+- **Follow-up work:** revisit independent email verification / proof of control
+  in a later version; it is not part of the accepted MVP unless the owner changes
+  the policy. Cover the current MVP matrix with real OAuth under task 005: both
+  orders, a provider that omits the email (`email_not_found`), and a changed
+  email. Keep the `?error=` notice on `/`.
 
 ## Alternatives considered
 
@@ -53,4 +54,4 @@ the MVP:
 
 `lib/auth.ts` encodes the policy; `lib/auth.test.ts` exercises the provider
 configuration with synthetic credentials. Real OAuth remains an external check
-recorded in task 003, not something local tests prove.
+recorded in task 005, not something local tests prove.

@@ -1,13 +1,14 @@
 # 003 — E4.2 selective account sync
 
 id: 003
-updated: 2026-11-04
+updated: 2026-11-05
 
 ## Goal
 
-Close E4.2: the owner accepts the sync corrections and UI, a real account
-recovers its pending items in a second browser, and the authorized environment
-is validated for recovery. Deployment needs its own authorization.
+Close essential real acceptance for selective sync: the owner accepts the UI,
+a pending item recovers in a second browser, consented guest import is safe, and
+a completed one-time item stays terminal across recovery. Deployment needs its
+own authorization.
 
 ## Out of scope
 
@@ -17,10 +18,10 @@ is validated for recovery. Deployment needs its own authorization.
 
 ## Next step
 
-Owner reviews the sync corrections and UI. Then, in an authorized disposable
-context, create → confirm → clear storage → sign in again and recover the
-pending item in a second browser. Test Facebook in both orders. Record results
-in Validation and Log. Do not deploy or migrate.
+Owner reviews the sync corrections and UI. Then, in the separately authorized
+`development` environment with a disposable account, complete the real sync,
+import and terminal-item checks below. Record results in Validation and Log.
+Schema readiness is owner-confirmed; do not recheck it, deploy, or migrate.
 
 ## Checklist
 
@@ -29,17 +30,16 @@ in Validation and Log. Do not deploy or migrate.
 - [ ] Review local-only, quota/upgrade, conflict and no-JS notices on the real build.
 - [ ] Confirm timer/session behavior when a remote change arrives while typing.
 
-### Real recovery
+### Real sync acceptance
 
-- [ ] Create and confirm a pending item with a real Google account.
-- [ ] Clear storage, sign in again in another browser and recover the item.
-- [ ] Record the remote state of `development` with `db:verify` (read-only).
+- [ ] Create and confirm a pending item with an authorized disposable Google account, clear storage, sign in in a second browser and recover it.
+- [ ] Cancel guest import and confirm neither side changes; accept once and verify only intended data/preferences plus the recovery copy are imported.
+- [ ] Complete a one-time pending and confirm its terminal state survives recovery without duplicate or reopen.
+- [ ] Confirm no unrelated account data appears; record the results.
 
-### Release
+### Completion
 
-- [ ] Record the remote state of `development` and `prod` with `db:verify` (read-only).
-- [ ] Deploy only after a separate authorization and a recovery point.
-- [ ] Close this task with the guard passing.
+- [ ] Close this task after owner acceptance and the task guard pass.
 
 ## Files
 
@@ -68,7 +68,7 @@ in Validation and Log. Do not deploy or migrate.
 | 2026-11-03 | Google real session | Passed locally | 2 pending items and 3 receipts in Neon `development`; owner report |
 | 2026-11-03 | Schema `development` / `prod` | Passed | 4 migrations and required schema; read-only verification |
 | 2026-11-04 | Recovery in another browser | Not run | Needs the authorized environment and the owner |
-| 2026-11-04 | Deploy | Not run | Requires separate authorization |
+| 2026-11-04 | Deploy | Not run | Remains separate from E4.2 and requires explicit authorization |
 
 ## Log
 
@@ -80,6 +80,8 @@ in Validation and Log. Do not deploy or migrate.
 - 2026-11-04 — Task board adopted; the old STATUS content is archived and this task is the resume point.
 - 2026-11-04 — Scope trimmed to E4.2: the Facebook and provider-matrix checks live in tasks 004 and 005.
 - 2026-11-04 — Paused in backlog while task 011 implements owner-approved hardening (M1, M3, M4, B1, B3). Next step and real-provider evidence remain unchanged; no remote operations authorized.
+- 2026-11-05 — Owner confirms separate `development` and `prod` Neon databases with the same schema. Owner-shared `db:verify:prod` reports a complete schema and five applied migrations. Removed repeat schema checks and the duplicated Facebook identity matrix; real recovery remains open.
+- 2026-11-05 — Consolidated essential real guest-import (E4.4) and terminal-completion (E4.5.1) acceptance here; local tests do not close these real-account checks.
 
 ## History
 

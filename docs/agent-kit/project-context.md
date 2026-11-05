@@ -109,8 +109,8 @@ in the agreed scope", not "forbidden".
 | Migration journal | `npm run db:check` | Passing on 2026-11-03 (no connection) |
 | Production build | `npm run build` | Passing on 2026-11-03 with synthetic loopback `DATABASE_URL` and a disposable secret |
 | Database connectivity | `npm run db:health` / `npm run db:health:prod` | Read-only; requires local `.env` / `.env.prod` (never committed) |
-| Schema verification | `npm run db:verify` / `npm run db:verify:prod` | Read-only; requires local `.env` / `.env.prod` |
-| Task board | `npm run check:tasks` | Passing on 2026-11-04; `npm run test:tasks` covers the guard itself |
+| Schema verification | `npm run db:verify` / `npm run db:verify:prod` | Owner-shared `db:verify:prod` output on 2026-11-05: required schema complete, five migrations; owner confirms separate development DB has same schema. This cleanup did not query development. |
+| Task board | `npm run check:tasks` | Passing on 2026-11-05 after backlog cleanup; `npm run test:tasks` covers the guard itself |
 | Browser journeys | `npm run test:e2e` | 9/9 passing on 2026-11-03 (Chromium, production build); public surfaces only, axe reports no WCAG A/AA violations on both legal pages. No authenticated account, Neon, or provider login. |
 
 `npm run db:migrate` and `npm run db:migrate:prod` write to a database. They are
@@ -137,37 +137,50 @@ credentials; they do not validate Neon, OAuth, a real browser, or a device.
   address with exact, opt-in hostnames (development only). Private `.env` was
   not edited; the owner must set the current LAN hostname and restart dev.
 - Owner-approved M1/M3/M4: new account writes omit OAuth tokens; rate limits
-  use HMAC-keyed atomic expiring PostgreSQL counters. Generated migration 0004
-  is not applied remotely: auth/account fail closed until authorized activation.
-  Historical-token cleanup is separate. npm 11.11.0 installs with all dependency
-  scripts disabled, integrity-checked lock and a CI high/critical audit gate.
-  See [hardening record](../cloud/2026-11-04-security-hardening.md).
-- Open product blockers remain E4.2, E4.3.1, E4.8, and F01 in `plan.md`. Legal
-  controller name/address and support-mailbox monitoring are still unconfirmed.
+  use HMAC-keyed atomic expiring PostgreSQL counters. The owner confirms migration
+  0004 is applied in separate development and production databases with the same
+  schema; the shared production verification reports five migrations and
+  `runo_rate_limits`. Historical-token cleanup remains separate. npm 11.11.0
+  installs with all dependency scripts disabled, an integrity-checked lock and a
+  CI high/critical audit gate. See [hardening record](../cloud/2026-11-04-security-hardening.md).
+- Essential external acceptance remains grouped in tasks 003–007: E4.2/E4.4/
+  E4.5.1 in 003; E4.1/E4.3/E4.6/E4.7 in 004; E4.3.1 in 005; E4.8 in 006;
+  F01 and E4.5 retention/retry decisions in 007. Schema parity does not close
+  those checks. Legal controller name/address and support-mailbox monitoring
+  remain unconfirmed.
 - `docs/agent-kit/` is a pinned copy. Update it only through
   [`docs/agent-kit/playbooks/update-kit.md`](./playbooks/update-kit.md) with
   three-way review; never auto-sync.
 
 ## Current work
 
-- Local task **012** completed the approved PostgreSQL resilience review and
-  real-session verification. No next task starts automatically. No Neon access
-  or application migration is authorized. Local hardening **011** is complete
-  ([evidence](../../tasks/completed/011-security-hardening.md)); E4.2 is paused in
+- No task starts automatically. Local task **013** decoupled read-only
+  PostgreSQL health/schema checks from Better Auth environment validation
+  ([evidence](../../tasks/completed/013-readonly-db-checks.md)). Local task **012**
+  completed the approved PostgreSQL resilience review and real-session verification.
+  Local hardening **011** is complete
+  ([evidence](../../tasks/completed/011-security-hardening.md)). The owner confirms
+  development and production are separate Neon databases with the same schema;
+  owner-shared production verification is recorded below. This does not prove an
+  application deployment or external acceptance. E4.2 remains paused in
   [`tasks/backlog/003-e4-2-selective-account-sync.md`](../../tasks/backlog/003-e4-2-selective-account-sync.md)
   and
   [`docs/cloud/2026-11-02-selective-account-sync.md`](../cloud/2026-11-02-selective-account-sync.md).
-- Last local verification (2026-11-04, task 012): 472/472 tests, typecheck,
-  lint, format, journal/guards, isolated production build and 10/10 public
-  Chromium journeys, plus **6/6 independent-connection tests on PostgreSQL 17.11**
-  in an owner-approved loopback-only disposable container. The owned container
-  and credential were removed; other workloads were untouched. No app dependency
-  or lock edits; install/audit/signature evidence remains in task 011. No remote
-  CI/Neon/PgBouncer/OAuth/device evidence.
-- Next concrete step: separately authorize application migration 0004 activation,
-  with a confirmed destination/recovery point; auth/account fail closed without it.
-  Local verification of task 012 is complete; no new task starts automatically.
-  Historical-token cleanup and CSP enforcement remain gated. E4.2 resumes with
-  owner review of the sync corrections, then the authenticated matrix (Google and Facebook in both orders, missing email,
-  different email) in the authorized environment. No deploy or production
-  migration is authorized by this contract.
+- Last local verification (2026-11-04, tasks 012–013): 479/479 tests, typecheck,
+  lint, format, journal/guards and isolated production build. Task 012 additionally
+  passed 6/6 independent-connection cases on PostgreSQL 17.11 and 10/10 public
+  Chromium journeys. Task 013 smoke-tested both production diagnostic entry points
+  with a synthetic loopback URL and no auth credentials; they reached SQL then
+  correctly failed on the intentionally absent local service. Those task runs did
+  not access real `.env.prod`, Neon, remote CI, PgBouncer or OAuth. Container and
+  credential from 012 were removed.
+- Owner follow-up (2026-11-05): `db:verify:prod` was run read-only and reported
+  the required schema complete, five applied migrations and `runo_rate_limits`.
+  The owner confirms the separate development database has the same schema; it
+  was not independently queried in this cleanup. Migration 0004 is no longer a
+  pending activation item by owner report. This does not prove the deployed code,
+  OAuth, cross-browser recovery, deletion procedure or device acceptance.
+- Next concrete step: owner reviews the E4.2 sync UI, then performs the authorized
+  pending-item recovery in a second browser against `development`. Keep the real
+  OAuth matrix, legal/deletion decisions and physical-device/Safari checks open.
+  Promotion to production remains a separate, explicitly authorized step.

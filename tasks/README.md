@@ -9,20 +9,19 @@ None.
 
 ## Backlog (in priority order)
 
-- [003 — E4.2 selective account sync](backlog/003-e4-2-selective-account-sync.md) — owner review and recovery in another browser, after local hardening 011/012.
-- [004 — E4.1 real provider sessions](backlog/004-e4-1-real-provider-sessions.md) — real Google session/logout and deployed-environment check.
-- [005 — E4.3.1 identity linking matrix](backlog/005-e4-3-1-identity-linking-matrix.md) — both orders, missing email, changed email with real OAuth.
-- [007 — F01 legal and account deletion](backlog/007-f01-legal-and-account-deletion.md) — controller identity, support mailbox, retention, remote deletion.
-- [006 — E4.8 device and browser coverage](backlog/006-e4-8-device-and-browser-coverage.md) — Safari, physical phone, PWA offline, audio and wake lock.
+- [003 — E4.2 selective account sync](backlog/003-e4-2-selective-account-sync.md) — owner UI review plus real recovery, consented import and terminal-item acceptance; schema readiness is owner-confirmed.
+- [004 — E4.1 real provider sessions](backlog/004-e4-1-real-provider-sessions.md) — real Google lifecycle/isolation and read-only E3 removal check in the authorized release.
+- [005 — E4.3.1 identity linking matrix](backlog/005-e4-3-1-identity-linking-matrix.md) — verify the accepted provider-email policy with real OAuth.
+- [007 — F01 legal and account deletion](backlog/007-f01-legal-and-account-deletion.md) — legal contact, account/receipt retention, sync retry window and approved deletion procedure.
+- [006 — E4.8 device and browser coverage](backlog/006-e4-8-device-and-browser-coverage.md) — real Safari/phone acceptance for PWA, offline, audio and wake lock.
 
 ## Icebox (not approved)
 
 - Authenticated E2E: Playwright setup with a disposable identity and `storageState`, plus axe on account pages. Archived detail: [008](archive/2026-11-04-dropped-tasks/008-authenticated-e2e.md).
 - Split oversized modules: `components/task-editor.tsx`, `components/runo-home.tsx` and `lib/db/repository.ts`; characterization tests first. Archived detail: [009](archive/2026-11-04-dropped-tasks/009-split-oversized-modules.md).
-- Security activation: migration 0004 needs separate authorization, destination and recovery point before applying/verifying it. Auth/account now fail closed without the table; no Neon change was made by local implementation 011.
 - Historical OAuth tokens/backups: separately authorize targeted cleanup and retention review; new writes omit tokens, but dormant historical rows are not erased.
 - CSP enforcement: measure static report-only against theme/motion/PWA/OAuth, then approve a compatible enforcement strategy (nonces conflict with PPR). Local diagnostics supersede the old [010](archive/2026-11-04-dropped-tasks/010-nonce-csp.md) idea.
-- Push the local commits and verify `app-ci` on GitHub; not authorized yet. The first run is the only unverified part of CI.
+- Verify `app-ci` on GitHub for the eventual release commit after publication is authorized; local checks are not remote CI evidence.
 - Review 12 moderate npm lock advisories by 2026-11-18 (4 survive omit=dev through Better Auth → Drizzle Kit/esbuild); see the hardening record. No forced remediation.
 - LAN access now requires the owner to set `AVO_DEV_HOSTS` locally and restart dev. Private `.env` was not changed.
 
@@ -42,7 +41,7 @@ The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
 
-Next id: **013** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`).
+Next id: **015** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`).
 
 ## Board conventions
 

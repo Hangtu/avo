@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parse } from "dotenv";
 import { sql } from "drizzle-orm";
+import { createInspectionDatabase, inspectionTarget } from "@/lib/db/inspection";
 
 /**
  * Read-only connectivity check. Usage: `tsx scripts/db-health.ts [envFile]`
@@ -15,18 +16,15 @@ function loadEnv(path: string) {
   } catch {
     throw new Error(`No pude leer ${path}.`);
   }
-  const databaseUrl = env.DATABASE_URL_UNPOOLED ?? env.DATABASE_URL;
-  if (!databaseUrl) throw new Error(`${path} debe definir DATABASE_URL_UNPOOLED o DATABASE_URL.`);
-  process.env.DATABASE_URL = databaseUrl;
-  return new URL(databaseUrl).hostname;
+  return inspectionTarget(env, path);
 }
 
 async function main() {
-  const hostname = loadEnv(envPath);
-  const { db, pool } = await import("../lib/db/client");
+  const target = loadEnv(envPath);
+  console.log(`entorno: ${envPath}  host: ${target.hostname}`);
+  const { db, pool } = createInspectionDatabase(target.connectionString);
   try {
     const result = await db.execute<{ ok: number }>(sql`select 1 as ok`);
-    console.log(`entorno: ${envPath}  host: ${hostname}`);
     console.log("Neon respondió:", result.rows[0]?.ok === 1 ? "ok" : result.rows[0]);
   } finally {
     await pool.end();
