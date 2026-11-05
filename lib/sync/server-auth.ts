@@ -2,6 +2,9 @@ import "server-only";
 
 import { auth } from "@/lib/auth";
 import { authOrigins } from "@/lib/auth-origins";
+import { DomainError } from "@/lib/domain/validation";
+import { ProtocolError } from "./protocol";
+import { ACCOUNT_LIMITS, enforceRateLimit, rateLimitIp, RateLimitError } from "@/lib/security/rate-limit";
 
 export class AccountHttpError extends Error {
   constructor(
@@ -11,6 +14,21 @@ export class AccountHttpError extends Error {
     super(code);
   }
 }
+/** Limits even anonymous session probes before hitting the session database. */
+export async function accountSession(
+  request: Request,
+  intent: "probe" | "read" | "write",
+): Promise<typeof auth.$Infer.Session> {
+  await enforceRateLimit(`account:ip:${rateLimitIp(request)}`, ACCOUNT_LIMITS.ip);
+  const session = await auth.api.getSession({
+    headers: request.headers,
+    query: { disableCookieCache: true },
+  });
+  if (!session) throw new AccountHttpError(401, "unauthorized");
+  await enforceRateLimit(`account:${intent}:${session.user.id}`, ACCOUNT_LIMITS[intent]);
+  return session;
+}
+
 export async function verifiedAccount(request: Request, mutation = false): Promise<string> {
   if (mutation) {
     if (
@@ -23,14 +41,34 @@ export async function verifiedAccount(request: Request, mutation = false): Promi
       throw new AccountHttpError(415, "json_required");
     }
   }
-  const session = await auth.api.getSession({
-    headers: request.headers,
-    query: { disableCookieCache: true },
-  });
-  if (!session) throw new AccountHttpError(401, "unauthorized");
+  const session = await accountSession(request, mutation ? "write" : "read");
   // An expected ID prevents an A outbox request being applied under B's cookies.
   if (request.headers.get("x-avo-account") !== session.user.id)
     throw new AccountHttpError(409, "account_changed");
   return session.user.id;
 }
 export const privateHeaders = { "Cache-Control": "private, no-store", Vary: "Cookie, X-Avo-Account" };
+
+/** One generic, non-cacheable error boundary for both account routes. */
+export function accountFailure(error: unknown): Response {
+  if (error instanceof RateLimitError)
+    return Response.json(
+      { error: "rate_limited" },
+      {
+        status: 429,
+        headers: { ...privateHeaders, "Retry-After": String(error.retryAfter) },
+      },
+    );
+  if (error instanceof AccountHttpError)
+    return Response.json({ error: error.code }, { status: error.status, headers: privateHeaders });
+  if (error instanceof ProtocolError || error instanceof DomainError || error instanceof SyntaxError) {
+    const code =
+      error instanceof ProtocolError &&
+      ["record_missing", "operation_reused", "snapshot_too_large"].includes(error.message)
+        ? error.message
+        : "invalid_request";
+    return Response.json({ error: code }, { status: 400, headers: privateHeaders });
+  }
+  console.error("Account persistence unavailable");
+  return Response.json({ error: "temporarily_unavailable" }, { status: 503, headers: privateHeaders });
+}

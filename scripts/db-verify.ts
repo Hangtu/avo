@@ -61,6 +61,9 @@ async function main() {
       ["runo_metadata", "key"],
       ["runo_auth_accounts", "provider_id"],
       ["runo_auth_accounts", "account_id"],
+      ["runo_rate_limits", "key"],
+      ["runo_rate_limits", "count"],
+      ["runo_rate_limits", "expires_at"],
     ];
     const missing = required
       .filter(([table, column]) => !have.has(`${table}.${column}`))

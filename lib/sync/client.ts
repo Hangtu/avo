@@ -1,6 +1,7 @@
 import type { RunoDatabase } from "@/lib/db/database";
 import { newOperationId } from "@/lib/domain/id";
 import { acknowledge, mergeRemote } from "./local";
+import { retryAfterMs } from "./retry-after";
 import {
   canonicalJSON,
   MAX_BATCH,
@@ -22,6 +23,7 @@ export class SyncHttpError extends Error {
   constructor(
     public status: number,
     public code = "request_failed",
+    public retryDelayMs?: number,
   ) {
     super(`sync_http_${status}`);
   }
@@ -49,7 +51,11 @@ async function request(accountId: string, signal: AbortSignal, body?: unknown, e
       const data = await response.json();
       if (typeof data.error === "string") code = data.error;
     } catch {}
-    throw new SyncHttpError(response.status, code);
+    throw new SyncHttpError(
+      response.status,
+      code,
+      response.status === 429 ? retryAfterMs(response.headers.get("retry-after")) : undefined,
+    );
   }
   return response;
 }

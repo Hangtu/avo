@@ -22,6 +22,7 @@ const optionalOrigin = z.preprocess(
 const schema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).optional(),
+    VERCEL: z.enum(["0", "1"]).optional(),
     DATABASE_URL: z.url("DATABASE_URL es obligatoria y debe ser una URL de Postgres."),
     BETTER_AUTH_SECRET: z
       .string("BETTER_AUTH_SECRET es obligatoria.")

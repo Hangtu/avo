@@ -2,15 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_BODY_BYTES } from "@/lib/sync/protocol";
 import { NOW } from "@/tests/fixtures";
 
-const mocks = vi.hoisted(() => ({ session: vi.fn(), read: vi.fn(), mutate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ session: vi.fn(), read: vi.fn(), mutate: vi.fn(), consume: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: mocks.session } } }));
 vi.mock("@/lib/db/client", () => ({ db: {} }));
+vi.mock("@/lib/env", () => ({ env: { BETTER_AUTH_SECRET: "synthetic-limit-test-key" } }));
+vi.mock("@/lib/security/rate-limit-store", () => ({
+  createRateLimitStore: () => ({ consume: mocks.consume }),
+}));
 vi.mock("@/lib/sync/server-repository", () => ({
   readAccountData: mocks.read,
   mutateAccountData: mocks.mutate,
 }));
 import { GET, POST } from "@/app/api/account/data/route";
+import { GET as probe } from "@/app/api/account/me/route";
 
 const origin = "https://avo.example.test";
 const mutation = () => ({
@@ -42,8 +47,17 @@ function req(method = "GET", body?: unknown, headers: Record<string, string> = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("BETTER_AUTH_URL", origin);
-  mocks.session.mockResolvedValue({ user: { id: "auth-A" } });
-  mocks.read.mockResolvedValue({ version: 1, accountId: "auth-A", records: [] });
+  mocks.consume.mockResolvedValue({ allowed: true, retryAfter: null });
+  mocks.session.mockResolvedValue({
+    user: { id: "auth-A", name: "Synthetic", email: "synthetic@example.test" },
+  });
+  mocks.read.mockImplementation(async (_db, accountId, previous) => ({
+    version: 1,
+    accountId,
+    records: [],
+    etag: '"synthetic-snapshot"',
+    ...(previous === '"synthetic-snapshot"' ? { notModified: true } : {}),
+  }));
   mocks.mutate.mockResolvedValue([]);
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -57,7 +71,7 @@ describe("private account API — mocked session/DB, no external services", () =
     expect(mocks.session).toHaveBeenCalledWith(
       expect.objectContaining({ query: { disableCookieCache: true } }),
     );
-    expect(mocks.read).toHaveBeenCalledWith({}, "auth-A");
+    expect(mocks.read).toHaveBeenCalledWith({}, "auth-A", undefined);
   });
   it("uses a private ETag and returns 304 only after authenticating the same account", async () => {
     const first = await GET(req());
@@ -163,6 +177,45 @@ describe("private account API — mocked session/DB, no external services", () =
     expect(response.status).toBe(200);
     expect(mocks.mutate).toHaveBeenCalledWith({}, "auth-A", [original]);
     expect(response.headers.get("cache-control")).toContain("no-store");
+  });
+  it("throttles anonymous requests before checking the session", async () => {
+    mocks.consume.mockResolvedValue({ allowed: false, retryAfter: 42 });
+    for (const call of [() => GET(req()), () => POST(req("POST", {})), () => probe(req())]) {
+      const response = await call();
+      expect(response.status).toBe(429);
+      expect(response.headers.get("retry-after")).toBe("42");
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(await response.json()).toEqual({ error: "rate_limited" });
+    }
+    expect(mocks.session).not.toHaveBeenCalled();
+    expect(mocks.mutate).not.toHaveBeenCalled();
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
+  it("uses the verified account, never the claimed header, for separate budgets", async () => {
+    await GET(req());
+    await POST(req("POST", { version: 1, mutations: [mutation()] }));
+    await probe(req());
+    expect(mocks.consume).toHaveBeenCalledWith("account:read:auth-A", { window: 60, max: 60 });
+    expect(mocks.consume).toHaveBeenCalledWith("account:write:auth-A", { window: 60, max: 30 });
+    expect(mocks.consume).toHaveBeenCalledWith("account:probe:auth-A", { window: 60, max: 120 });
+  });
+  it("returns 429 before reading domain data when the account budget is exhausted", async () => {
+    mocks.consume
+      .mockResolvedValueOnce({ allowed: true, retryAfter: null })
+      .mockResolvedValueOnce({ allowed: false, retryAfter: 60 });
+    expect((await GET(req())).status).toBe(429);
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
+  it("fails closed on limiter outages, including the session probe", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.consume.mockRejectedValue(new Error("synthetic private database details"));
+    for (const call of [() => GET(req()), () => POST(req("POST", {})), () => probe(req())]) {
+      const response = await call();
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "temporarily_unavailable" });
+    }
+    expect(mocks.session).not.toHaveBeenCalled();
+    expect(mocks.mutate).not.toHaveBeenCalled();
   });
   it("does not expose database details on failures", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});

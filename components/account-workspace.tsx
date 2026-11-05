@@ -27,6 +27,7 @@ import {
 } from "@/lib/sync/access";
 import { mirrorPreferences } from "@/lib/sync/browser-preferences";
 import { httpTransport, recoverRejected, SyncHttpError, syncOnce } from "@/lib/sync/client";
+import { createSyncScheduler, type SyncRunResult } from "@/lib/sync/scheduler";
 import { resolveConflict } from "@/lib/sync/local";
 import {
   preferenceWriteState,
@@ -412,6 +413,7 @@ function SelectedWorkspace({
   const [preferences, setPreferences] = useState(() => preferenceWriteState(name));
   const [revision, setRevision] = useState(0);
   const wake = useRef<(pull?: boolean) => void>(() => {});
+  const cooldown = useRef({ ownerId: "", until: 0 });
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
   const retry = useCallback(() => wake.current(true), []);
   useEffect(() => {
@@ -424,28 +426,16 @@ function SelectedWorkspace({
     if (!accountId) return;
     // Captured for the nested async loop; the effect guard above already narrowed it.
     const ownerId: string = accountId;
-    let stopped = false,
-      running = false,
-      again = false,
-      pullNext = true;
+    let stopped = false;
     let connection: Awaited<ReturnType<typeof openDatabaseForSpace>> | null = null;
     let subscription: { unsubscribe(): void } | null = null;
     let controller: AbortController | null = null;
-    let debounce: number | undefined;
-    async function run() {
-      if (stopped || !connection) return;
+    async function run(pull: boolean): Promise<SyncRunResult> {
+      if (stopped || !connection) return { status: "stop" };
       if (!selection.verified) {
         setStatus("expired");
-        return;
+        return { status: "stop" };
       }
-      if (running) {
-        again = true;
-        return;
-      }
-      running = true;
-      again = false;
-      const pull = pullNext;
-      pullNext = false;
       setStatus("syncing");
       const current = new AbortController();
       controller = current;
@@ -462,6 +452,7 @@ function SelectedWorkspace({
           setIssues(problems ?? []);
           setStatus("saved");
         }
+        return { status: "ok" };
       } catch (error) {
         // A pull or an earlier half-batch may have committed locally before a later
         // request failed. Publish those rows too, without remounting the UI.
@@ -475,24 +466,29 @@ function SelectedWorkspace({
             if (error.status === 409) onRecheck();
           } else setStatus(navigator.onLine ? "error" : "offline");
         }
-        again = false;
+        if (!stopped && error instanceof SyncHttpError && error.status === 429)
+          return { status: "retry", delayMs: error.retryDelayMs ?? 60_000 };
+        return { status: "stop" };
       } finally {
         window.clearTimeout(timeout);
-        running = false;
-        if (again && !stopped) schedule();
       }
     }
-    function schedule(pull = false) {
-      if (stopped) return;
-      pullNext ||= pull;
-      if (running) {
-        again = true;
-        return;
-      }
-      window.clearTimeout(debounce);
-      debounce = window.setTimeout(() => void run(), 250);
-    }
-    wake.current = schedule;
+    const scheduler = createSyncScheduler({
+      run,
+      now: () => performance.now(),
+      cooldown: {
+        read: () => (cooldown.current.ownerId === ownerId ? cooldown.current.until : 0),
+        write: (until) => {
+          cooldown.current = { ownerId, until };
+        },
+      },
+      available: () => Boolean(connection) && document.visibilityState === "visible" && navigator.onLine,
+    });
+    const availability = () => {
+      if (!navigator.onLine) setStatus("offline");
+      scheduler.availabilityChanged();
+    };
+    wake.current = scheduler.wake;
     void openDatabaseForSpace({ kind: "account", userId: accountId })
       .then((db) => {
         if (stopped) {
@@ -506,37 +502,32 @@ function SelectedWorkspace({
             setQueued(items.filter((item) => item.state === "queued").length);
             setConflicts(items.filter((item) => item.state === "conflict"));
             setRejected(items.filter((item) => item.state === "rejected" || item.state === "local-only"));
-            if (items.some((item) => item.state === "queued")) schedule();
+            if (items.some((item) => item.state === "queued")) scheduler.wake();
           },
           error: () => {
             if (!stopped) setStatus("error");
           },
         });
-        schedule(true);
+        availability();
       })
       .catch(() => {
         if (!stopped) setStatus("error");
       });
-    const pull = () => schedule(true);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") pull();
-    };
-    window.addEventListener("online", pull);
-    window.addEventListener("focus", pull);
-    document.addEventListener("visibilitychange", onVisible);
-    // Poll changes conditionally; local queue wakes push without downloading the whole account.
-    const interval = window.setInterval(pull, 60_000);
+    window.addEventListener("online", availability);
+    window.addEventListener("offline", availability);
+    window.addEventListener("focus", availability);
+    document.addEventListener("visibilitychange", availability);
     return () => {
       stopped = true;
       controller?.abort();
       subscription?.unsubscribe();
       connection?.close();
-      window.clearTimeout(debounce);
-      window.clearInterval(interval);
+      scheduler.stop();
       wake.current = () => {};
-      window.removeEventListener("online", pull);
-      window.removeEventListener("focus", pull);
-      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", availability);
+      window.removeEventListener("offline", availability);
+      window.removeEventListener("focus", availability);
+      document.removeEventListener("visibilitychange", availability);
     };
   }, [accountId, selection.verified, selection.verification, onRecheck, refresh]);
 

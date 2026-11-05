@@ -79,6 +79,7 @@ in Validation and Log. Do not deploy or migrate.
 - 2026-11-03 — First real Google sign-in synced 2 pending items and 3 receipts in `development`.
 - 2026-11-04 — Task board adopted; the old STATUS content is archived and this task is the resume point.
 - 2026-11-04 — Scope trimmed to E4.2: the Facebook and provider-matrix checks live in tasks 004 and 005.
+- 2026-11-04 — Paused in backlog while task 011 implements owner-approved hardening (M1, M3, M4, B1, B3). Next step and real-provider evidence remain unchanged; no remote operations authorized.
 
 ## History
 

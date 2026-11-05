@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parse } from "dotenv";
 import { defineConfig } from "drizzle-kit";
+import { directMigrationUrl } from "./lib/db/migration-url";
 
 let env: Record<string, string>;
 try {
@@ -9,20 +10,7 @@ try {
   throw new Error("Could not read .env.prod. Create it in the repository root.");
 }
 
-const databaseUrl = env.DATABASE_URL_UNPOOLED;
-if (!databaseUrl) {
-  throw new Error(".env.prod must define DATABASE_URL_UNPOOLED with a direct Neon connection string.");
-}
-
-let hostname: string;
-try {
-  hostname = new URL(databaseUrl).hostname;
-} catch {
-  throw new Error("DATABASE_URL_UNPOOLED in .env.prod is not a valid URL.");
-}
-if (hostname.includes("-pooler.")) {
-  throw new Error("db:migrate:prod requires a direct connection, not a pooled Neon URL.");
-}
+const databaseUrl = directMigrationUrl(env.DATABASE_URL_UNPOOLED);
 
 export default defineConfig({
   schema: ["./lib/db/schema.ts", "./lib/db/auth-schema.ts"],

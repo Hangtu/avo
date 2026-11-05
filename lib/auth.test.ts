@@ -3,19 +3,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const database = vi.hoisted(() => {
   const onConflictDoNothing = vi.fn(async () => undefined);
   const values = vi.fn(() => ({ onConflictDoNothing }));
-  return { insert: vi.fn(() => ({ values })), values, onConflictDoNothing };
+  const transaction = { insert: vi.fn(() => ({ values })), execute: vi.fn(async () => undefined) };
+  return {
+    ...transaction,
+    transaction: vi.fn(async (work) => work(transaction)),
+    values,
+    onConflictDoNothing,
+  };
 });
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db/client", () => ({ db: database }));
+const counter = vi.hoisted(() => ({ consume: vi.fn() }));
+vi.mock("@/lib/security/rate-limit-store", () => ({ createRateLimitStore: () => counter }));
 
 beforeEach(() => {
   vi.resetModules();
+  counter.consume.mockResolvedValue({ allowed: true, retryAfter: null });
   vi.stubEnv("DATABASE_URL", "postgresql://synthetic:synthetic@127.0.0.1:5432/avo_test");
   vi.stubEnv("BETTER_AUTH_SECRET", "synthetic-test-secret-never-a-production-secret-123456789");
   vi.stubEnv("BETTER_AUTH_URL", undefined);
   vi.stubEnv("BETTER_AUTH_TRUSTED_ORIGINS", undefined);
   vi.stubEnv("AVO_DEV_AUTH_ORIGINS", undefined);
+  vi.stubEnv("VERCEL", undefined);
   for (const key of [
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
@@ -80,6 +90,15 @@ describe("auth without legacy cloud configuration — no database or OAuth netwo
     );
     expect(response.status).toBe(403);
     expect(database.insert).not.toHaveBeenCalled();
+  });
+
+  it("enables shared limits and never stores provider tokens in a cookie", async () => {
+    const { auth } = await import("./auth");
+    expect(auth.options.account.storeAccountCookie).toBe(false);
+    expect(auth.options.rateLimit.enabled).toBe(true);
+    expect(auth.options.rateLimit.customStorage.consume).toBeTypeOf("function");
+    expect(auth.options.rateLimit.customRules["/sign-in/*"]).toEqual({ window: 900, max: 10 });
+    expect(auth.options.advanced.ipAddress.ipAddressHeaders).toEqual([]);
   });
 
   it("creates the domain user using the existing default time zone, not a fixed owner", async () => {

@@ -13,7 +13,10 @@ const connectionString = env.DATABASE_URL;
  * Reuse the pool across HMR in development. On Vercel Fluid, attachDatabasePool
  * closes idle connections before the function is suspended.
  */
-const globalForDb = globalThis as unknown as { runoPool?: Pool };
+const globalForDb = globalThis as typeof globalThis & {
+  runoPool?: Pool;
+  runoObservedPools?: WeakSet<Pool>;
+};
 
 const pool =
   globalForDb.runoPool ??
@@ -21,8 +24,18 @@ const pool =
     connectionString,
     max: 5,
     idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 5_000,
   });
+
+// Reusing a pre-existing HMR pool must also install the listener exactly once.
+const observed = (globalForDb.runoObservedPools ??= new WeakSet<Pool>());
+if (!observed.has(pool)) {
+  pool.on("error", () => {
+    // Idle errors are asynchronous: route try/catch cannot catch this event.
+    console.error("Database idle connection unavailable");
+  });
+  observed.add(pool);
+}
 
 if (!globalForDb.runoPool) {
   attachDatabasePool(pool);

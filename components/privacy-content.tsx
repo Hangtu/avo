@@ -42,9 +42,10 @@ export function PrivacyContent() {
           </p>
           <p className="mt-2">
             Si eliges iniciar sesión con Google o Facebook, recibimos los datos que autorices, como nombre,
-            correo, imagen de perfil e identificador de tu cuenta. Guardamos la información y los tokens
-            necesarios para autenticarte, así como datos técnicos de sesión, como IP y tipo de navegador. No
-            recibimos tu contraseña de Google ni de Facebook.
+            correo, imagen de perfil e identificador de tu cuenta. Conservamos los identificadores necesarios
+            para reconocer tu cuenta y datos técnicos de sesión, como IP y tipo de navegador. Los tokens del
+            proveedor se usan durante el inicio de sesión; las nuevas escrituras de cuenta no los conservan.
+            No recibimos tu contraseña de Google ni de Facebook.
           </p>
           <p className="mt-2">
             Usamos estos datos para ofrecer las funciones que solicitas, mantener tu sesión, proteger el

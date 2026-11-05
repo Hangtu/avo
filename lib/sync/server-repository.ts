@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "@/lib/db/schema";
+import { boundedTransaction } from "@/lib/db/transaction";
+import { snapshotEtag } from "./server-version";
 import type { JsonValue, Pending, Settings, Task } from "@/lib/domain/types";
 import {
   canonicalJSON,
@@ -23,6 +25,9 @@ import {
 } from "./protocol";
 
 export type AccountDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
+class AccountInitializationRace extends Error {
+  readonly code = "40001";
+}
 const ms = (value: Date | null) => value?.getTime() ?? null;
 const date = (value: number | null) => (value === null ? null : new Date(value));
 
@@ -121,7 +126,12 @@ async function domainOwner(tx: AccountDatabase, authId: string, lock: boolean): 
     return existing.id;
   }
   const id = `account:${authId}`;
-  await tx.insert(schema.users).values({ id, authUserId: authId, timeZone: "America/Mexico_City" });
+  const [created] = await tx
+    .insert(schema.users)
+    .values({ id, authUserId: authId, timeZone: "America/Mexico_City" })
+    .onConflictDoNothing()
+    .returning({ id: schema.users.id });
+  if (!created) throw new AccountInitializationRace("Account owner initialized concurrently");
   return id;
 }
 async function readRecord(
@@ -218,46 +228,59 @@ async function writeRecord(
   return (await readRecord(tx, ownerId, mutation.kind, mutation.id))!;
 }
 
-export async function readAccountData(db: AccountDatabase, authId: string): Promise<Bootstrap> {
-  return db.transaction(async (tx) => {
-    const ownerId = await domainOwner(tx, authId, false);
-    // Ordered selects keep the canonical hash (and therefore the ETag) stable.
-    const tasks = await tx
-      .select()
-      .from(schema.tasks)
-      .where(eq(schema.tasks.userId, ownerId))
-      .orderBy(asc(schema.tasks.id))
-      .limit(10_001);
-    const pendings = await tx
-      .select()
-      .from(schema.pendings)
-      .where(eq(schema.pendings.userId, ownerId))
-      .orderBy(asc(schema.pendings.id))
-      .limit(10_001);
-    if (tasks.length > 10_000 || pendings.length > 10_000) throw new ProtocolError("snapshot_too_large");
-    const settings = await tx.select().from(schema.settings).where(eq(schema.settings.userId, ownerId));
-    const records: DurableRecord[] = [],
-      issues: RemoteIssue[] = [];
-    const collect = <T>(rows: T[], kind: DurableKind, convert: (row: T) => DurableRecord) => {
-      for (const row of rows) {
-        let id = kind === "settings" ? "preferences" : (row as { id: string }).id;
-        try {
-          validId(id);
-        } catch {
-          id = `invalid:${createHash("sha256").update(String(id)).digest("hex")}`;
+export async function readAccountData(
+  db: AccountDatabase,
+  authId: string,
+  ifNoneMatch?: string,
+): Promise<Bootstrap & { etag: string }> {
+  return boundedTransaction({
+    database: db,
+    isolationLevel: "repeatable read",
+    retries: 2,
+    work: async (tx) => {
+      const ownerId = await domainOwner(tx, authId, false);
+      const etag = await snapshotEtag(tx, ownerId);
+      if (ifNoneMatch === etag)
+        return { version: 1, accountId: authId, records: [], etag, notModified: true };
+      // One MVCC snapshot across every select; the token and payload cannot mix
+      // pre/post-batch states. Conditional hits never fetch these wide rows.
+      const tasks = await tx
+        .select()
+        .from(schema.tasks)
+        .where(eq(schema.tasks.userId, ownerId))
+        .orderBy(asc(schema.tasks.id))
+        .limit(10_001);
+      const pendings = await tx
+        .select()
+        .from(schema.pendings)
+        .where(eq(schema.pendings.userId, ownerId))
+        .orderBy(asc(schema.pendings.id))
+        .limit(10_001);
+      if (tasks.length > 10_000 || pendings.length > 10_000) throw new ProtocolError("snapshot_too_large");
+      const settings = await tx.select().from(schema.settings).where(eq(schema.settings.userId, ownerId));
+      const records: DurableRecord[] = [],
+        issues: RemoteIssue[] = [];
+      const collect = <T>(rows: T[], kind: DurableKind, convert: (row: T) => DurableRecord) => {
+        for (const row of rows) {
+          let id = kind === "settings" ? "preferences" : (row as { id: string }).id;
+          try {
+            validId(id);
+          } catch {
+            id = `invalid:${createHash("sha256").update(String(id)).digest("hex")}`;
+          }
+          try {
+            records.push(validRecord(convert(row)));
+          } catch {
+            // Keep the server row and any local copy. Report quarantine, never silently omit it.
+            issues.push({ key: entityKey(kind, id), kind, id, code: "invalid_record" });
+          }
         }
-        try {
-          records.push(validRecord(convert(row)));
-        } catch {
-          // Keep the server row and any local copy. Report quarantine, never silently omit it.
-          issues.push({ key: entityKey(kind, id), kind, id, code: "invalid_record" });
-        }
-      }
-    };
-    collect(tasks, "task", taskRecord);
-    collect(pendings, "pending", pendingRecord);
-    collect(settings, "settings", settingsRecord);
-    return { version: 1, accountId: authId, records, ...(issues.length ? { issues } : {}) };
+      };
+      collect(tasks, "task", taskRecord);
+      collect(pendings, "pending", pendingRecord);
+      collect(settings, "settings", settingsRecord);
+      return { version: 1, accountId: authId, records, etag, ...(issues.length ? { issues } : {}) };
+    },
   });
 }
 export async function mutateAccountData(
@@ -265,43 +288,45 @@ export async function mutateAccountData(
   authId: string,
   mutations: Mutation[],
 ): Promise<MutationResult[]> {
-  return db.transaction(async (tx) => {
-    const ownerId = await domainOwner(tx, authId, true);
-    const results: MutationResult[] = [];
-    for (const mutation of mutations) {
-      const receiptKey = `sync:v1:${mutation.operationId}`;
-      const hash = createHash("sha256").update(canonicalJSON(mutation)).digest("hex");
-      const [receipt] = await tx
-        .select()
-        .from(schema.metadata)
-        .where(and(eq(schema.metadata.userId, ownerId), eq(schema.metadata.key, receiptKey)));
-      if (receipt) {
-        const saved = receipt.value as { hash: string; result: unknown };
-        if (saved.hash !== hash) throw new ProtocolError("operation_reused");
-        results.push(saved.result as MutationResult);
-        continue;
+  return boundedTransaction({
+    database: db,
+    retries: 2,
+    work: async (tx) => {
+      const ownerId = await domainOwner(tx, authId, true);
+      const results: MutationResult[] = [];
+      for (const mutation of mutations) {
+        const receiptKey = `sync:v1:${mutation.operationId}`;
+        const hash = createHash("sha256").update(canonicalJSON(mutation)).digest("hex");
+        const [receipt] = await tx
+          .select()
+          .from(schema.metadata)
+          .where(and(eq(schema.metadata.userId, ownerId), eq(schema.metadata.key, receiptKey)));
+        if (receipt) {
+          const saved = receipt.value as { hash: string; result: unknown };
+          if (saved.hash !== hash) throw new ProtocolError("operation_reused");
+          results.push(saved.result as MutationResult);
+          continue;
+        }
+        const previous = await readRecord(tx, ownerId, mutation.kind, mutation.id);
+        if (previous && mutation.baseRevision !== previous.revision) {
+          results.push({ operationId: mutation.operationId, status: "conflict", record: previous });
+          continue;
+        }
+        if (!previous && mutation.baseRevision !== 0) throw new ProtocolError("record_missing");
+        const effective = previous
+          ? preserveCompletion(mutation.value, previous.value, mutation.kind)
+          : mutation.value;
+        const unchanged = previous && sameValue(effective, previous.value);
+        const record = unchanged ? previous : await writeRecord(tx, ownerId, mutation, previous);
+        const result: MutationResult = { operationId: mutation.operationId, status: "applied", record };
+        await tx.insert(schema.metadata).values({
+          userId: ownerId,
+          key: receiptKey,
+          value: JSON.parse(JSON.stringify({ hash, result })) as JsonValue,
+        });
+        results.push(result);
       }
-      const previous = await readRecord(tx, ownerId, mutation.kind, mutation.id);
-      if (previous && mutation.baseRevision !== previous.revision) {
-        results.push({ operationId: mutation.operationId, status: "conflict", record: previous });
-        continue;
-      }
-      if (!previous && mutation.baseRevision !== 0) throw new ProtocolError("record_missing");
-      const effective = previous
-        ? preserveCompletion(mutation.value, previous.value, mutation.kind)
-        : mutation.value;
-      const record =
-        previous && sameValue(effective, previous.value)
-          ? previous
-          : await writeRecord(tx, ownerId, mutation, previous);
-      const result: MutationResult = { operationId: mutation.operationId, status: "applied", record };
-      await tx.insert(schema.metadata).values({
-        userId: ownerId,
-        key: receiptKey,
-        value: JSON.parse(JSON.stringify({ hash, result })) as JsonValue,
-      });
-      results.push(result);
-    }
-    return results;
+      return results;
+    },
   });
 }

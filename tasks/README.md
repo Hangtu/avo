@@ -5,10 +5,11 @@ Git and linked archives preserve history.
 
 ## Current focus
 
-- [003 — E4.2 selective account sync](active/003-e4-2-selective-account-sync.md) — owner review and recovery in another browser.
+None.
 
 ## Backlog (in priority order)
 
+- [003 — E4.2 selective account sync](backlog/003-e4-2-selective-account-sync.md) — owner review and recovery in another browser, after local hardening 011/012.
 - [004 — E4.1 real provider sessions](backlog/004-e4-1-real-provider-sessions.md) — real Google session/logout and deployed-environment check.
 - [005 — E4.3.1 identity linking matrix](backlog/005-e4-3-1-identity-linking-matrix.md) — both orders, missing email, changed email with real OAuth.
 - [007 — F01 legal and account deletion](backlog/007-f01-legal-and-account-deletion.md) — controller identity, support mailbox, retention, remote deletion.
@@ -18,11 +19,12 @@ Git and linked archives preserve history.
 
 - Authenticated E2E: Playwright setup with a disposable identity and `storageState`, plus axe on account pages. Archived detail: [008](archive/2026-11-04-dropped-tasks/008-authenticated-e2e.md).
 - Split oversized modules: `components/task-editor.tsx`, `components/runo-home.tsx` and `lib/db/repository.ts`; characterization tests first. Archived detail: [009](archive/2026-11-04-dropped-tasks/009-split-oversized-modules.md).
-- Nonce CSP: `proxy.ts` report-only, measure, enforce; update ADR 0002. Archived detail: [010](archive/2026-11-04-dropped-tasks/010-nonce-csp.md).
-- Restore `resolved`/`integrity` in `package-lock.json` and commit it; a clean install keeps dropping them, so find the flag/tool that rewrites the lock first.
+- Security activation: migration 0004 needs separate authorization, destination and recovery point before applying/verifying it. Auth/account now fail closed without the table; no Neon change was made by local implementation 011.
+- Historical OAuth tokens/backups: separately authorize targeted cleanup and retention review; new writes omit tokens, but dormant historical rows are not erased.
+- CSP enforcement: measure static report-only against theme/motion/PWA/OAuth, then approve a compatible enforcement strategy (nonces conflict with PPR). Local diagnostics supersede the old [010](archive/2026-11-04-dropped-tasks/010-nonce-csp.md) idea.
 - Push the local commits and verify `app-ci` on GitHub; not authorized yet. The first run is the only unverified part of CI.
-- Review the 4 moderate `npm audit --omit=dev` advisories (Drizzle Kit/esbuild chain); no forced fix.
-- Move the LAN `allowedDevOrigins` address to an env variable; accepted as-is because it would break dev until `.env` changes.
+- Review 12 moderate npm lock advisories by 2026-11-18 (4 survive omit=dev through Better Auth → Drizzle Kit/esbuild); see the hardening record. No forced remediation.
+- LAN access now requires the owner to set `AVO_DEV_HOSTS` locally and restart dev. Private `.env` was not changed.
 
 ## Structure
 
@@ -40,7 +42,7 @@ The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
 
-Next id: **011** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`).
+Next id: **013** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`).
 
 ## Board conventions
 

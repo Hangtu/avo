@@ -88,6 +88,21 @@ export const users = pgTable("runo_users", {
 // Keep the public schema exports used by the existing auth server.
 export { authUsers, authSessions, authAccounts, authVerifications } from "./auth-schema";
 
+/** Shared abuse counters only: HMAC keys, no raw IP/account IDs or domain data. */
+export const rateLimits = pgTable(
+  "runo_rate_limits",
+  {
+    key: text("key").primaryKey(),
+    count: integer("count").notNull(),
+    expiresAt: timestampColumn("expires_at").notNull(),
+  },
+  (table) => [
+    index("runo_rate_limits_expires_idx").on(table.expiresAt),
+    check("runo_rate_limits_count", sql`${table.count} > 0`),
+    check("runo_rate_limits_key", sql`${table.key} ~ '^[0-9a-f]{64}$'`),
+  ],
+);
+
 export const settings = pgTable(
   "runo_settings",
   {

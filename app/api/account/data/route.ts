@@ -1,10 +1,7 @@
-import { createHash } from "node:crypto";
 import { db } from "@/lib/db/client";
-import { DomainError } from "@/lib/domain/validation";
-import { AccountHttpError, privateHeaders, verifiedAccount } from "@/lib/sync/server-auth";
+import { AccountHttpError, accountFailure, privateHeaders, verifiedAccount } from "@/lib/sync/server-auth";
 import { mutateAccountData, readAccountData } from "@/lib/sync/server-repository";
 import {
-  canonicalJSON,
   entityKey,
   MAX_BATCH,
   MAX_BODY_BYTES,
@@ -13,31 +10,15 @@ import {
   validMutation,
 } from "@/lib/sync/protocol";
 
-function failure(error: unknown) {
-  if (error instanceof AccountHttpError)
-    return Response.json({ error: error.code }, { status: error.status, headers: privateHeaders });
-  if (error instanceof ProtocolError || error instanceof DomainError || error instanceof SyntaxError) {
-    const code =
-      error instanceof ProtocolError &&
-      ["record_missing", "operation_reused", "snapshot_too_large"].includes(error.message)
-        ? error.message
-        : "invalid_request";
-    return Response.json({ error: code }, { status: 400, headers: privateHeaders });
-  }
-  // Never send connection strings, SQL, row values, or provider tokens to the client.
-  console.error("Account persistence unavailable");
-  return Response.json({ error: "temporarily_unavailable" }, { status: 503, headers: privateHeaders });
-}
 export async function GET(request: Request) {
   try {
     const accountId = await verifiedAccount(request);
-    const data = await readAccountData(db, accountId);
-    const etag = `"${createHash("sha256").update(canonicalJSON(data)).digest("hex")}"`;
-    const headers = { ...privateHeaders, ETag: etag };
-    if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
+    const data = await readAccountData(db, accountId, request.headers.get("if-none-match") ?? undefined);
+    const headers = { ...privateHeaders, ETag: data.etag };
+    if (data.notModified) return new Response(null, { status: 304, headers });
     return Response.json(data, { headers });
   } catch (error) {
-    return failure(error);
+    return accountFailure(error);
   }
 }
 async function boundedJSON(request: Request) {
@@ -90,6 +71,6 @@ export async function POST(request: Request) {
       { headers: privateHeaders },
     );
   } catch (error) {
-    return failure(error);
+    return accountFailure(error);
   }
 }

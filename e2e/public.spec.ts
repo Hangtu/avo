@@ -79,6 +79,25 @@ test.describe("public shell", () => {
     expect(headers["permissions-policy"]).toBe("camera=(), microphone=(), geolocation=()");
     expect(headers["cross-origin-opener-policy"]).toBe("same-origin");
     expect(headers["x-powered-by"]).toBeUndefined();
+    expect(headers["content-security-policy-report-only"]).toContain("default-src 'self'");
+    expect(headers["content-security-policy-report-only"]).toContain("script-src 'self'");
+    expect(headers["content-security-policy-report-only"]).not.toMatch(/unsafe-inline|unsafe-eval|nonce-/);
+    expect(headers["content-security-policy"]).toBeUndefined();
+  });
+
+  test("reports an inline script violation without blocking the public page", async ({ page }) => {
+    await page.goto("/privacy");
+    await page.evaluate(() => {
+      document.addEventListener("securitypolicyviolation", (event) => {
+        if (event.effectiveDirective === "script-src-elem" && event.disposition === "report")
+          document.documentElement.dataset.cspObserved = "report";
+      });
+      const probe = document.createElement("script");
+      probe.textContent = "document.documentElement.dataset.cspProbe = 'ran'";
+      document.body.appendChild(probe);
+    });
+    await expect(page.locator("html")).toHaveAttribute("data-csp-probe", "ran");
+    await expect(page.locator("html")).toHaveAttribute("data-csp-observed", "report");
   });
 
   test("describes the public pages in robots.txt and sitemap.xml", async ({ request }) => {

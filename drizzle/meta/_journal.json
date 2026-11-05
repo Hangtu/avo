@@ -29,6 +29,13 @@
       "when": 1793663786390,
       "tag": "0003_account_spaces",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793837303738,
+      "tag": "0004_security_rate_limits",
+      "breakpoints": true
     }
   ]
 }

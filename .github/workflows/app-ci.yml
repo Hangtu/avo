@@ -33,8 +33,18 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
-      - name: Install locked dependencies
-        run: npm ci
+      - name: Pin approved npm (lifecycle scripts disabled)
+        run: npm install --global npm@11.11.0 --ignore-scripts --no-audit --no-fund
+      - name: Check dependency policy before install
+        run: npm run check:dependencies
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Confirm the authoritative lockfile is unchanged
+        run: git diff --exit-code -- package-lock.json
+      - name: Audit locked dependencies (high/critical gate)
+        run: npm audit --package-lock-only --audit-level=high
+      - name: Test dependency policy
+        run: npm run test:dependencies
       - name: Check formatting
         run: npm run format:check
       - name: Lint
@@ -65,8 +75,14 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
-      - name: Install locked dependencies
-        run: npm ci
+      - name: Pin approved npm (lifecycle scripts disabled)
+        run: npm install --global npm@11.11.0 --ignore-scripts --no-audit --no-fund
+      - name: Check dependency policy before install
+        run: npm run check:dependencies
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Confirm the authoritative lockfile is unchanged
+        run: git diff --exit-code -- package-lock.json
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Build production app with synthetic credentials

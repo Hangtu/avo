@@ -1,23 +1,12 @@
-import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
-// Drizzle Kit runs outside Next.js, so load the project's local .env explicitly.
-config({ path: ".env" });
-
-const databaseUrl =
-  process.env.DATABASE_URL_UNPOOLED ??
-  process.env.DATABASE_URL ??
-  // `generate` does not connect. `migrate` will fail clearly if this
-  // placeholder is reached without real credentials.
-  "postgresql://runo:runo@127.0.0.1:5432/runo";
+// generate/check need no credentials. Migration scripts use explicit configs
+// that fail closed instead of falling back to pooled URLs or a local database.
 
 export default defineConfig({
   schema: ["./lib/db/schema.ts", "./lib/db/auth-schema.ts"],
   out: "./drizzle",
   dialect: "postgresql",
-  dbCredentials: {
-    url: databaseUrl,
-  },
   strict: true,
   verbose: true,
 });

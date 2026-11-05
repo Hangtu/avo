@@ -21,12 +21,12 @@ App personal local-first de hábitos, pendientes y timer; español de México co
 
 ## Estado y pasos pendientes
 
-Un solo ID en curso. El dueño autorizó completar las conexiones tras el incidente de pendientes: E4.1 queda pausada con sus revisiones reales pendientes y E4.2 concentra el trabajo. Código y límites de la conexión en [`docs/cloud/2026-11-02-selective-account-sync.md`](./docs/cloud/2026-11-02-selective-account-sync.md); decisiones de auth en [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md); evidencia y siguiente paso en [`tasks/`](./tasks/README.md).
+Un solo ID en curso. El dueño autorizó completar las conexiones tras el incidente de pendientes: E4.1 queda pausada con sus revisiones reales pendientes y E4.2 queda temporalmente en backlog. La tarea 011 completó localmente el hardening aprobado (M1/M3/M4/B1/B3); activar la migración 0004 requiere autorización aparte. La revisión PostgreSQL de la tarea 012 también quedó validada localmente (6/6 casos con PostgreSQL 17.11); la evidencia de cuatro migraciones de la tabla es histórica, no una validación de 0004 en Neon. Código y límites de la conexión en [`docs/cloud/2026-11-02-selective-account-sync.md`](./docs/cloud/2026-11-02-selective-account-sync.md); decisiones de auth en [`docs/cloud/2026-11-02-e4-auth-and-spaces.md`](./docs/cloud/2026-11-02-e4-auth-and-spaces.md); evidencia y siguiente paso en [`tasks/`](./tasks/README.md).
 
 | ID | Pendiente verificable |
 |---|---|
 | **E4.1** | Google local confirmado con login real (2026-11-03); faltan sesión/logout reales y la prueba de Google en el entorno desplegado. Better Auth y Facebook local existen. |
-| **E4.2 🟡** | Conexión de espacios, API autenticada y bootstrap selectivo implementados/probados localmente. `development` y `prod` tienen las 4 migraciones y el esquema requerido completo (verificado con `db:verify[:prod]`). La sesión real de Google ya sincronizó 2 pendientes/3 recibos en `development`; falta la recuperación en otro navegador y el punto de recuperación. |
+| **E4.2** | Conexión de espacios, API autenticada y bootstrap selectivo implementados/probados localmente. `development` y `prod` tienen las 4 migraciones y el esquema requerido completo (verificado con `db:verify[:prod]`). La sesión real de Google ya sincronizó 2 pendientes/3 recibos en `development`; falta la recuperación en otro navegador y el punto de recuperación. |
 | **E4.3** | Implementado: sesión consultada en DB, dueño interno y precondición de cuenta; invitado usable offline. Falta verificación integrada en el entorno autorizado. |
 | **E4.3.1** | Reingresar y vincular con Google y Facebook en ambos órdenes. Decisión del dueño (2026-11-03): el MVP **no verifica correos**; mismo correo entregado por el proveedor = misma cuenta, y un correo distinto = otra cuenta. Queda cubrir correo ausente (p. ej. Facebook sin permiso) y cambio de correo en el proveedor. |
 | **E4.4** | Implementadas recuperación e incorporación con resumen/consentimiento, copia de recuperación y origen conservado. Cubiertas cancelación/reintentos/conflictos locales; falta aceptación con cuenta real. |
@@ -37,7 +37,7 @@ Un solo ID en curso. El dueño autorizó completar las conexiones tras el incide
 | **F01** | Aviso y eliminación MVP actualizados para OAuth/proveedores, contacto fijo `support@frutit.app` y borrado local de invitado acotado. Confirmar responsable/domicilio, atención del correo, retención y eliminación segura por cuenta antes de publicar. |
 | **E4.8** | Regresión local ampliada a 392 tests y Chromium sobre build de producción, incluidas carreras UI/timer y PWA offline. Falta recuperación en otro navegador, Facebook real, Safari, dispositivo físico y entorno desplegado. Ver correcciones 2026-11-03. |
 
-E4.2 permanece como único ID en curso; los avances de código en los demás IDs no cierran sus criterios externos. No desplegar código que requiera 0003 antes de validar/aplicar esa migración en desarrollo y confirmar el destino autorizado. Producción, Meta, credenciales y datos reales requieren autorización específica.
+La tarea 012 completó resiliencia PostgreSQL y eficiencia de sync, incluidos los seis casos multi-conexión en una base local desechable autorizada. No se activa otra tarea automáticamente. E4.2 sigue pausada en `tasks/`, sin cerrar sus criterios. Al retomarla seguirá como único ID E4 en curso; los avances de código en los demás IDs no cierran sus criterios externos. No desplegar código que requiera 0003 antes de validar/aplicar esa migración en desarrollo y confirmar el destino autorizado. Producción, Meta, credenciales y datos reales requieren autorización específica.
 
 ## Fuera de alcance
 

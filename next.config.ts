@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
+import { developmentHosts, reportOnlyCsp } from "./lib/config/security";
 
-/**
- * Static response headers. A nonce-based CSP is intentionally absent: it needs
- * `proxy.ts`, makes pages dynamic, and must be measured against the theme
- * bootstrap script, the loading curtain, and the service worker first.
- */
+// A static report-only CSP preserves the prerendered shell. Inline framework,
+// theme and motion violations must be measured before any enforcement (ADR 0002).
 const securityHeaders = [
+  {
+    key: "Content-Security-Policy-Report-Only",
+    value: reportOnlyCsp(process.env.NODE_ENV === "development"),
+  },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -20,8 +22,7 @@ const productionHeaders =
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  // Allow dev assets and HMR from this machine's LAN address, without a wildcard.
-  allowedDevOrigins: ["192.168.68.109"],
+  allowedDevOrigins: developmentHosts(process.env.AVO_DEV_HOSTS, process.env.NODE_ENV),
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

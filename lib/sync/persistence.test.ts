@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { openDatabaseForSpace, type RunoDatabase } from "@/lib/db/database";
 import {
@@ -428,6 +429,26 @@ describe("selective account persistence — real SQL in local PGlite", () => {
     expect(await db.outbox.get("pending:p2")).toMatchObject({ state: "rejected", baseRevision: 1 });
     expect((await readAccountData(remote, id)).records.map((row) => row.id)).toEqual(["p1"]);
   });
+  it("keeps throttled writes queued with their original idempotency key", async () => {
+    const db = await local();
+    await createPending(db, "throttled", { title: "Retained", durationMin: 25 }, NOW);
+    const queued = await db.outbox.get("pending:throttled");
+    await expect(
+      syncOnce(
+        db,
+        db.accountId!,
+        {
+          ...transport,
+          mutate: async () => {
+            throw new SyncHttpError(429, "rate_limited");
+          },
+        },
+        { pull: false },
+      ),
+    ).rejects.toMatchObject({ status: 429 });
+    expect(await db.outbox.get("pending:throttled")).toEqual(queued);
+    expect(await db.pendings.get("throttled")).toMatchObject({ title: "Retained", completedAt: null });
+  });
   it("bisects an HTTP rejection and does not quarantine a newer edit for an old failure", async () => {
     const db = await local();
     await createPending(db, "bad", { title: "Retained", durationMin: 25 }, NOW);
@@ -590,6 +611,36 @@ describe("selective account persistence — real SQL in local PGlite", () => {
     const second = await readAccountData(remote, id);
     expect(first.records.map((row) => row.id)).toEqual(["a", "m", "z"]);
     expect(canonicalJSON(first)).toBe(canonicalJSON(second));
+  });
+  it("returns conditional snapshots without loading wide rows and invalidates only durable changes", async () => {
+    const id = await identity();
+    const mutation = op(pendingValue("conditional"));
+    await mutateAccountData(remote, id, [mutation]);
+    const first = await readAccountData(remote, id);
+    const query = vi.spyOn(pg, "query");
+    const unchanged = await readAccountData(remote, id, first.etag);
+    expect(unchanged).toMatchObject({ records: [], notModified: true, etag: first.etag });
+    const statements = query.mock.calls.map(([statement]) => String(statement));
+    expect(statements.some((statement) => /"title"|"duration_min"|"task_order"/.test(statement))).toBe(false);
+    query.mockRestore();
+    await mutateAccountData(remote, id, [mutation]); // replay only: no invalidation
+    expect((await readAccountData(remote, id)).etag).toBe(first.etag);
+    const update = op(pendingValue("conditional", "Changed"), 1);
+    await mutateAccountData(remote, id, [update]);
+    const changed = await readAccountData(remote, id, first.etag);
+    expect(changed.notModified).toBeUndefined();
+    expect(changed.etag).not.toBe(first.etag);
+    expect(changed.records[0]?.value).toMatchObject({ title: "Changed" });
+    // An older application writer knows revisions, not a new metadata token.
+    const [owner] = await remote.select().from(schema.users).where(eq(schema.users.authUserId, id));
+    await remote
+      .update(schema.pendings)
+      .set({ title: "Legacy writer", revision: sql`${schema.pendings.revision} + 1` })
+      .where(and(eq(schema.pendings.userId, owner.id), eq(schema.pendings.id, "conditional")));
+    const legacy = await readAccountData(remote, id, changed.etag);
+    expect(legacy.notModified).toBeUndefined();
+    expect(legacy.records[0]?.value).toMatchObject({ title: "Legacy writer" });
+    expect((await readAccountData(remote, await identity(), first.etag)).notModified).toBeUndefined();
   });
   it("leaves a queued completion intact if a response is interrupted after the server commit", async () => {
     const id = await identity(),

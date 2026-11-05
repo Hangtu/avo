@@ -20,7 +20,8 @@ remain per-request operations.
 - Product brief: [`docs/product/brief.md`](../product/brief.md).
 - Product contract and pending IDs: [`plan.md`](../../plan.md).
 - Runtime state, evidence, and next action: [`tasks/README.md`](../../tasks/README.md)
-  and the active task [`003`](../../tasks/active/003-e4-2-selective-account-sync.md).
+  and completed local task [`012`](../../tasks/completed/012-postgres-resilience.md), following
+  completed local hardening [`011`](../../tasks/completed/011-security-hardening.md).
 - Observed stack: Next.js 16.4.3 (App Router, Turbopack, Cache Components,
   Partial Prefetching), React 19.3, TypeScript 5 strict, Tailwind CSS v4,
   next-intl 4, Dexie 4 (client persistence), Drizzle ORM 0.45 on PostgreSQL
@@ -121,19 +122,26 @@ credentials; they do not validate Neon, OAuth, a real browser, or a device.
 
 - Authenticated E2E: sign-in, account isolation, and recovery require an
   authorized environment and test identity; not covered by the public E2E suite.
-- CSP: a nonce-based policy needs `proxy.ts`, makes pages dynamic, and must be
-  measured against the theme bootstrap script, the loading curtain, and the
-  service worker. Decide through an ADR before enforcing.
+- CSP: static report-only now diagnoses scripts/styles/origins. Enforcement is
+  deferred pending theme, curtain/motion, PWA/offline and real OAuth measurement.
+  The installed Next guide makes nonce CSP incompatible with PPR; preserve
+  Cache Components/Partial Prefetching. See amended ADR 0002.
 - Oversized modules: `components/task-editor.tsx` (~1.6k lines),
   `lib/db/repository.ts` (~1.5k), and `components/runo-home.tsx` (~1.4k)
   exceed the library's soft limits and need characterization tests before any
   split.
-- Security headers are limited to the static set in `next.config.ts`; HSTS is a
-  deployment concern to confirm on the real domain. The nonce CSP rationale is
-  in [ADR 0002](../decisions/0002-defer-nonce-csp.md).
-- `allowedDevOrigins` in `next.config.ts` stays a documented, machine-specific
-  LAN address (see README). Moving it to an env variable would break the owner's
-  LAN dev until the local `.env` is updated, so it is accepted as-is.
+- Security headers include the static set and a strict static report-only CSP
+  in `next.config.ts`; HSTS remains a real-domain check. No CSP enforcement is
+  claimed. Rationale: [ADR 0002](../decisions/0002-defer-nonce-csp.md).
+- Owner-approved B3 (2026-11-04): `AVO_DEV_HOSTS` replaces the hardcoded LAN
+  address with exact, opt-in hostnames (development only). Private `.env` was
+  not edited; the owner must set the current LAN hostname and restart dev.
+- Owner-approved M1/M3/M4: new account writes omit OAuth tokens; rate limits
+  use HMAC-keyed atomic expiring PostgreSQL counters. Generated migration 0004
+  is not applied remotely: auth/account fail closed until authorized activation.
+  Historical-token cleanup is separate. npm 11.11.0 installs with all dependency
+  scripts disabled, integrity-checked lock and a CI high/critical audit gate.
+  See [hardening record](../cloud/2026-11-04-security-hardening.md).
 - Open product blockers remain E4.2, E4.3.1, E4.8, and F01 in `plan.md`. Legal
   controller name/address and support-mailbox monitoring are still unconfirmed.
 - `docs/agent-kit/` is a pinned copy. Update it only through
@@ -142,15 +150,24 @@ credentials; they do not validate Neon, OAuth, a real browser, or a device.
 
 ## Current work
 
-- Active ID: **E4.2** (selective account connection/recovery). See
-  [`tasks/active/003-e4-2-selective-account-sync.md`](../../tasks/active/003-e4-2-selective-account-sync.md)
+- Local task **012** completed the approved PostgreSQL resilience review and
+  real-session verification. No next task starts automatically. No Neon access
+  or application migration is authorized. Local hardening **011** is complete
+  ([evidence](../../tasks/completed/011-security-hardening.md)); E4.2 is paused in
+  [`tasks/backlog/003-e4-2-selective-account-sync.md`](../../tasks/backlog/003-e4-2-selective-account-sync.md)
   and
   [`docs/cloud/2026-11-02-selective-account-sync.md`](../cloud/2026-11-02-selective-account-sync.md).
-- Last verification: 410/410 tests, typecheck, lint, migration journal, and
-  production build on 2026-11-03. Browser evidence for the loading curtain and
-  the account flows was produced with ad-hoc scripts outside the repository and
-  is not a substitute for the versioned E2E suite.
-- Next concrete step: finish the owner review of the sync corrections, then run
-  the authenticated matrix (Google and Facebook in both orders, missing email,
+- Last local verification (2026-11-04, task 012): 472/472 tests, typecheck,
+  lint, format, journal/guards, isolated production build and 10/10 public
+  Chromium journeys, plus **6/6 independent-connection tests on PostgreSQL 17.11**
+  in an owner-approved loopback-only disposable container. The owned container
+  and credential were removed; other workloads were untouched. No app dependency
+  or lock edits; install/audit/signature evidence remains in task 011. No remote
+  CI/Neon/PgBouncer/OAuth/device evidence.
+- Next concrete step: separately authorize application migration 0004 activation,
+  with a confirmed destination/recovery point; auth/account fail closed without it.
+  Local verification of task 012 is complete; no new task starts automatically.
+  Historical-token cleanup and CSP enforcement remain gated. E4.2 resumes with
+  owner review of the sync corrections, then the authenticated matrix (Google and Facebook in both orders, missing email,
   different email) in the authorized environment. No deploy or production
   migration is authorized by this contract.
