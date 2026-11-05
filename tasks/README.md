@@ -9,6 +9,7 @@ None.
 
 ## Backlog (in priority order)
 
+- [017 — Continuous liquid background](backlog/017-continuous-liquid-background.md) — Corrected and locally verified; owner acceptance with fresh dev assets pending.
 - [003 — E4.2 selective account sync](backlog/003-e4-2-selective-account-sync.md) — owner review and recovery in another browser, after local hardening 011/012.
 - [004 — E4.1 real provider sessions](backlog/004-e4-1-real-provider-sessions.md) — real Google session/logout and deployed-environment check.
 - [005 — E4.3.1 identity linking matrix](backlog/005-e4-3-1-identity-linking-matrix.md) — both orders, missing email, changed email with real OAuth.
@@ -42,7 +43,7 @@ The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
 
-Next id: **013** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`).
+Next id: **022** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`; IDs 013–014 are reserved on shared main).
 
 ## Board conventions
 

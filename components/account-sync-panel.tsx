@@ -12,6 +12,15 @@ export function PersistenceNotice() {
   const t = useTranslations("sync");
   const workspace = useWorkspace();
   if (!workspace.available) return null;
+  const showNotice =
+    workspace.status !== "guest" ||
+    workspace.preferences.failed > 0 ||
+    workspace.preferences.pending > 0 ||
+    workspace.rejected.length > 0 ||
+    workspace.issues.length > 0 ||
+    workspace.conflicts.length > 0 ||
+    workspace.queued > 0;
+  if (!showNotice) return null;
   const message =
     workspace.preferences.failed > 0
       ? t("localSaveError")

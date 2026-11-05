@@ -45,7 +45,7 @@
     "quickTask": "Quick task ⏱️"
   },
   "header": {
-    "tagline": "Remember what matters."
+    "tagline": "Pick up where you left off."
   },
   "home": {
     "loading": "Getting your day ready…",
@@ -557,7 +557,7 @@
   },
   "account": {
     "titleSignedIn": "Signed in",
-    "copy": "You’re using Avo without an account. You can keep using it this way or sign in with Google or Facebook.",
+    "copy": "You’re using Avo without an account. You can keep using it this way or sign in with Google or Facebook. After signing in, you can back up your habits and pending items to your account.",
     "continueGoogle": "Continue with Google",
     "continueFacebook": "Continue with Facebook",
     "signOut": "Sign out",
