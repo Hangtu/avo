@@ -1,7 +1,8 @@
 {
   "meta": {
     "title": "Avo",
-    "description": "Habits, to-dos, and time for you."
+    "description": "Habits, to-dos, and time for you.",
+    "socialImageAlt": "Avo, a smiling avocado with a clock beside the words “Pick up where you left off.”"
   },
   "common": {
     "moreInfo": "More information",

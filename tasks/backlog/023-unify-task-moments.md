@@ -43,7 +43,7 @@ Owner: visually review the unified `¿Cuándo?` flow in the actual browser/devic
 - `messages/es.json`, `messages/en.json` — updated localized copy.
 - `e2e/task-moments.spec.ts` — create/edit/cancel and custom/any browser journey.
 - `tasks/README.md` — current focus, backlog and next ID.
-- `tasks/backlog/022-edit-pending-items.md` — parked task awaiting owner acceptance.
+- `tasks/backlog/025-edit-pending-items.md` — parked task awaiting owner acceptance.
 
 ## Decisions
 

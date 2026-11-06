@@ -1,7 +1,7 @@
-# 022 — Edit pending items
+# 025 — Edit pending items
 
-id: 022
-updated: 2026-11-05
+id: 025
+updated: 2026-11-06
 
 ## Goal
 
@@ -75,3 +75,4 @@ Owner: review the edit flow in the actual browser/device, including light/dark p
 - 2026-11-05 — Wired the edit menu and prefilled form, added ES/EN copy and a Playwright guest flow for save/cancel while preserving the existing completion/removal menu actions.
 - 2026-11-05 — Full suite passed 486/486; lint, format, DB journal, task guard and `git diff --check` passed. Isolated typecheck/build and 26/26 Chromium E2E passed; the edit flow also passed 3 targeted repeats with Axe reporting zero violations in the pending section. The initial keyboard test sent Enter before waiting for the Edit menu item to receive focus; adding that wait resolved the test. One mistaken worktree E2E invocation stopped before starting a server because its `.next` has no production build; no build was run there. Final diff review found no blockers or scope creep. Owner visual review on the actual browser/device remains outstanding.
 - 2026-11-05 — Paused 022 for the newly approved task 023; only owner visual acceptance in the real browser/device remains. No application files from 022 were altered for this handoff.
+- 2026-11-06 — Per owner instruction, reassigned this branch's pending-edit task from ID 022 to 025 because merged main already uses 022 for the completed Open Graph task; preserved this task's goal, status, and prior evidence.
