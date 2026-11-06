@@ -45,7 +45,7 @@
     "quickTask": "Tarea rápida ⏱️"
   },
   "header": {
-    "tagline": "Recuerda lo que importa."
+    "tagline": "Retoma donde te quedaste."
   },
   "home": {
     "loading": "Preparando tu día…",
@@ -92,7 +92,7 @@
   "franja": {
     "prompt": "¿Con qué quieres comenzar?",
     "eyebrow": "Ahora",
-    "start": "Empezar",
+    "start": "Comenzar",
     "continue": "Continuar {remaining} min",
     "showAnother": "Ver otra",
     "shortStep": "Solo tengo {minutes} min ⏱️",
@@ -557,7 +557,7 @@
   },
   "account": {
     "titleSignedIn": "Sesión iniciada",
-    "copy": "Estás usando Avo sin cuenta. Puedes seguir así o iniciar sesión con Google o Facebook.",
+    "copy": "Estás usando Avo sin cuenta. Puedes seguir así o iniciar sesión con Google o Facebook. Al iniciar sesión, podrás respaldar tus hábitos y pendientes en tu cuenta.",
     "continueGoogle": "Continuar con Google",
     "continueFacebook": "Continuar con Facebook",
     "signOut": "Cerrar sesión",

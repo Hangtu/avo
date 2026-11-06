@@ -9,11 +9,13 @@ None.
 
 ## Backlog (in priority order)
 
-- [003 — E4.2 selective account sync](backlog/003-e4-2-selective-account-sync.md) — owner UI review plus real recovery, consented import and terminal-item acceptance; schema readiness is owner-confirmed.
-- [004 — E4.1 real provider sessions](backlog/004-e4-1-real-provider-sessions.md) — real Google lifecycle/isolation and read-only E3 removal check in the authorized release.
-- [005 — E4.3.1 identity linking matrix](backlog/005-e4-3-1-identity-linking-matrix.md) — verify the accepted provider-email policy with real OAuth.
-- [007 — F01 legal and account deletion](backlog/007-f01-legal-and-account-deletion.md) — legal contact, account/receipt retention, sync retry window and approved deletion procedure.
-- [006 — E4.8 device and browser coverage](backlog/006-e4-8-device-and-browser-coverage.md) — real Safari/phone acceptance for PWA, offline, audio and wake lock.
+
+- [017 — Continuous liquid background](backlog/017-continuous-liquid-background.md) — Corrected and locally verified; owner acceptance with fresh dev assets pending.
+- [003 — E4.2 selective account sync](backlog/003-e4-2-selective-account-sync.md) — owner review and recovery in another browser, after local hardening 011/012.
+- [004 — E4.1 real provider sessions](backlog/004-e4-1-real-provider-sessions.md) — real Google session/logout and deployed-environment check.
+- [005 — E4.3.1 identity linking matrix](backlog/005-e4-3-1-identity-linking-matrix.md) — both orders, missing email, changed email with real OAuth.
+- [007 — F01 legal and account deletion](backlog/007-f01-legal-and-account-deletion.md) — controller identity, support mailbox, retention, remote deletion.
+- [006 — E4.8 device and browser coverage](backlog/006-e4-8-device-and-browser-coverage.md) — Safari, physical phone, PWA offline, audio and wake lock.
 
 ## Icebox (not approved)
 
@@ -41,7 +43,11 @@ The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
 
+<<<<<<< HEAD
 Next id: **015** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`).
+=======
+Next id: **022** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`; IDs 013–014 are reserved on shared main).
+>>>>>>> 55c75f0cfc0743869248061bc64e3992b652a612
 
 ## Board conventions
 
