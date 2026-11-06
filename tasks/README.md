@@ -5,11 +5,11 @@ Git and linked archives preserve history.
 
 ## Current focus
 
-- [023 — Unify task moments](active/023-unify-task-moments.md) — Replace separate timing/copy controls with a single multi-select flow.
+- [024 — Sequential routines](active/024-sequential-routines.md) — Group existing habits into ordered routines while preserving task history.
 
 ## Backlog (in priority order)
 
-
+- [023 — Unify task moments](backlog/023-unify-task-moments.md) — Owner's actual-browser/device visual acceptance remains pending.
 - [022 — Edit pending items](backlog/022-edit-pending-items.md) — Owner's actual-browser/device visual acceptance is still pending.
 - [017 — Continuous liquid background](backlog/017-continuous-liquid-background.md) — Corrected and locally verified; owner acceptance with fresh dev assets pending.
 - [003 — E4.2 selective account sync](backlog/003-e4-2-selective-account-sync.md) — owner review and recovery in another browser, after local hardening 011/012.
@@ -44,15 +44,7 @@ The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
 
-<<<<<<< Updated upstream
-<<<<<<< HEAD
-Next id: **015** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`).
-=======
-Next id: **022** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`; IDs 013–014 are reserved on shared main).
->>>>>>> 55c75f0cfc0743869248061bc64e3992b652a612
-=======
-Next id: **024** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`; IDs 013–014 are reserved on shared main).
->>>>>>> Stashed changes
+Next id: **025** (008–010 were retired to `archive/2026-11-04-dropped-tasks/`; IDs 013–014 are reserved on shared main).
 
 ## Board conventions
 

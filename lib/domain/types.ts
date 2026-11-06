@@ -19,6 +19,19 @@ export interface Task extends TaskInput {
   archivedAt: number | null;
 }
 
+export interface RoutineInput {
+  title: string;
+  /** Ordered references to existing recurring task definitions. */
+  taskIds: string[];
+}
+
+export interface Routine extends RoutineInput {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  archivedAt: number | null;
+}
+
 export interface PendingInput {
   title: string;
   durationMin: number;

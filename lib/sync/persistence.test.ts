@@ -5,9 +5,12 @@ import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { openDatabaseForSpace, type RunoDatabase } from "@/lib/db/database";
 import {
+  archiveRoutine,
+  archiveTask,
   completePendingDirect,
   completeSession,
   createPending,
+  createRoutine,
   createTask,
   getSettings,
   listPendings,
@@ -16,6 +19,7 @@ import {
   startPendingSession,
   startSession,
   updatePending,
+  updateRoutine,
   updateTask,
   updateTaskWithCopies,
   updateSettings,
@@ -28,7 +32,7 @@ import { acknowledge, resolveConflict } from "./local";
 import { recoverRejected, SyncHttpError, syncOnce, type SyncTransport } from "./client";
 import { mutateAccountData, readAccountData } from "./server-repository";
 import { mutationForWire, canonicalJSON, validMutation, type Mutation } from "./protocol";
-import type { Pending, Settings, Task } from "@/lib/domain/types";
+import type { Pending, Routine, Settings, Task } from "@/lib/domain/types";
 
 vi.mock("server-only", () => ({}));
 const guestDb = setupTestDatabase();
@@ -52,8 +56,14 @@ const op = (value: Pending, baseRevision = 0): Mutation => ({
   value,
 });
 const transport: SyncTransport = {
-  bootstrap: (accountId) => readAccountData(remote, accountId),
-  mutate: (accountId, items) => mutateAccountData(remote, accountId, items.map(validMutation)),
+  bootstrap: (accountId, etag) => readAccountData(remote, accountId, etag, 2),
+  mutate: (accountId, items) =>
+    mutateAccountData(
+      remote,
+      accountId,
+      items.map((item) => validMutation(item, 2)),
+      2,
+    ),
 };
 beforeAll(async () => {
   for (const name of [
@@ -61,6 +71,8 @@ beforeAll(async () => {
     "0001_zippy_sentinel.sql",
     "0002_dry_lethal_legion.sql",
     "0003_account_spaces.sql",
+    "0004_security_rate_limits.sql",
+    "0005_orange_jack_flag.sql",
   ]) {
     await pg.exec(readFileSync(new URL(`../../drizzle/${name}`, import.meta.url), "utf8"));
   }
@@ -328,6 +340,217 @@ describe("selective account persistence — real SQL in local PGlite", () => {
       expect(await remote.select().from(table)).toHaveLength(0);
     }
   });
+  it("syncs ordered routine definitions in v2 and keeps routine execution local", async () => {
+    const id = await identity();
+    const db = await local(id);
+    const first = await createTask(db, "prepare", taskInput({ title: "Preparar comida" }), NOW);
+    const second = await createTask(db, "eat", taskInput({ title: "Comer" }), NOW + 1);
+    const routine = await createRoutine(
+      db,
+      "routine:meal",
+      { title: "Comida", taskIds: [first.id, second.id] },
+      NOW + 2,
+    );
+
+    await syncOnce(db, id, transport);
+    expect(await db.outbox.count()).toBe(0);
+    const v1 = await readAccountData(remote, id);
+    expect(v1.version).toBe(1);
+    expect(v1.records.some((record) => record.kind === "routine")).toBe(false);
+    const v2 = await readAccountData(remote, id, undefined, 2);
+    expect(v2.records.find((record) => record.kind === "routine")?.value).toMatchObject({
+      id: routine.id,
+      taskIds: [first.id, second.id],
+    });
+    expect(
+      await remote
+        .select()
+        .from(schema.occurrences)
+        .where(eq(schema.occurrences.userId, `account:${id}`)),
+    ).toHaveLength(0);
+
+    db.close();
+    await db.delete();
+    const recovered = await local(id);
+    await syncOnce(recovered, id, transport);
+    expect(await recovered.routines.get(routine.id)).toMatchObject({ taskIds: [first.id, second.id] });
+    expect(await recovered.occurrences.count()).toBe(0);
+  });
+
+  it("sends a routine tombstone before archiving one of its former members", async () => {
+    const id = await identity();
+    const db = await local(id);
+    const first = await createTask(db, "prepare", taskInput(), NOW);
+    const second = await createTask(db, "eat", taskInput(), NOW + 1);
+    const routine = await createRoutine(
+      db,
+      "meal",
+      { title: "Comida", taskIds: [first.id, second.id] },
+      NOW + 2,
+    );
+    await syncOnce(db, id, transport);
+
+    await archiveRoutine(db, routine.id, NOW + 3);
+    await archiveTask(db, first.id, NOW + 4);
+    await syncOnce(db, id, transport);
+
+    expect(await db.outbox.count()).toBe(0);
+    const records = (await readAccountData(remote, id, undefined, 2)).records;
+    expect(records.find((record) => record.kind === "routine")?.value).toMatchObject({ archivedAt: NOW + 3 });
+    expect(records.find((record) => record.kind === "task" && record.id === first.id)?.value).toMatchObject({
+      archivedAt: NOW + 4,
+    });
+  });
+
+  it("sends added Task definitions before routine edits and removed-member archives after them", async () => {
+    const id = await identity();
+    const db = await local(id);
+    const first = await createTask(db, "prepare", taskInput(), NOW);
+    const second = await createTask(db, "eat", taskInput(), NOW + 1);
+    const routine = await createRoutine(
+      db,
+      "meal",
+      { title: "Comida", taskIds: [first.id, second.id] },
+      NOW + 2,
+    );
+    await syncOnce(db, id, transport);
+
+    const added = await createTask(db, "serve", taskInput(), NOW + 3);
+    await updateRoutine(db, routine.id, { title: "Comida", taskIds: [second.id, added.id] }, NOW + 4);
+    await archiveTask(db, first.id, NOW + 5);
+    await syncOnce(db, id, transport);
+
+    expect(await db.outbox.count()).toBe(0);
+    const records = (await readAccountData(remote, id, undefined, 2)).records;
+    expect(records.find((record) => record.kind === "routine")?.value).toMatchObject({
+      taskIds: [second.id, added.id],
+    });
+    expect(records.find((record) => record.kind === "task" && record.id === first.id)?.value).toMatchObject({
+      archivedAt: NOW + 5,
+    });
+  });
+
+  it("rolls back a routine definition when its account outbox write fails", async () => {
+    const id = await identity();
+    const db = await local(id);
+    const first = await createTask(db, "prepare", taskInput(), NOW);
+    const second = await createTask(db, "eat", taskInput(), NOW + 1);
+    vi.spyOn(db.outbox, "put").mockRejectedValueOnce(new Error("synthetic quota failure"));
+
+    await expect(
+      createRoutine(db, "routine:meal", { title: "Comida", taskIds: [first.id, second.id] }, NOW + 2),
+    ).rejects.toThrow("quota");
+    expect(await db.routines.get("routine:meal")).toBeUndefined();
+    expect(await db.outbox.get("routine:routine:meal")).toBeUndefined();
+  });
+
+  it("validates routine references, grouping, schedules and protocol version per account", async () => {
+    const ownerA = await identity();
+    const ownerB = await identity();
+    const taskValue = (id: string, days: Task["days"]): Task => ({
+      ...taskInput({ title: id, days }),
+      id,
+      createdAt: NOW,
+      updatedAt: NOW,
+      archivedAt: null,
+    });
+    const addTask = async (owner: string, id: string, days: Task["days"]) =>
+      mutateAccountData(
+        remote,
+        owner,
+        [
+          validMutation({
+            operationId: crypto.randomUUID(),
+            kind: "task",
+            id,
+            baseRevision: 0,
+            value: taskValue(id, days),
+          }),
+        ],
+        2,
+      );
+    const routineMutation = (value: Routine) =>
+      validMutation({
+        operationId: crypto.randomUUID(),
+        kind: "routine",
+        id: value.id,
+        baseRevision: 0,
+        value,
+      });
+    await addTask(ownerA, "prepare", [1]);
+    await addTask(ownerA, "eat", [1]);
+    await addTask(ownerA, "extra", [1]);
+    await addTask(ownerA, "tuesday", [2]);
+    await addTask(ownerB, "private-task", [1]);
+
+    const baseRoutine = (id: string, taskIds: string[]): Routine => ({
+      id,
+      title: "Comida",
+      taskIds,
+      createdAt: NOW,
+      updatedAt: NOW,
+      archivedAt: null,
+    });
+    await expect(
+      mutateAccountData(
+        remote,
+        ownerA,
+        [routineMutation(baseRoutine("foreign", ["prepare", "private-task"]))],
+        2,
+      ),
+    ).rejects.toThrow("routine_task_missing");
+    await expect(
+      mutateAccountData(remote, ownerA, [routineMutation(baseRoutine("days", ["prepare", "tuesday"]))], 2),
+    ).rejects.toThrow("routine_days_mismatch");
+    await expect(
+      mutateAccountData(
+        remote,
+        ownerA,
+        [
+          routineMutation({
+            ...baseRoutine("archived-foreign", ["prepare", "private-task"]),
+            archivedAt: NOW + 1,
+          }),
+        ],
+        2,
+      ),
+    ).rejects.toThrow("routine_task_missing");
+
+    const routine = baseRoutine("routine:meal", ["prepare", "eat"]);
+    const mutation = routineMutation(routine);
+    await mutateAccountData(remote, ownerA, [mutation], 2);
+    await expect(
+      mutateAccountData(remote, ownerA, [routineMutation(baseRoutine("duplicate", ["prepare", "extra"]))], 2),
+    ).rejects.toThrow("routine_task_grouped");
+    await expect(mutateAccountData(remote, ownerA, [mutation], 1)).rejects.toThrow("invalid_kind");
+    await expect(
+      mutateAccountData(
+        remote,
+        ownerA,
+        [
+          validMutation({
+            operationId: crypto.randomUUID(),
+            kind: "task",
+            id: "prepare",
+            baseRevision: 1,
+            value: { ...taskValue("prepare", [1]), archivedAt: NOW + 1 },
+          }),
+        ],
+        2,
+      ),
+    ).rejects.toThrow("routine_task_must_be_removed");
+
+    expect(
+      (await readAccountData(remote, ownerA, undefined, 1)).records.some((row) => row.kind === "routine"),
+    ).toBe(false);
+    expect(
+      (await readAccountData(remote, ownerA, undefined, 2)).records.some((row) => row.kind === "routine"),
+    ).toBe(true);
+    expect(
+      (await readAccountData(remote, ownerB, undefined, 2)).records.some((row) => row.kind === "routine"),
+    ).toBe(false);
+  });
+
   it("uploads a pending's completion once, preserving history and never reopening it", async () => {
     const id = await identity(),
       db = await local(id);
@@ -581,7 +804,7 @@ describe("selective account persistence — real SQL in local PGlite", () => {
     expect((await readAccountData(remote, id)).issues).toEqual([
       { key: "task:routine", kind: "task", id: "routine", code: "invalid_record" },
     ]);
-    expect((await db.metadata.get("account-issues-v1"))?.value).toHaveLength(1);
+    expect((await db.metadata.get("account-issues-v2"))?.value).toHaveLength(1);
     expect(
       (
         await pg.query<{ days: number[] }>("SELECT days FROM runo_tasks WHERE user_id = $1", [
@@ -615,7 +838,7 @@ describe("selective account persistence — real SQL in local PGlite", () => {
     const db = await local(),
       etag = '"synthetic-account-version"';
     const bootstrap = vi.fn(async (accountId: string, previous?: string) => ({
-      version: 1 as const,
+      version: 2 as const,
       accountId,
       records: [],
       etag,

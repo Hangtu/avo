@@ -1,7 +1,7 @@
 # 023 — Unify task moments
 
 id: 023
-updated: 2026-11-05
+updated: 2026-11-06
 
 ## Goal
 
@@ -72,3 +72,4 @@ Owner: visually review the unified `¿Cuándo?` flow in the actual browser/devic
 
 - 2026-11-05 — Registered from the owner's approval of the simplification proposal. Task 022 moved to backlog for actual browser/device acceptance; task guard passed 18 tasks with no errors/warnings. Existing staged task-022 deliverables remain untouched.
 - 2026-11-05 — Added an atomic repository operation for updating one habit and creating copies, with unit rollback/idempotence/history coverage and PGlite account-sync recovery. Corrected a mistaken collision-event count in the rollback test; the focused repository/sync suites pass 128/128. Shared editor controls, localized preview and save-only copies are implemented; full unit suite passed 489/489, lint/format/journal/task guard/diff check passed, isolated typecheck/build passed, targeted Playwright/Axe passed 1/1, and full isolated E2E passed 27/27. Added exact-time-only handling: preserve that task as the base and make selected dayparts copies without exact time. The targeted browser suite passes 2/2; full isolated Chromium E2E passes 28/28. Final diff review found no blockers or scope creep. Synthetic credentials do not prove Neon/OAuth or the owner's device; owner visual acceptance remains outstanding.
+- 2026-11-06 — Paused 023 to start sequential-routine implementation. The only remaining work on this task is owner visual acceptance in the actual browser/device; no task 023 code was changed in this handoff.

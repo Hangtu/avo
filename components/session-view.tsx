@@ -15,6 +15,7 @@ import {
 import { dateFromOccurrenceId } from "@/lib/domain/occurrence";
 import { toLocalDate } from "@/lib/domain/time";
 import type { Session } from "@/lib/domain/types";
+import type { RoutineProgress } from "@/lib/domain/selection";
 import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
 import { intlLocales } from "@/lib/i18n/config";
 import { voicePhrasesFromMessages } from "@/lib/i18n/voice";
@@ -49,10 +50,12 @@ function newActionId(): string {
 
 export function SessionView({
   session,
+  routine,
   onFinished,
   tone,
 }: {
   session: Session;
+  routine?: RoutineProgress;
   onFinished: (offerBreak?: boolean, message?: string) => void;
   tone: VoiceTone;
 }) {
@@ -314,6 +317,11 @@ export function SessionView({
           </HelpTip>
         ) : null}
       </div>
+      {routine ? (
+        <p className="mt-2 text-sm font-medium text-muted">
+          {t("routineProgress", { name: routine.title, step: routine.step, total: routine.total })}
+        </p>
+      ) : null}
       {phrase ? <p className="mt-2 text-sm leading-6 text-muted">{phrase}</p> : null}
       {isPending ? (
         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted">

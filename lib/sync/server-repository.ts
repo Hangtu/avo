@@ -1,12 +1,12 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "@/lib/db/schema";
 import { boundedTransaction } from "@/lib/db/transaction";
 import { snapshotEtag } from "./server-version";
-import type { JsonValue, Pending, Settings, Task } from "@/lib/domain/types";
+import type { JsonValue, Pending, Routine, Settings, Task } from "@/lib/domain/types";
 import {
   canonicalJSON,
   entityKey,
@@ -51,6 +51,17 @@ function taskRecord(row: schema.TaskRow): DurableRecord {
       : {}),
   });
   return { key: entityKey("task", row.id), kind: "task", id: row.id, revision: row.revision, value };
+}
+function routineRecord(row: schema.RoutineRow): DurableRecord {
+  const value = validValue("routine", row.id, {
+    id: row.id,
+    title: row.title,
+    taskIds: row.taskIds,
+    createdAt: row.createdAt.getTime(),
+    updatedAt: row.updatedAt.getTime(),
+    archivedAt: ms(row.archivedAt),
+  });
+  return { key: entityKey("routine", row.id), kind: "routine", id: row.id, revision: row.revision, value };
 }
 function pendingRecord(row: schema.PendingRow): DurableRecord {
   return {
@@ -154,9 +165,87 @@ async function readRecord(
       .where(and(eq(schema.pendings.userId, ownerId), eq(schema.pendings.id, id)));
     return row ? pendingRecord(row) : null;
   }
+  if (kind === "routine") {
+    const [row] = await tx
+      .select()
+      .from(schema.routines)
+      .where(and(eq(schema.routines.userId, ownerId), eq(schema.routines.id, id)));
+    return row ? routineRecord(row) : null;
+  }
   const [row] = await tx.select().from(schema.settings).where(eq(schema.settings.userId, ownerId));
   return row ? settingsRecord(row) : null;
 }
+async function validateRoutineTaskOwnership(
+  tx: AccountDatabase,
+  ownerId: string,
+  taskIds: readonly string[],
+): Promise<void> {
+  const tasks = await tx
+    .select({ id: schema.tasks.id })
+    .from(schema.tasks)
+    .where(and(eq(schema.tasks.userId, ownerId), inArray(schema.tasks.id, [...taskIds])));
+  if (tasks.length !== taskIds.length) throw new ProtocolError("routine_task_missing");
+}
+
+async function validateRoutineMembers(
+  tx: AccountDatabase,
+  ownerId: string,
+  taskIds: readonly string[],
+  excludeRoutineId?: string,
+): Promise<void> {
+  const members = await tx
+    .select({ id: schema.tasks.id, days: schema.tasks.days, archivedAt: schema.tasks.archivedAt })
+    .from(schema.tasks)
+    .where(and(eq(schema.tasks.userId, ownerId), inArray(schema.tasks.id, [...taskIds])));
+  if (members.length !== taskIds.length || members.some((task) => task.archivedAt !== null)) {
+    throw new ProtocolError("routine_task_missing");
+  }
+  const [first] = members;
+  const firstDays = first?.days.toSorted((a, b) => a - b) ?? [];
+  if (
+    members.some((task) => JSON.stringify(task.days.toSorted((a, b) => a - b)) !== JSON.stringify(firstDays))
+  ) {
+    throw new ProtocolError("routine_days_mismatch");
+  }
+
+  const routines = await tx
+    .select({ id: schema.routines.id, taskIds: schema.routines.taskIds })
+    .from(schema.routines)
+    .where(and(eq(schema.routines.userId, ownerId), isNull(schema.routines.archivedAt)));
+  if (
+    routines.some(
+      (routine) =>
+        routine.id !== excludeRoutineId && routine.taskIds.some((taskId) => taskIds.includes(taskId)),
+    )
+  ) {
+    throw new ProtocolError("routine_task_grouped");
+  }
+}
+
+async function validateRoutineTaskUpdate(tx: AccountDatabase, ownerId: string, task: Task): Promise<void> {
+  const routines = await tx
+    .select({ id: schema.routines.id, taskIds: schema.routines.taskIds })
+    .from(schema.routines)
+    .where(and(eq(schema.routines.userId, ownerId), isNull(schema.routines.archivedAt)));
+  const memberships = routines.filter((routine) => routine.taskIds.includes(task.id));
+  if (memberships.length === 0) return;
+  if (task.archivedAt !== null) throw new ProtocolError("routine_task_must_be_removed");
+
+  for (const routine of memberships) {
+    const peerIds = routine.taskIds.filter((taskId) => taskId !== task.id);
+    const peers = await tx
+      .select({ id: schema.tasks.id, days: schema.tasks.days })
+      .from(schema.tasks)
+      .where(and(eq(schema.tasks.userId, ownerId), inArray(schema.tasks.id, peerIds)));
+    if (
+      peers.length !== peerIds.length ||
+      peers.some((peer) => JSON.stringify(peer.days.toSorted((a, b) => a - b)) !== JSON.stringify(task.days))
+    ) {
+      throw new ProtocolError("routine_days_mismatch");
+    }
+  }
+}
+
 async function writeRecord(
   tx: AccountDatabase,
   ownerId: string,
@@ -167,6 +256,7 @@ async function writeRecord(
   const value = previous ? preserveCompletion(mutation.value, previous.value, mutation.kind) : mutation.value;
   if (mutation.kind === "task") {
     const task = value as Task;
+    await validateRoutineTaskUpdate(tx, ownerId, task);
     const row = {
       userId: ownerId,
       id: mutation.id,
@@ -189,6 +279,24 @@ async function writeRecord(
       .insert(schema.tasks)
       .values(row)
       .onConflictDoUpdate({ target: [schema.tasks.userId, schema.tasks.id], set: row });
+  } else if (mutation.kind === "routine") {
+    const routine = value as Routine;
+    if (routine.archivedAt === null) await validateRoutineMembers(tx, ownerId, routine.taskIds, mutation.id);
+    else await validateRoutineTaskOwnership(tx, ownerId, routine.taskIds);
+    const row = {
+      userId: ownerId,
+      id: mutation.id,
+      title: routine.title,
+      taskIds: routine.taskIds,
+      archivedAt: date(routine.archivedAt),
+      createdAt: date((previous?.value as Routine | undefined)?.createdAt ?? routine.createdAt)!,
+      updatedAt: date(routine.updatedAt)!,
+      revision,
+    };
+    await tx
+      .insert(schema.routines)
+      .values(row)
+      .onConflictDoUpdate({ target: [schema.routines.userId, schema.routines.id], set: row });
   } else if (mutation.kind === "pending") {
     const pending = value as Pending;
     const row = {
@@ -232,6 +340,7 @@ export async function readAccountData(
   db: AccountDatabase,
   authId: string,
   ifNoneMatch?: string,
+  protocolVersion: 1 | 2 = 1,
 ): Promise<Bootstrap & { etag: string }> {
   return boundedTransaction({
     database: db,
@@ -239,9 +348,9 @@ export async function readAccountData(
     retries: 2,
     work: async (tx) => {
       const ownerId = await domainOwner(tx, authId, false);
-      const etag = await snapshotEtag(tx, ownerId);
+      const etag = await snapshotEtag(tx, ownerId, protocolVersion);
       if (ifNoneMatch === etag)
-        return { version: 1, accountId: authId, records: [], etag, notModified: true };
+        return { version: protocolVersion, accountId: authId, records: [], etag, notModified: true };
       // One MVCC snapshot across every select; the token and payload cannot mix
       // pre/post-batch states. Conditional hits never fetch these wide rows.
       const tasks = await tx
@@ -256,8 +365,47 @@ export async function readAccountData(
         .where(eq(schema.pendings.userId, ownerId))
         .orderBy(asc(schema.pendings.id))
         .limit(10_001);
-      if (tasks.length > 10_000 || pendings.length > 10_000) throw new ProtocolError("snapshot_too_large");
+      const routines =
+        protocolVersion === 2
+          ? await tx
+              .select()
+              .from(schema.routines)
+              .where(eq(schema.routines.userId, ownerId))
+              .orderBy(asc(schema.routines.id))
+              .limit(10_001)
+          : [];
+      if (tasks.length > 10_000 || pendings.length > 10_000 || routines.length > 10_000)
+        throw new ProtocolError("snapshot_too_large");
       const settings = await tx.select().from(schema.settings).where(eq(schema.settings.userId, ownerId));
+      const taskById = new Map(tasks.map((task) => [task.id, task]));
+      const activeMembership = new Set<string>();
+      const validRoutines: schema.RoutineRow[] = [];
+      const invalidRoutines: schema.RoutineRow[] = [];
+      for (const routine of routines) {
+        const members = Array.isArray(routine.taskIds)
+          ? routine.taskIds.map((taskId) => taskById.get(taskId))
+          : [];
+        let valid =
+          Array.isArray(routine.taskIds) &&
+          members.length === routine.taskIds.length &&
+          members.every((task) => task !== undefined);
+        if (valid && routine.archivedAt === null) {
+          const activeMembers = members.filter((task): task is (typeof tasks)[number] => task !== undefined);
+          const first = activeMembers[0];
+          valid =
+            activeMembers.length === routine.taskIds.length &&
+            activeMembers.every((task) => task.archivedAt === null) &&
+            first !== undefined &&
+            activeMembers.every(
+              (task) =>
+                JSON.stringify(task.days.toSorted((a, b) => a - b)) ===
+                JSON.stringify(first.days.toSorted((a, b) => a - b)),
+            ) &&
+            !routine.taskIds.some((taskId) => activeMembership.has(taskId));
+          if (valid) for (const taskId of routine.taskIds) activeMembership.add(taskId);
+        }
+        (valid ? validRoutines : invalidRoutines).push(routine);
+      }
       const records: DurableRecord[] = [],
         issues: RemoteIssue[] = [];
       const collect = <T>(rows: T[], kind: DurableKind, convert: (row: T) => DurableRecord) => {
@@ -269,7 +417,7 @@ export async function readAccountData(
             id = `invalid:${createHash("sha256").update(String(id)).digest("hex")}`;
           }
           try {
-            records.push(validRecord(convert(row)));
+            records.push(validRecord(convert(row), protocolVersion));
           } catch {
             // Keep the server row and any local copy. Report quarantine, never silently omit it.
             issues.push({ key: entityKey(kind, id), kind, id, code: "invalid_record" });
@@ -278,8 +426,24 @@ export async function readAccountData(
       };
       collect(tasks, "task", taskRecord);
       collect(pendings, "pending", pendingRecord);
+      collect(validRoutines, "routine", routineRecord);
       collect(settings, "settings", settingsRecord);
-      return { version: 1, accountId: authId, records, etag, ...(issues.length ? { issues } : {}) };
+      for (const routine of invalidRoutines) {
+        let id = routine.id;
+        try {
+          validId(id);
+        } catch {
+          id = `invalid:${createHash("sha256").update(String(id)).digest("hex")}`;
+        }
+        issues.push({ key: entityKey("routine", id), kind: "routine", id, code: "invalid_record" });
+      }
+      return {
+        version: protocolVersion,
+        accountId: authId,
+        records,
+        etag,
+        ...(issues.length ? { issues } : {}),
+      };
     },
   });
 }
@@ -287,15 +451,19 @@ export async function mutateAccountData(
   db: AccountDatabase,
   authId: string,
   mutations: Mutation[],
+  protocolVersion: 1 | 2 = 1,
 ): Promise<MutationResult[]> {
   return boundedTransaction({
     database: db,
     retries: 2,
     work: async (tx) => {
       const ownerId = await domainOwner(tx, authId, true);
+      if (protocolVersion === 1 && mutations.some((mutation) => mutation.kind === "routine")) {
+        throw new ProtocolError("invalid_kind");
+      }
       const results: MutationResult[] = [];
       for (const mutation of mutations) {
-        const receiptKey = `sync:v1:${mutation.operationId}`;
+        const receiptKey = `sync:v${protocolVersion}:${mutation.operationId}`;
         const hash = createHash("sha256").update(canonicalJSON(mutation)).digest("hex");
         const [receipt] = await tx
           .select()

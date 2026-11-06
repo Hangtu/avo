@@ -1,6 +1,6 @@
 import { occurrenceIdFor } from "./occurrence";
 import { clockMinutes, localClockMinutes, toLocalDate, weekdayOf } from "./time";
-import { TERMINAL_OCCURRENCE_STATUSES, type Occurrence, type Task } from "./types";
+import { TERMINAL_OCCURRENCE_STATUSES, type Occurrence, type Routine, type Task } from "./types";
 
 export type UnavailableReason =
   | "archived"
@@ -16,10 +16,23 @@ export type Availability =
 export interface SelectionInput {
   tasks: readonly Task[];
   occurrences: readonly Occurrence[];
+  routines?: readonly Routine[];
   now: number;
   seed: string;
   previousCategory?: string;
   excludeOccurrenceIds?: readonly string[];
+}
+
+export interface RoutineProgress {
+  id: string;
+  title: string;
+  step: number;
+  total: number;
+}
+
+export interface RoutineStepCandidate {
+  task: Task;
+  progress: RoutineProgress;
 }
 
 export interface Candidate {
@@ -28,6 +41,7 @@ export interface Candidate {
   isDueAnchor: boolean;
   /** A due task whose window already ended but is still unresolved today. */
   isMissed: boolean;
+  routine?: RoutineProgress;
 }
 
 /** A frozen, already-started occurrence retains its agreement; archiving still hides it. */
@@ -92,6 +106,35 @@ function score(seed: string, id: string): number {
   return hash >>> 0;
 }
 
+export function currentRoutineStep(
+  routine: Routine,
+  tasks: readonly Task[],
+  occurrences: readonly Occurrence[],
+  now: number,
+): RoutineStepCandidate | undefined {
+  if (routine.archivedAt !== null) return undefined;
+  const date = toLocalDate(now);
+  const byTask = new Map(
+    occurrences
+      .filter((occurrence) => occurrence.date === date)
+      .map((occurrence) => [occurrence.taskId, occurrence]),
+  );
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const stepIndex = routine.taskIds.findIndex((taskId) => {
+    const occurrence = byTask.get(taskId);
+    return !occurrence || !TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status);
+  });
+  if (stepIndex < 0) return undefined;
+  const taskId = routine.taskIds[stepIndex];
+  if (!taskId) return undefined;
+  const task = taskById.get(taskId);
+  if (!task || task.archivedAt !== null) return undefined;
+  return {
+    task,
+    progress: { id: routine.id, title: routine.title, step: stepIndex + 1, total: routine.taskIds.length },
+  };
+}
+
 export function eligibleCandidates(input: SelectionInput): Candidate[] {
   const date = toLocalDate(input.now);
   const byTask = new Map(
@@ -101,20 +144,31 @@ export function eligibleCandidates(input: SelectionInput): Candidate[] {
   );
   const excluded = new Set(input.excludeOccurrenceIds ?? []);
   const tasks = new Map(input.tasks.map((task) => [task.id, task]));
+  const groupedTaskIds = new Set<string>();
+  const routineStepByTaskId = new Map<string, RoutineProgress>();
+  for (const routine of input.routines ?? []) {
+    if (routine.archivedAt !== null) continue;
+    for (const taskId of routine.taskIds) groupedTaskIds.add(taskId);
+    const step = currentRoutineStep(routine, input.tasks, input.occurrences, input.now);
+    if (step) routineStepByTaskId.set(step.task.id, step.progress);
+  }
   const candidates: Candidate[] = [];
 
   for (const task of tasks.values()) {
+    if (groupedTaskIds.has(task.id) && !routineStepByTaskId.has(task.id)) continue;
     const occurrenceId = occurrenceIdFor(task.id, date);
     if (excluded.has(occurrenceId)) continue;
     const occurrence = byTask.get(task.id);
     const availability = availabilityOf(task, occurrence, input.now);
     const missed = isMissedOccurrence(task, occurrence, input.now);
     if (!availability.eligible && !missed) continue;
+    const routine = routineStepByTaskId.get(task.id);
     candidates.push({
       task: taskForOccurrence(task, occurrence),
       occurrenceId,
       isDueAnchor: availability.eligible ? availability.isDueAnchor : false,
       isMissed: missed,
+      ...(routine ? { routine } : {}),
     });
   }
   return candidates.sort((a, b) => {

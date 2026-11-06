@@ -79,7 +79,8 @@ describe("non-destructive local upgrade and account access", () => {
   it("upgrades v4 account data into an atomic queue without losing local runtime", async () => {
     const db = await oldDatabase(true);
     try {
-      expect(db.verno).toBe(5);
+      expect(db.verno).toBe(6);
+      expect(await db.routines.count()).toBe(0);
       expect(await db.tasks.count()).toBe(1);
       expect((await db.pendings.get("pending"))?.completedAt).toBe(NOW + 1);
       expect(await db.outbox.count()).toBe(3);

@@ -36,16 +36,21 @@ import { activeStorageKey, currentDatabaseName, openDatabase, type RunoDatabase 
 import { writePreferences } from "@/lib/sync/preference-writer";
 import { useWorkspace } from "./workspace-context";
 import {
+  archiveRoutine,
   archiveTask,
+  createRoutine,
   createTasks,
+  listRoutines,
   listTasks,
   reactivateOccurrence,
   restoreArchivedTask,
+  updateRoutine,
   updateTask,
   updateTaskWithCopies,
 } from "@/lib/db/repository";
 import { BLOCK_RANGES, blockForTime, taskTime, windowPreset, type BlockKey } from "@/lib/domain/schedule";
 import { isMissedOccurrence } from "@/lib/domain/selection";
+import { DomainError, MAX_ROUTINE_STEPS } from "@/lib/domain/validation";
 import {
   buildTaskOrder,
   reorderTaskOrder,
@@ -53,7 +58,7 @@ import {
   type TaskOrder,
 } from "@/lib/domain/task-order";
 import { toLocalDate, weekdayOf, type ClockTime, type Weekday } from "@/lib/domain/time";
-import type { Occurrence, Task, TaskInput } from "@/lib/domain/types";
+import type { Occurrence, Routine, Task, TaskInput } from "@/lib/domain/types";
 
 const WEEKDAYS = [
   { value: 1, short: "daysShort.mon", full: "daysFull.mon" },
@@ -142,6 +147,14 @@ function emptyForm(): FormState {
   };
 }
 
+function sameWeekdays(left: readonly Weekday[], right: readonly Weekday[]): boolean {
+  const leftSorted = [...left].sort((a, b) => a - b);
+  const rightSorted = [...right].sort((a, b) => a - b);
+  return (
+    leftSorted.length === rightSorted.length && leftSorted.every((day, index) => day === rightSorted[index])
+  );
+}
+
 function formFromTask(task: Task): FormState {
   return {
     id: task.id,
@@ -190,6 +203,13 @@ function newId(): string {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+interface RoutineDraft {
+  id: string | null;
+  anchorTaskId: string;
+  title: string;
+  taskIds: string[];
 }
 
 interface EditorDraft {
@@ -350,11 +370,15 @@ function GripIcon() {
 
 interface TaskRowProps {
   task: Task;
+  routine?: Routine;
+  canConvertToRoutine: boolean;
   occurrence: Occurrence | undefined;
   now: number;
   menuTaskId: string | null;
   onMenuChange: (taskId: string | null) => void;
   onEdit: (task: Task) => void;
+  onConvertToRoutine: (task: Task) => void;
+  onEditRoutine: (routine: Routine) => void;
   onDelete: (task: Task) => void;
   onReactivate: (task: Task, occurrence: Occurrence) => void;
   reactivatingId: string | null;
@@ -362,11 +386,15 @@ interface TaskRowProps {
 
 function TaskRow({
   task,
+  routine,
+  canConvertToRoutine,
   occurrence,
   now,
   menuTaskId,
   onMenuChange,
   onEdit,
+  onConvertToRoutine,
+  onEditRoutine,
   onDelete,
   onReactivate,
   reactivatingId,
@@ -414,6 +442,14 @@ function TaskRow({
               <span>
                 {time ?? t("list.noTime")} · {common("minutes", { count: task.durationMin })}
               </span>
+              {routine ? (
+                <span className="text-xs font-semibold text-muted">
+                  {t("routine.stepShort", {
+                    step: routine.taskIds.indexOf(task.id) + 1,
+                    total: routine.taskIds.length,
+                  })}
+                </span>
+              ) : null}
               {done ? (
                 <span className="task-done-badge">
                   <DoneCheck />
@@ -450,6 +486,27 @@ function TaskRow({
                 >
                   {t("edit")}
                 </Menu.Item>
+                {routine ? (
+                  <Menu.Item
+                    className="first-menu-item"
+                    onClick={() => {
+                      onMenuChange(null);
+                      onEditRoutine(routine);
+                    }}
+                  >
+                    {t("routine.edit")}
+                  </Menu.Item>
+                ) : canConvertToRoutine ? (
+                  <Menu.Item
+                    className="first-menu-item"
+                    onClick={() => {
+                      onMenuChange(null);
+                      onConvertToRoutine(task);
+                    }}
+                  >
+                    {t("routine.convert")}
+                  </Menu.Item>
+                ) : null}
                 {resolved && occurrence ? (
                   <Menu.Item
                     className="first-menu-item"
@@ -462,15 +519,86 @@ function TaskRow({
                     {t("list.reactivate")}
                   </Menu.Item>
                 ) : null}
-                <Menu.Item
-                  className="first-menu-item"
-                  onClick={() => {
-                    onMenuChange(null);
-                    onDelete(task);
-                  }}
-                >
-                  {t("list.delete")}
-                </Menu.Item>
+                {!routine ? (
+                  <Menu.Item
+                    className="first-menu-item"
+                    onClick={() => {
+                      onMenuChange(null);
+                      onDelete(task);
+                    }}
+                  >
+                    {t("list.delete")}
+                  </Menu.Item>
+                ) : null}
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
+      </div>
+    </li>
+  );
+}
+
+function RoutineOrderRow({
+  task,
+  step,
+  total,
+  onMove,
+}: {
+  task: Task;
+  step: number;
+  total: number;
+  onMove: (offset: -1 | 1) => void;
+}) {
+  const t = useTranslations("editor");
+  const reduceMotion = useReducedMotion();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: reduceMotion ? undefined : transition,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`border-b border-line${isDragging ? " task-row-dragging" : ""}`}
+    >
+      <div className="task-row-main flex min-h-14 items-center gap-2 py-3">
+        <button
+          type="button"
+          className="task-grip shrink-0"
+          {...attributes}
+          {...listeners}
+          aria-label={t("list.dragHandle")}
+        >
+          <GripIcon />
+        </button>
+        <span className="w-7 shrink-0 text-sm tabular-nums text-muted">{step}.</span>
+        <span className="min-w-0 flex-1 text-sm font-semibold">{task.title}</span>
+        <Menu.Root>
+          <Menu.Trigger
+            type="button"
+            className="first-more task-row-menu shrink-0"
+            aria-label={t("routine.orderOptions", { name: task.title })}
+          >
+            ⋯
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner className="first-menu-positioner" sideOffset={8} align="end">
+              <Menu.Popup className="first-menu">
+                {step > 1 ? (
+                  <Menu.Item className="first-menu-item" onClick={() => onMove(-1)}>
+                    {t("routine.moveUp", { name: task.title })}
+                  </Menu.Item>
+                ) : null}
+                {step < total ? (
+                  <Menu.Item className="first-menu-item" onClick={() => onMove(1)}>
+                    {t("routine.moveDown", { name: task.title })}
+                  </Menu.Item>
+                ) : null}
               </Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>
@@ -484,10 +612,14 @@ function SortableTaskList({
   tasks,
   renderTask,
   onReorder,
+  ordered = false,
+  ariaLabel,
 }: {
   tasks: readonly Task[];
   renderTask: (task: Task) => ReactNode;
   onReorder: (activeId: string, overId: string, visibleIds: string[]) => void;
+  ordered?: boolean;
+  ariaLabel?: string;
 }) {
   const t = useTranslations("editor");
   const sensors = useSensors(
@@ -495,6 +627,7 @@ function SortableTaskList({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const ids = tasks.map((task) => task.id);
+  const rows = tasks.map(renderTask);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -512,7 +645,15 @@ function SortableTaskList({
       }}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <ul className="task-list">{tasks.map(renderTask)}</ul>
+        {ordered ? (
+          <ol className="task-list" aria-label={ariaLabel}>
+            {rows}
+          </ol>
+        ) : (
+          <ul className="task-list" aria-label={ariaLabel}>
+            {rows}
+          </ul>
+        )}
       </SortableContext>
     </DndContext>
   );
@@ -524,6 +665,10 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const toast = useTranslations("toast");
   const toastManager = Toast.useToastManager();
   const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [routines, setRoutines] = useState<Routine[] | null>(null);
+  const [routineDraft, setRoutineDraft] = useState<RoutineDraft | null>(null);
+  const [routineError, setRoutineError] = useState<string | null>(null);
+  const [routineSaving, setRoutineSaving] = useState(false);
   const [todayOccurrences, setTodayOccurrences] = useState<Occurrence[]>([]);
   const [today] = useState(() => toLocalDate(Date.now()));
   const [now, setNow] = useState(() => Date.now());
@@ -610,8 +755,9 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     async function load() {
       try {
         db = await openDatabase();
-        const [list, dayOccurrences] = await Promise.all([
+        const [list, groups, dayOccurrences] = await Promise.all([
           listTasks(db, true),
+          listRoutines(db),
           db.occurrences.where("date").equals(today).toArray(),
         ]);
         if (!cancelled) {
@@ -633,6 +779,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             setDraftReady(true);
           }
           setTasks(list);
+          setRoutines(groups);
           setTodayOccurrences(dayOccurrences);
           setNow(Date.now());
           setLoadError(null);
@@ -878,8 +1025,15 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         type: "success",
         timeout: 4000,
       });
-    } catch {
-      setFormError(t("notices.saveError"));
+    } catch (error) {
+      setFormError(
+        form.id &&
+          routineByTaskId.has(form.id) &&
+          error instanceof DomainError &&
+          error.message === "Los pasos de una rutina deben tener los mismos días."
+          ? t("routine.daysMustMatch")
+          : t("notices.saveError"),
+      );
     } finally {
       setSaving(false);
     }
@@ -954,7 +1108,129 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     }
   }
 
+  function startRoutineFromTask(task: Task) {
+    setRoutineError(null);
+    setRoutineDraft({ id: null, anchorTaskId: task.id, title: task.title, taskIds: [task.id] });
+  }
+
+  function startRoutineEdit(routine: Routine) {
+    const anchorTaskId = routine.taskIds[0];
+    if (!anchorTaskId) return;
+    setRoutineError(null);
+    setRoutineDraft({
+      id: routine.id,
+      anchorTaskId,
+      title: routine.title,
+      taskIds: [...routine.taskIds],
+    });
+  }
+
+  function closeRoutineEditor() {
+    setRoutineDraft(null);
+    setRoutineError(null);
+  }
+
+  function toggleRoutineMember(taskId: string) {
+    if (
+      routineDraft &&
+      !routineDraft.taskIds.includes(taskId) &&
+      routineDraft.taskIds.length >= MAX_ROUTINE_STEPS
+    ) {
+      setRoutineError(t("routine.maxSteps", { count: MAX_ROUTINE_STEPS }));
+      return;
+    }
+    setRoutineDraft((current) => {
+      if (!current) return current;
+      const taskIds = current.taskIds.includes(taskId)
+        ? current.taskIds.filter((id) => id !== taskId)
+        : [...current.taskIds, taskId];
+      return { ...current, taskIds };
+    });
+    setRoutineError(null);
+  }
+
+  function moveRoutineMember(taskId: string, offset: -1 | 1) {
+    setRoutineDraft((current) => {
+      if (!current) return current;
+      const index = current.taskIds.indexOf(taskId);
+      const destination = index + offset;
+      if (index < 0 || destination < 0 || destination >= current.taskIds.length) return current;
+      const taskIds = [...current.taskIds];
+      const [moving] = taskIds.splice(index, 1);
+      if (!moving) return current;
+      taskIds.splice(destination, 0, moving);
+      return { ...current, taskIds };
+    });
+  }
+
+  function reorderRoutineDraft(activeId: string, overId: string) {
+    setRoutineDraft((current) => {
+      if (!current) return current;
+      const from = current.taskIds.indexOf(activeId);
+      const to = current.taskIds.indexOf(overId);
+      if (from < 0 || to < 0 || from === to) return current;
+      const taskIds = [...current.taskIds];
+      const [moving] = taskIds.splice(from, 1);
+      if (!moving) return current;
+      taskIds.splice(to, 0, moving);
+      return { ...current, taskIds };
+    });
+  }
+
+  async function saveRoutine(event: FormEvent) {
+    event.preventDefault();
+    if (!routineDraft || routineSaving) return;
+    if (!routineDraft.title.trim()) {
+      setRoutineError(t("routine.nameRequired"));
+      return;
+    }
+    if (routineDraft.taskIds.length < 2) {
+      setRoutineError(t("routine.needsTwoSteps"));
+      return;
+    }
+    setRoutineSaving(true);
+    setRoutineError(null);
+    try {
+      const db = await openDatabase();
+      try {
+        const input = { title: routineDraft.title, taskIds: routineDraft.taskIds };
+        if (routineDraft.id) await updateRoutine(db, routineDraft.id, input, Date.now());
+        else await createRoutine(db, `routine:${newId()}`, input, Date.now());
+      } finally {
+        db.close();
+      }
+      setRoutineDraft(null);
+      setReloadKey((key) => key + 1);
+      toastManager.add({ title: t("routine.saved"), type: "success", timeout: 4000 });
+    } catch (error) {
+      console.error("No se pudo guardar la rutina", error);
+      setRoutineError(t("routine.saveError"));
+    } finally {
+      setRoutineSaving(false);
+    }
+  }
+
+  async function ungroupRoutine(routine: Routine) {
+    try {
+      const db = await openDatabase();
+      try {
+        await archiveRoutine(db, routine.id, Date.now());
+      } finally {
+        db.close();
+      }
+      setReloadKey((key) => key + 1);
+      toastManager.add({ title: t("routine.ungrouped"), type: "success", timeout: 4000 });
+    } catch (error) {
+      console.error("No se pudo deshacer la rutina", error);
+      setNotice(t("routine.saveError"));
+    }
+  }
+
   const active = tasks?.filter((task) => task.archivedAt === null) ?? [];
+  const activeRoutines = routines?.filter((routine) => routine.archivedAt === null) ?? [];
+  const routineByTaskId = new Map(
+    activeRoutines.flatMap((routine) => routine.taskIds.map((taskId) => [taskId, routine] as const)),
+  );
   const effectiveTaskOrder = useMemo(
     () => (tasks ? buildTaskOrder(tasks, taskOrder) : taskOrder),
     [tasks, taskOrder],
@@ -1015,6 +1291,19 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     return newBlocks.filter((block) => block !== primary);
   }
   const dayTasks = active.filter((task) => task.days.includes(selectedDay));
+  const dayTaskIds = new Set(dayTasks.map((task) => task.id));
+  const dayRoutines = activeRoutines.filter((routine) => routine.taskIds.some((id) => dayTaskIds.has(id)));
+  const groupedTaskIds = new Set(activeRoutines.flatMap((routine) => routine.taskIds));
+  const routineBaseTask = routineDraft
+    ? active.find((task) => task.id === routineDraft.anchorTaskId)
+    : undefined;
+  const routineCandidates = routineBaseTask
+    ? active.filter((task) => {
+        if (!sameWeekdays(task.days, routineBaseTask.days)) return false;
+        const existingRoutine = routineByTaskId.get(task.id);
+        return !existingRoutine || existingRoutine.id === routineDraft?.id;
+      })
+    : [];
   const dayCounts = WEEKDAYS.map((day) => ({
     ...day,
     count: active.filter((task) => task.days.includes(day.value)).length,
@@ -1040,7 +1329,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   ).map((block) => ({
     ...block,
     tasks: sortTasksForDisplay(
-      dayTasks.filter((task) => blockForTime(taskTime(task)) === block.key),
+      dayTasks.filter((task) => blockForTime(taskTime(task)) === block.key && !groupedTaskIds.has(task.id)),
       effectiveTaskOrder,
     ),
   }));
@@ -1051,6 +1340,60 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
   const todayWeekday = weekdayOf(today);
   const occurrenceByTask = new Map(todayOccurrences.map((occurrence) => [occurrence.taskId, occurrence]));
+
+  function renderTaskRow(task: Task, routine?: Routine) {
+    const occurrence = selectedDay === todayWeekday ? occurrenceByTask.get(task.id) : undefined;
+    const canConvertToRoutine =
+      !routine &&
+      routines !== null &&
+      active.some(
+        (candidate) =>
+          candidate.id !== task.id &&
+          !routineByTaskId.has(candidate.id) &&
+          sameWeekdays(candidate.days, task.days),
+      );
+    return (
+      <TaskRow
+        key={task.id}
+        task={task}
+        routine={routine}
+        canConvertToRoutine={canConvertToRoutine}
+        occurrence={occurrence}
+        now={now}
+        menuTaskId={menuTaskId}
+        onMenuChange={setMenuTaskId}
+        onEdit={startEdit}
+        onConvertToRoutine={startRoutineFromTask}
+        onEditRoutine={startRoutineEdit}
+        onDelete={setDeleteTask}
+        onReactivate={(target, currentOccurrence) => void reactivate(target, currentOccurrence)}
+        reactivatingId={reactivatingId}
+      />
+    );
+  }
+
+  function reorderRoutine(routine: Routine, activeId: string, overId: string) {
+    const from = routine.taskIds.indexOf(activeId);
+    const to = routine.taskIds.indexOf(overId);
+    if (from < 0 || to < 0 || from === to) return;
+    const taskIds = [...routine.taskIds];
+    const [moving] = taskIds.splice(from, 1);
+    if (!moving) return;
+    taskIds.splice(to, 0, moving);
+    void openDatabase()
+      .then(async (db) => {
+        try {
+          await updateRoutine(db, routine.id, { title: routine.title, taskIds }, Date.now());
+        } finally {
+          db.close();
+        }
+        setReloadKey((key) => key + 1);
+      })
+      .catch((error) => {
+        console.error("No se pudo reordenar la rutina", error);
+        setNotice(t("routine.saveError"));
+      });
+  }
 
   function reorderSection(activeId: string, overId: string, visibleIds: string[]) {
     const base = buildTaskOrder(active, orderRef.current);
@@ -1073,7 +1416,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
           </div>
         </div>
-        {!form ? (
+        {!form && !routineDraft ? (
           <button
             type="button"
             onClick={startNew}
@@ -1088,6 +1431,89 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         <p className="mt-4 border-l-2 border-line pl-4 text-sm" role="status">
           {notice}
         </p>
+      ) : null}
+
+      {routineDraft ? (
+        <form onSubmit={saveRoutine} className="mt-5 border-y border-line py-6">
+          <h3 className="text-xl font-semibold">
+            {routineDraft.id ? t("routine.editTitle") : t("routine.createTitle")}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-muted">{t("routine.help")}</p>
+          <label htmlFor="routine-title" className="form-label mt-4 block">
+            {t("routine.name")}
+          </label>
+          <input
+            id="routine-title"
+            value={routineDraft.title}
+            onChange={(event) => setRoutineDraft({ ...routineDraft, title: event.target.value })}
+            maxLength={1024}
+            className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+          />
+          <fieldset className="mt-5">
+            <legend className="text-sm font-semibold">{t("routine.chooseSteps")}</legend>
+            <div className="mt-2 grid gap-2">
+              {routineCandidates.map((task) => (
+                <label key={task.id} className="flex min-h-11 items-center gap-3 border-b border-line py-2">
+                  <input
+                    type="checkbox"
+                    checked={routineDraft.taskIds.includes(task.id)}
+                    disabled={
+                      !routineDraft.taskIds.includes(task.id) &&
+                      routineDraft.taskIds.length >= MAX_ROUTINE_STEPS
+                    }
+                    onChange={() => toggleRoutineMember(task.id)}
+                    className="h-5 w-5 accent-foreground"
+                  />
+                  <span className="min-w-0 flex-1 text-sm font-medium">{task.title}</span>
+                  <span className="text-xs text-muted">{taskTime(task) ?? t("list.noTime")}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="mt-5">
+            <h4 className="text-sm font-semibold">{t("routine.order")}</h4>
+            <SortableTaskList
+              tasks={routineDraft.taskIds.flatMap((taskId) => {
+                const task = active.find((candidate) => candidate.id === taskId);
+                return task ? [task] : [];
+              })}
+              ordered
+              ariaLabel={t("routine.order")}
+              onReorder={(activeId, overId) => reorderRoutineDraft(activeId, overId)}
+              renderTask={(task) => (
+                <RoutineOrderRow
+                  key={task.id}
+                  task={task}
+                  step={routineDraft.taskIds.indexOf(task.id) + 1}
+                  total={routineDraft.taskIds.length}
+                  onMove={(offset) => moveRoutineMember(task.id, offset)}
+                />
+              )}
+            />
+          </div>
+          {routineError ? (
+            <p className="mt-4 text-sm" role="alert">
+              {routineError}
+            </p>
+          ) : null}
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="submit"
+              disabled={routineSaving}
+              className="min-h-11 bg-foreground px-6 text-sm font-semibold text-background disabled:opacity-60"
+            >
+              {routineSaving ? t("saving") : t("routine.save")}
+            </button>
+            <button
+              type="button"
+              disabled={routineSaving}
+              onClick={closeRoutineEditor}
+              className="min-h-11 border border-control px-6 text-sm font-semibold disabled:opacity-60"
+            >
+              {common("cancel")}
+            </button>
+          </div>
+        </form>
       ) : null}
 
       {form ? (
@@ -1430,7 +1856,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         </Form>
       ) : null}
 
-      {form ? null : loadError ? (
+      {form || routineDraft ? null : loadError ? (
         <div className="mt-6 border-l-2 border-accent pl-4" role="alert">
           <p className="text-sm leading-6">{loadError}</p>
           <button
@@ -1493,6 +1919,48 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               </div>
             ) : (
               <div className="mt-2">
+                {dayRoutines.map((routine) => (
+                  <section
+                    key={routine.id}
+                    className="mt-5 border border-line px-3"
+                    aria-label={t("routine.groupLabel", { name: routine.title })}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-3">
+                      <div className="min-w-0">
+                        <h4 className="text-base font-semibold">{routine.title}</h4>
+                        <p className="mt-1 text-xs text-muted">
+                          {t("routine.stepCount", { count: routine.taskIds.length })}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startRoutineEdit(routine)}
+                          className="min-h-11 px-2 text-sm font-semibold underline underline-offset-4"
+                        >
+                          {t("routine.edit")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void ungroupRoutine(routine)}
+                          className="min-h-11 px-2 text-sm font-semibold underline underline-offset-4"
+                        >
+                          {t("routine.ungroup")}
+                        </button>
+                      </div>
+                    </div>
+                    <SortableTaskList
+                      tasks={routine.taskIds.flatMap((taskId) => {
+                        const task = active.find((candidate) => candidate.id === taskId);
+                        return task ? [task] : [];
+                      })}
+                      ordered
+                      ariaLabel={t("routine.order")}
+                      onReorder={(activeId, overId) => reorderRoutine(routine, activeId, overId)}
+                      renderTask={(task) => renderTaskRow(task, routine)}
+                    />
+                  </section>
+                ))}
                 {blocks.map((block) =>
                   block.tasks.length > 0 ? (
                     <details
@@ -1513,26 +1981,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       <SortableTaskList
                         tasks={block.tasks}
                         onReorder={reorderSection}
-                        renderTask={(task) => {
-                          const occurrence =
-                            selectedDay === todayWeekday ? occurrenceByTask.get(task.id) : undefined;
-                          return (
-                            <TaskRow
-                              key={task.id}
-                              task={task}
-                              occurrence={occurrence}
-                              now={now}
-                              menuTaskId={menuTaskId}
-                              onMenuChange={setMenuTaskId}
-                              onEdit={startEdit}
-                              onDelete={setDeleteTask}
-                              onReactivate={(target, currentOccurrence) =>
-                                void reactivate(target, currentOccurrence)
-                              }
-                              reactivatingId={reactivatingId}
-                            />
-                          );
-                        }}
+                        renderTask={(task) => renderTaskRow(task)}
                       />
                     </details>
                   ) : null,

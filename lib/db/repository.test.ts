@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { RunoDatabase, openDatabase } from "./database";
 import { eventIdFor } from "./events";
 import {
+  archiveRoutine,
   archiveTask,
   claimAnchor,
   closeDay,
@@ -10,6 +11,7 @@ import {
   completeSession,
   completeSessionWithCredit,
   createPending,
+  createRoutine,
   createTask,
   createTasks,
   deletePending,
@@ -19,6 +21,7 @@ import {
   expireSession,
   getSettings,
   listPendings,
+  listRoutines,
   listTasks,
   markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicable,
@@ -30,6 +33,7 @@ import {
   resumeSession,
   restoreArchivedTask,
   restorePending,
+  restoreRoutine,
   retrySession,
   saveSettings,
   startPendingSession,
@@ -39,6 +43,7 @@ import {
   updatePending,
   updateTask,
   updateTaskWithCopies,
+  updateRoutine,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 import type { RunoEvent } from "@/lib/domain/types";
@@ -56,7 +61,7 @@ describe("schema versionado y almacenamiento local", () => {
 
   it("crea las entidades locales, metadata, outbox y revisiones", async () => {
     const db = await testDb();
-    expect(db.verno).toBe(5);
+    expect(db.verno).toBe(6);
     expect(db.tables.map((table) => table.name).sort()).toEqual([
       "days",
       "events",
@@ -66,6 +71,7 @@ describe("schema versionado y almacenamiento local", () => {
       "occurrences",
       "outbox",
       "pendings",
+      "routines",
       "sessions",
       "settings",
       "syncRecords",
@@ -73,7 +79,7 @@ describe("schema versionado y almacenamiento local", () => {
     ]);
   });
 
-  it("migra una base v2 a v5 sin perder datos y programa las tareas sin día", async () => {
+  it("migra una base v2 a v6 sin perder datos y programa las tareas sin día", async () => {
     const name = `runo-migrate-${crypto.randomUUID()}`;
     const old = new Dexie(name);
     old.version(2).stores({
@@ -111,7 +117,8 @@ describe("schema versionado y almacenamiento local", () => {
     old.close();
 
     const db = await openDatabase(name);
-    expect(db.verno).toBe(5);
+    expect(db.verno).toBe(6);
+    expect(await db.routines.count()).toBe(0);
     expect(await db.tasks.count()).toBe(2);
     expect((await db.tasks.get("sin-dia"))!.days).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect((await db.days.get(MONDAY))!.swapsUsed).toBe(2);
@@ -120,7 +127,7 @@ describe("schema versionado y almacenamiento local", () => {
     await Dexie.delete(name);
   });
 
-  it("migra una base v3 a v5 y programa las tareas sin día", async () => {
+  it("migra una base v3 a v6 y programa las tareas sin día", async () => {
     const name = `runo-migrate-v3-${crypto.randomUUID()}`;
     const old = new Dexie(name);
     old.version(3).stores({
@@ -146,7 +153,8 @@ describe("schema versionado y almacenamiento local", () => {
     old.close();
 
     const db = await openDatabase(name);
-    expect(db.verno).toBe(5);
+    expect(db.verno).toBe(6);
+    expect(await db.routines.count()).toBe(0);
     expect((await db.tasks.get("sin-dia"))!.days).toEqual([0, 1, 2, 3, 4, 5, 6]);
     db.close();
     await Dexie.delete(name);
@@ -1831,6 +1839,114 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     expect(await db.tasks.get("task:afternoon")).toBeUndefined();
     expect(await db.events.where("type").equals("task_updated").count()).toBe(0);
     expect(await db.events.where("type").equals("task_created").count()).toBe(2);
+  });
+});
+
+describe("rutinas secuenciales", () => {
+  it("muestra el paso actual como una sola tarjeta y avanza al siguiente al resolverlo", async () => {
+    const db = await testDb();
+    const first = await createTask(db, "task:prep", taskInput({ title: "Preparar comida" }), NOW);
+    const second = await createTask(db, "task:eat", taskInput({ title: "Comer" }), NOW + 1);
+    const unrelated = await createTask(db, "task:other", taskInput({ title: "Regar plantas" }), NOW + 2);
+    await createRoutine(db, "routine:meal", { title: "Comida", taskIds: [first.id, second.id] }, NOW + 3);
+    for (const task of [first, second, unrelated]) await ensureOccurrence(db, task.id, MONDAY, NOW + 4);
+
+    const initial = await ensureFranja(db, {
+      date: MONDAY,
+      now: NOW + 5,
+      seed: "routine-test",
+      tasks: [first, second, unrelated],
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    });
+    expect(initial.tasks.map((view) => view.task.id)).toContain(first.id);
+    expect(initial.tasks.map((view) => view.task.id)).not.toContain(second.id);
+    expect(initial.tasks.find((view) => view.task.id === first.id)?.routine).toMatchObject({
+      title: "Comida",
+      step: 1,
+      total: 2,
+    });
+
+    const firstOccurrence = await ensureOccurrence(db, first.id, MONDAY, NOW + 6);
+    await markOccurrenceAlreadyDoneDirect(db, firstOccurrence.id, NOW + 7);
+    const advanced = await ensureFranja(db, {
+      date: MONDAY,
+      now: NOW + 8,
+      seed: "routine-test",
+      tasks: [first, second, unrelated],
+      occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
+    });
+    expect(advanced.tasks.map((view) => view.task.id)).toContain(second.id);
+    expect(advanced.tasks.map((view) => view.task.id)).not.toContain(first.id);
+    expect(advanced.tasks.find((view) => view.task.id === second.id)?.routine).toMatchObject({
+      title: "Comida",
+      step: 2,
+      total: 2,
+    });
+  });
+
+  it("agrupa hábitos existentes, conserva su historial y permite reordenar/ungroup", async () => {
+    const db = await testDb();
+    const first = await createTask(db, "task:prep", taskInput({ title: "Preparar comida" }), NOW);
+    const second = await createTask(db, "task:eat", taskInput({ title: "Comer" }), NOW + 1);
+    const occurrence = await ensureOccurrence(db, first.id, MONDAY, NOW + 2);
+
+    const routine = await createRoutine(
+      db,
+      "routine:meal",
+      { title: "Comida", taskIds: [first.id, second.id] },
+      NOW + 3,
+    );
+    expect(routine.taskIds).toEqual([first.id, second.id]);
+    expect(await db.tasks.count()).toBe(2);
+    expect(await db.occurrences.get(occurrence.id)).toEqual(occurrence);
+    await expect(archiveTask(db, first.id, NOW + 4)).rejects.toThrow();
+    await expect(
+      updateTask(db, first.id, taskInput({ days: [2] }), NOW + 4, "routine:change-days"),
+    ).rejects.toThrow();
+
+    const reordered = await updateRoutine(
+      db,
+      routine.id,
+      { title: "Comida", taskIds: [second.id, first.id] },
+      NOW + 5,
+    );
+    expect(reordered.taskIds).toEqual([second.id, first.id]);
+    await expect(
+      createRoutine(db, "routine:other", { title: "Otra", taskIds: [first.id, second.id] }, NOW + 6),
+    ).rejects.toThrow();
+
+    await archiveRoutine(db, routine.id, NOW + 7);
+    expect(await listRoutines(db)).toEqual([]);
+    expect((await listTasks(db)).map((task) => task.id).sort()).toEqual([second.id, first.id].sort());
+    expect(await db.occurrences.get(occurrence.id)).toEqual(occurrence);
+    await restoreRoutine(db, routine.id, NOW + 8);
+    expect((await listRoutines(db))[0]?.taskIds).toEqual([second.id, first.id]);
+  });
+
+  it("rechaza miembros inexistentes, archivados o con días incompatibles", async () => {
+    const db = await testDb();
+    const monday = await createTask(db, "task:monday", taskInput({ days: [1] }), NOW);
+    const tuesday = await createTask(db, "task:tuesday", taskInput({ days: [2] }), NOW + 1);
+    const archived = await createTask(db, "task:archived", taskInput(), NOW + 2);
+    await archiveTask(db, archived.id, NOW + 3);
+
+    await expect(
+      createRoutine(
+        db,
+        "routine:missing",
+        { title: "Rutina", taskIds: [monday.id, "task:missing"] },
+        NOW + 4,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      createRoutine(db, "routine:days", { title: "Rutina", taskIds: [monday.id, tuesday.id] }, NOW + 5),
+    ).rejects.toThrow();
+    await expect(
+      createRoutine(db, "routine:archived", { title: "Rutina", taskIds: [monday.id, archived.id] }, NOW + 6),
+    ).rejects.toThrow();
+    await expect(
+      createRoutine(db, "routine:duplicate", { title: "Rutina", taskIds: [monday.id, monday.id] }, NOW + 7),
+    ).rejects.toThrow();
   });
 });
 
