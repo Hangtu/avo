@@ -240,7 +240,11 @@ export function AccountSyncPanel() {
           {preview ? (
             <section className="border border-line p-4" aria-label={t("importOpen")}>
               <p className="text-sm leading-6">
-                {t("importSummary", { tasks: preview.tasks.length, pendings: preview.pendings.length })}
+                {t("importSummary", {
+                  tasks: preview.tasks.length,
+                  routines: preview.routines.length,
+                  pendings: preview.pendings.length,
+                })}
               </p>
               <p className="mt-2 text-sm leading-6 text-muted">{t("importPreferences")}</p>
               <div className="mt-3 flex flex-wrap gap-3">

@@ -1,3 +1,4 @@
+import type { RoutineProgress } from "@/lib/domain/selection";
 import type { TaskBlock } from "@/lib/domain/schedule";
 
 /** The compact task shape shared by the hand, the countdown and the day review. */
@@ -14,4 +15,5 @@ export interface FranjaTask {
   remainingRc: number;
   block: TaskBlock;
   isMissed: boolean;
+  routine?: RoutineProgress;
 }

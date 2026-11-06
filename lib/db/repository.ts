@@ -3,7 +3,14 @@ import { enqueue, syncTables } from "@/lib/sync/local";
 import { appendEvent, eventIdFor, taskEventContext } from "./events";
 import { appendLedgerEntry, creditSourceKey } from "./ledger";
 import { occurrenceIdFor } from "@/lib/domain/occurrence";
-import { availabilityOf, eligibleCandidates, isMissedOccurrence, proposeHand } from "@/lib/domain/selection";
+import {
+  availabilityOf,
+  currentRoutineStep,
+  eligibleCandidates,
+  isMissedOccurrence,
+  proposeHand,
+  type RoutineProgress,
+} from "@/lib/domain/selection";
 import { blockForTime, taskTime, type TaskBlock } from "@/lib/domain/schedule";
 import { assertTimestamp, parseLocalDate, toLocalDate, weekdayOf, type LocalDate } from "@/lib/domain/time";
 import {
@@ -11,6 +18,7 @@ import {
   defaultSettings,
   DomainError,
   validatePendingInput,
+  validateRoutineInput,
   validateSettings,
   validateTaskInput,
 } from "@/lib/domain/validation";
@@ -21,6 +29,8 @@ import {
   type Occurrence,
   type Pending,
   type PendingInput,
+  type Routine,
+  type RoutineInput,
   type Session,
   type SessionVariant,
   type Settings,
@@ -35,6 +45,57 @@ export interface CreateTaskBatchItem {
   input: TaskInput;
 }
 
+type ValidatedTaskBatchItem = CreateTaskBatchItem;
+
+function validateTaskBatch(
+  items: readonly CreateTaskBatchItem[],
+  reservedIds: readonly string[] = [],
+): ValidatedTaskBatchItem[] {
+  const seen = new Set(reservedIds);
+  return items.map((item) => {
+    assertId(item.id);
+    if (seen.has(item.id)) {
+      throw new DomainError("validation", "El lote contiene una tarea repetida.");
+    }
+    seen.add(item.id);
+    return { id: item.id, input: validateTaskInput(item.input) };
+  });
+}
+
+async function createTasksInTransaction(
+  db: RunoDatabase,
+  items: readonly ValidatedTaskBatchItem[],
+  now: number,
+): Promise<Task[]> {
+  const created: Task[] = [];
+  for (const item of items) {
+    const { inserted } = await appendEvent(db, {
+      actionId: `task:create:${item.id}`,
+      type: "task_created",
+      at: now,
+      taskId: item.id,
+      context: taskEventContext(item.input),
+    });
+    if (!inserted) {
+      const existing = await db.tasks.get(item.id);
+      if (!existing) throw new DomainError("conflict", "Esa tarea ya no está.");
+      created.push(existing);
+      continue;
+    }
+    const task: Task = {
+      ...item.input,
+      id: item.id,
+      createdAt: now,
+      updatedAt: now,
+      archivedAt: null,
+    };
+    await db.tasks.add(task);
+    await enqueue(db, "task", task);
+    created.push(task);
+  }
+  return created;
+}
+
 /**
  * Creates a set of independent task templates as one operation. All inputs are
  * validated before the transaction, so a failed write leaves no partial batch.
@@ -46,51 +107,68 @@ export async function createTasks(
   now: number,
 ): Promise<Task[]> {
   assertTimestamp(now);
-  if (items.length === 0) return [];
-  const seen = new Set<string>();
-  const values = items.map((item) => {
-    assertId(item.id);
-    if (seen.has(item.id)) {
-      throw new DomainError("validation", "El lote contiene una tarea repetida.");
-    }
-    seen.add(item.id);
-    return { id: item.id, input: validateTaskInput(item.input) };
-  });
+  const values = validateTaskBatch(items);
+  if (values.length === 0) return [];
 
-  return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
-    const created: Task[] = [];
-    for (const item of values) {
-      const { inserted } = await appendEvent(db, {
-        actionId: `task:create:${item.id}`,
-        type: "task_created",
-        at: now,
-        taskId: item.id,
-        context: taskEventContext(item.input),
-      });
-      if (!inserted) {
-        const existing = await db.tasks.get(item.id);
-        if (!existing) throw new DomainError("conflict", "Esa tarea ya no está.");
-        created.push(existing);
-        continue;
-      }
-      const task: Task = {
-        ...item.input,
-        id: item.id,
-        createdAt: now,
-        updatedAt: now,
-        archivedAt: null,
-      };
-      await db.tasks.add(task);
-      await enqueue(db, "task", task);
-      created.push(task);
-    }
-    return created;
-  });
+  return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], () =>
+    createTasksInTransaction(db, values, now),
+  );
 }
 
 export async function createTask(db: RunoDatabase, id: string, input: TaskInput, now: number): Promise<Task> {
   const [task] = await createTasks(db, [{ id, input }], now);
   return task;
+}
+
+function sameWeekdays(left: readonly number[], right: readonly number[]): boolean {
+  const leftDays = [...left].sort((a, b) => a - b);
+  const rightDays = [...right].sort((a, b) => a - b);
+  return leftDays.length === rightDays.length && leftDays.every((day, index) => day === rightDays[index]);
+}
+
+async function validateRoutineMembers(
+  db: RunoDatabase,
+  taskIds: readonly string[],
+  excludeRoutineId?: string,
+): Promise<Task[]> {
+  const members = await db.tasks.bulkGet([...taskIds]);
+  if (members.some((task) => !task || task.archivedAt !== null)) {
+    throw new DomainError("not_found", "Uno de los hábitos de la rutina ya no está disponible.");
+  }
+  const tasks = members.flatMap((task) => (task ? [task] : []));
+  const [first] = tasks;
+  if (!first || tasks.some((task) => !sameWeekdays(task.days, first.days))) {
+    throw new DomainError("validation", "Los hábitos de una rutina deben tener los mismos días.");
+  }
+  const selectedIds = new Set(taskIds);
+  const duplicate = (await db.routines.toArray()).some(
+    (routine) =>
+      routine.id !== excludeRoutineId &&
+      routine.archivedAt === null &&
+      routine.taskIds.some((taskId) => selectedIds.has(taskId)),
+  );
+  if (duplicate) {
+    throw new DomainError("conflict", "Un hábito no puede estar en más de una rutina.");
+  }
+  return tasks;
+}
+
+async function validateRoutineMemberDays(
+  db: RunoDatabase,
+  taskId: string,
+  days: readonly number[],
+): Promise<void> {
+  const routines = await db.routines.where("taskIds").equals(taskId).toArray();
+  for (const routine of routines) {
+    if (routine.archivedAt !== null) continue;
+    const members = await db.tasks.bulkGet(routine.taskIds);
+    if (members.some((task) => !task)) {
+      throw new DomainError("conflict", "Quita los hábitos faltantes de la rutina antes de editar sus días.");
+    }
+    if (members.some((task) => task && task.id !== taskId && !sameWeekdays(task.days, days))) {
+      throw new DomainError("conflict", "Los pasos de una rutina deben tener los mismos días.");
+    }
+  }
 }
 
 export async function updateTask(
@@ -104,9 +182,10 @@ export async function updateTask(
   assertId(actionId);
   assertTimestamp(now);
   const values = validateTaskInput(input);
-  return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
+  return db.transaction("rw", [db.tasks, db.routines, db.events, ...syncTables(db)], async () => {
     const previous = await db.tasks.get(id);
     if (!previous) throw new DomainError("not_found", "Esa tarea ya no está.");
+    await validateRoutineMemberDays(db, id, values.days);
     const { inserted } = await appendEvent(db, {
       actionId,
       type: "task_updated",
@@ -127,13 +206,64 @@ export async function updateTask(
   });
 }
 
+export interface UpdateTaskWithCopiesInput {
+  id: string;
+  input: TaskInput;
+  copies: readonly CreateTaskBatchItem[];
+  now: number;
+  actionId: string;
+}
+
+/** Updates one template and creates its additional moments atomically. */
+export async function updateTaskWithCopies(
+  db: RunoDatabase,
+  { id, input, copies, now, actionId }: UpdateTaskWithCopiesInput,
+): Promise<{ task: Task; copies: Task[] }> {
+  assertId(id);
+  assertId(actionId);
+  assertTimestamp(now);
+  const values = validateTaskInput(input);
+  const copyValues = validateTaskBatch(copies, [id]);
+
+  return db.transaction("rw", [db.tasks, db.routines, db.events, ...syncTables(db)], async () => {
+    const previous = await db.tasks.get(id);
+    if (!previous) throw new DomainError("not_found", "Esa tarea ya no está.");
+    await validateRoutineMemberDays(db, id, values.days);
+    const { inserted } = await appendEvent(db, {
+      actionId,
+      type: "task_updated",
+      at: now,
+      taskId: id,
+      context: taskEventContext(values),
+    });
+    let task = previous;
+    if (inserted) {
+      task = { ...previous, ...values, updatedAt: now };
+      delete task.window;
+      delete task.fixedTime;
+      delete task.shortStep;
+      Object.assign(task, values);
+      await db.tasks.put(task);
+      await enqueue(db, "task", task);
+    }
+    const createdCopies = await createTasksInTransaction(db, copyValues, now);
+    return { task, copies: createdCopies };
+  });
+}
+
 export async function archiveTask(db: RunoDatabase, id: string, now: number): Promise<void> {
   assertId(id);
   assertTimestamp(now);
-  await db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
+  await db.transaction("rw", [db.tasks, db.routines, db.events, ...syncTables(db)], async () => {
     const task = await db.tasks.get(id);
     if (!task) throw new DomainError("not_found", "Esa tarea ya no está.");
     if (task.archivedAt !== null) return;
+    const routine = await db.routines
+      .where("taskIds")
+      .equals(id)
+      .filter((item) => item.archivedAt === null)
+      .first();
+    if (routine) throw new DomainError("conflict", "Saca el hábito de su rutina antes de archivarlo.");
     await appendEvent(db, {
       actionId: `task:archive:${id}`,
       type: "task_archived",
@@ -172,6 +302,109 @@ export async function listTasks(db: RunoDatabase, includeArchived = false): Prom
   return db.tasks.filter((task) => includeArchived || task.archivedAt === null).sortBy("createdAt");
 }
 
+/** Creates an ordered routine from existing active habits without changing their IDs or history. */
+export async function createRoutine(
+  db: RunoDatabase,
+  id: string,
+  input: RoutineInput,
+  now: number,
+): Promise<Routine> {
+  assertId(id);
+  assertTimestamp(now);
+  const values = validateRoutineInput(input);
+  return db.transaction("rw", [db.routines, db.tasks, ...syncTables(db)], async () => {
+    const previous = await db.routines.get(id);
+    if (previous) {
+      if (
+        previous.archivedAt !== null ||
+        previous.title !== values.title ||
+        previous.taskIds.length !== values.taskIds.length ||
+        previous.taskIds.some((taskId, index) => taskId !== values.taskIds[index])
+      ) {
+        throw new DomainError("conflict", "Ese identificador pertenece a otra rutina.");
+      }
+      return previous;
+    }
+    await validateRoutineMembers(db, values.taskIds);
+    const routine: Routine = {
+      ...values,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      archivedAt: null,
+    };
+    await db.routines.add(routine);
+    await enqueue(db, "routine", routine);
+    return routine;
+  });
+}
+
+export async function updateRoutine(
+  db: RunoDatabase,
+  id: string,
+  input: RoutineInput,
+  now: number,
+): Promise<Routine> {
+  assertId(id);
+  assertTimestamp(now);
+  const values = validateRoutineInput(input);
+  return db.transaction("rw", [db.routines, db.tasks, ...syncTables(db)], async () => {
+    const previous = await db.routines.get(id);
+    if (!previous || previous.archivedAt !== null) {
+      throw new DomainError("not_found", "Esa rutina ya no está.");
+    }
+    await validateRoutineMembers(db, values.taskIds, id);
+    if (
+      previous.title === values.title &&
+      previous.taskIds.length === values.taskIds.length &&
+      previous.taskIds.every((taskId, index) => taskId === values.taskIds[index])
+    ) {
+      return previous;
+    }
+    const updated: Routine = { ...previous, ...values, updatedAt: now };
+    await db.routines.put(updated);
+    await enqueue(db, "routine", updated);
+    return updated;
+  });
+}
+
+/** Archives only the group; its member habits and histories remain intact. */
+export async function archiveRoutine(db: RunoDatabase, id: string, now: number): Promise<void> {
+  assertId(id);
+  assertTimestamp(now);
+  await db.transaction("rw", [db.routines, ...syncTables(db)], async () => {
+    const routine = await db.routines.get(id);
+    if (!routine) throw new DomainError("not_found", "Esa rutina ya no está.");
+    if (routine.archivedAt !== null) return;
+    const archived: Routine = { ...routine, archivedAt: now, updatedAt: now };
+    await db.routines.put(archived);
+    await enqueue(db, "routine", archived);
+  });
+}
+
+export async function restoreRoutine(db: RunoDatabase, id: string, now: number): Promise<Routine> {
+  assertId(id);
+  assertTimestamp(now);
+  return db.transaction("rw", [db.routines, db.tasks, ...syncTables(db)], async () => {
+    const routine = await db.routines.get(id);
+    if (!routine) throw new DomainError("not_found", "Esa rutina ya no está.");
+    if (routine.archivedAt === null) return routine;
+    await validateRoutineMembers(db, routine.taskIds, id);
+    const restored: Routine = { ...routine, archivedAt: null, updatedAt: now };
+    await db.routines.put(restored);
+    await enqueue(db, "routine", restored);
+    return restored;
+  });
+}
+
+/** Active routines, oldest first. Archived groups never hide their member tasks. */
+export async function listRoutines(db: RunoDatabase, includeArchived = false): Promise<Routine[]> {
+  const routines = await db.routines
+    .filter((routine) => includeArchived || routine.archivedAt === null)
+    .sortBy("createdAt");
+  return routines;
+}
+
 /** Creates one one-off pending. The ID makes a retry safe without duplicating it. */
 export async function createPending(
   db: RunoDatabase,
@@ -201,6 +434,45 @@ export async function createPending(
     await db.pendings.add(pending);
     await enqueue(db, "pending", pending);
     return pending;
+  });
+}
+
+/** Updates an unfinished pending and its sync record as one local transaction. */
+export async function updatePending(
+  db: RunoDatabase,
+  pendingId: string,
+  input: PendingInput,
+  now: number,
+): Promise<Pending> {
+  assertId(pendingId);
+  assertTimestamp(now);
+  const values = validatePendingInput(input);
+
+  return db.transaction("rw", [db.pendings, db.sessions, ...syncTables(db)], async () => {
+    const pending = await db.pendings.get(pendingId);
+    if (!pending || pending.deletedAt !== null) {
+      throw new DomainError("not_found", "Ese pendiente ya no está.");
+    }
+    if (pending.completedAt !== null) {
+      throw new DomainError("invalid_transition", "Ese pendiente ya está hecho.");
+    }
+
+    const active = await db.sessions
+      .filter(
+        (session) =>
+          session.pendingId === pendingId &&
+          ["running", "paused", "awaiting_confirmation"].includes(session.status),
+      )
+      .first();
+    if (active) {
+      throw new DomainError("conflict", "Primero termina el tiempo de este pendiente.");
+    }
+    if (pending.title === values.title && pending.durationMin === values.durationMin) return pending;
+
+    const updated: Pending = { ...pending, ...values, updatedAt: now };
+    await db.pendings.put(updated);
+    await enqueue(db, "pending", updated);
+    return updated;
   });
 }
 
@@ -1306,6 +1578,7 @@ export interface FranjaTaskView {
   remainingRc: number;
   block: TaskBlock;
   isMissed: boolean;
+  routine?: RoutineProgress;
 }
 
 export interface CurrentFranja {
@@ -1328,9 +1601,16 @@ function taskViewsForHand(
   tasks: readonly Task[],
   occurrences: readonly Occurrence[],
   now: number,
+  routines: readonly Routine[],
 ): FranjaTaskView[] {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const occurrenceById = new Map(occurrences.map((occurrence) => [occurrence.id, occurrence]));
+  const routineProgressByTaskId = new Map(
+    routines.flatMap((routine) => {
+      const step = currentRoutineStep(routine, tasks, occurrences, now);
+      return step ? [[step.task.id, step.progress] as const] : [];
+    }),
+  );
   return hand.occurrenceIds.flatMap((occurrenceId) => {
     const occurrence = occurrenceById.get(occurrenceId);
     if (!occurrence || TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) return [];
@@ -1345,6 +1625,7 @@ function taskViewsForHand(
     )
       return [];
     const task = occurrence.agreement?.task ?? liveTask;
+    const routine = routineProgressByTaskId.get(task.id);
     return [
       {
         occurrenceId,
@@ -1355,6 +1636,7 @@ function taskViewsForHand(
         remainingRc: Math.max(0, task.durationMin - occurrence.creditedRc),
         block: blockForTime(taskTime(task)),
         isMissed: isMissedOccurrence(liveTask, occurrence, now),
+        ...(routine ? { routine } : {}),
       },
     ];
   });
@@ -1397,158 +1679,167 @@ export async function ensureFranja(
   parseLocalDate(date);
   assertTimestamp(now);
 
-  return db.transaction("rw", db.days, db.hands, db.tasks, db.occurrences, db.events, async () => {
-    const pendingToday = pendingCount(occurrences, date);
-    const day = await db.days.get(date);
-    const swapsRemaining = Math.max(0, 3 - (day?.swapsUsed ?? 0));
-    if (day?.closedAt != null) {
-      return {
-        hand: null,
-        tasks: [],
-        pendingToday,
-        remainingEligible: 0,
-        swapsRemaining,
-        canSwap: false,
-      };
-    }
+  return db.transaction(
+    "rw",
+    [db.days, db.hands, db.tasks, db.occurrences, db.routines, db.events],
+    async () => {
+      const routines = await db.routines.toArray();
+      const pendingToday = pendingCount(occurrences, date);
+      const day = await db.days.get(date);
+      const swapsRemaining = Math.max(0, 3 - (day?.swapsUsed ?? 0));
+      if (day?.closedAt != null) {
+        return {
+          hand: null,
+          tasks: [],
+          pendingToday,
+          remainingEligible: 0,
+          swapsRemaining,
+          canSwap: false,
+        };
+      }
 
-    let hand = await db.hands
-      .where("date")
-      .equals(date)
-      .filter((candidate) => candidate.status === "open")
-      .first();
+      let hand = await db.hands
+        .where("date")
+        .equals(date)
+        .filter((candidate) => candidate.status === "open")
+        .first();
 
-    if (hand) {
-      const currentOccurrences = (await db.occurrences.bulkGet(hand.occurrenceIds)).filter(
-        (occurrence): occurrence is Occurrence => occurrence !== undefined,
-      );
-      const currentTaskIds = [...new Set(currentOccurrences.map((occurrence) => occurrence.taskId))];
-      const currentTasks = (await db.tasks.bulkGet(currentTaskIds)).filter(
-        (task): task is Task => task !== undefined,
-      );
-      let views = taskViewsForHand(hand, currentTasks, currentOccurrences, now);
-      if (views.length === 0) {
-        await closeHand(db, hand, now, "resolved");
-        hand = undefined;
-      } else {
-        // Re-evaluate the open franja with the current clock. Started/partial
-        // cards keep their place; the rest can be reordered or replaced by a
-        // better current candidate. Deferred cards stay out until the next
-        // franja, and this never consumes a manual "Otra" change.
-        const occurrenceById = new Map(currentOccurrences.map((occurrence) => [occurrence.id, occurrence]));
-        const taskById = new Map(currentTasks.map((task) => [task.id, task]));
-        const protectedIds = hand.occurrenceIds.filter((occurrenceId) => {
-          const occurrence = occurrenceById.get(occurrenceId);
-          if (!occurrence || TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) return false;
-          const task = taskById.get(occurrence.taskId);
-          if (!task || task.archivedAt !== null) return false;
-          return (
-            occurrence.shortStepCompleted || occurrence.agreement !== null || occurrence.timerElapsedSec > 0
-          );
-        });
-        const ranked = proposeHand({
-          tasks,
-          occurrences,
-          now,
-          seed,
-          excludeOccurrenceIds: hand.deferredOccurrenceIds,
-        });
-        const occurrenceIds: string[] = [];
-        for (const occurrenceId of protectedIds) {
-          if (!occurrenceIds.includes(occurrenceId)) occurrenceIds.push(occurrenceId);
-        }
-        for (const candidate of ranked) {
-          if (occurrenceIds.length >= 3) break;
-          if (!occurrenceIds.includes(candidate.occurrenceId)) {
-            occurrenceIds.push(candidate.occurrenceId);
-          }
-        }
-        const nextIds = occurrenceIds.slice(0, 3);
-        const previousIds = hand.occurrenceIds;
-        const unchanged =
-          nextIds.length === previousIds.length &&
-          nextIds.every((occurrenceId, index) => occurrenceId === previousIds[index]);
-        if (!unchanged) {
-          await db.hands.update(hand.id, { occurrenceIds: nextIds });
-          hand = { ...hand, occurrenceIds: nextIds };
-          views = taskViewsForHand(hand, tasks, occurrences, now);
-        }
+      if (hand) {
+        const currentOccurrences = (await db.occurrences.bulkGet(hand.occurrenceIds)).filter(
+          (occurrence): occurrence is Occurrence => occurrence !== undefined,
+        );
+        const currentTaskIds = [...new Set(currentOccurrences.map((occurrence) => occurrence.taskId))];
+        const currentTasks = (await db.tasks.bulkGet(currentTaskIds)).filter(
+          (task): task is Task => task !== undefined,
+        );
+        let views = taskViewsForHand(hand, tasks, occurrences, now, routines);
         if (views.length === 0) {
           await closeHand(db, hand, now, "resolved");
           hand = undefined;
         } else {
-          const excluded = new Set(hand.occurrenceIds);
-          const remainingEligible = eligibleCandidates({
+          // Re-evaluate the open franja with the current clock. Started/partial
+          // cards keep their place; the rest can be reordered or replaced by a
+          // better current candidate. Deferred cards stay out until the next
+          // franja, and this never consumes a manual "Otra" change.
+          const occurrenceById = new Map(currentOccurrences.map((occurrence) => [occurrence.id, occurrence]));
+          const taskById = new Map(currentTasks.map((task) => [task.id, task]));
+          const protectedIds = hand.occurrenceIds.filter((occurrenceId) => {
+            const occurrence = occurrenceById.get(occurrenceId);
+            if (!occurrence || TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status)) return false;
+            const task = taskById.get(occurrence.taskId);
+            if (!task || task.archivedAt !== null) return false;
+            return (
+              occurrence.shortStepCompleted || occurrence.agreement !== null || occurrence.timerElapsedSec > 0
+            );
+          });
+          const ranked = proposeHand({
             tasks,
             occurrences,
             now,
             seed,
-            excludeOccurrenceIds: [...excluded],
-          }).length;
-          const canSwap =
-            swapsRemaining > 0 &&
-            eligibleCandidates({
+            excludeOccurrenceIds: hand.deferredOccurrenceIds,
+            routines,
+          });
+          const occurrenceIds: string[] = [];
+          for (const occurrenceId of protectedIds) {
+            if (!occurrenceIds.includes(occurrenceId)) occurrenceIds.push(occurrenceId);
+          }
+          for (const candidate of ranked) {
+            if (occurrenceIds.length >= 3) break;
+            if (!occurrenceIds.includes(candidate.occurrenceId)) {
+              occurrenceIds.push(candidate.occurrenceId);
+            }
+          }
+          const nextIds = occurrenceIds.slice(0, 3);
+          const previousIds = hand.occurrenceIds;
+          const unchanged =
+            nextIds.length === previousIds.length &&
+            nextIds.every((occurrenceId, index) => occurrenceId === previousIds[index]);
+          if (!unchanged) {
+            await db.hands.update(hand.id, { occurrenceIds: nextIds });
+            hand = { ...hand, occurrenceIds: nextIds };
+            views = taskViewsForHand(hand, tasks, occurrences, now, routines);
+          }
+          if (views.length === 0) {
+            await closeHand(db, hand, now, "resolved");
+            hand = undefined;
+          } else {
+            const excluded = new Set(hand.occurrenceIds);
+            const remainingEligible = eligibleCandidates({
               tasks,
               occurrences,
               now,
               seed,
-              excludeOccurrenceIds: [...excluded, ...hand.deferredOccurrenceIds],
-            }).length > 0;
-          return {
-            hand,
-            tasks: views,
-            pendingToday,
-            remainingEligible,
-            swapsRemaining,
-            canSwap,
-          };
+              excludeOccurrenceIds: [...excluded],
+              routines,
+            }).length;
+            const canSwap =
+              swapsRemaining > 0 &&
+              eligibleCandidates({
+                tasks,
+                occurrences,
+                now,
+                seed,
+                excludeOccurrenceIds: [...excluded, ...hand.deferredOccurrenceIds],
+                routines,
+              }).length > 0;
+            return {
+              hand,
+              tasks: views,
+              pendingToday,
+              remainingEligible,
+              swapsRemaining,
+              canSwap,
+            };
+          }
         }
       }
-    }
 
-    const candidates = proposeHand({ tasks, occurrences, now, seed });
-    if (candidates.length === 0) {
-      return {
-        hand: null,
-        tasks: [],
-        pendingToday,
-        remainingEligible: 0,
-        swapsRemaining,
-        canSwap: false,
+      const candidates = proposeHand({ tasks, occurrences, now, seed, routines });
+      if (candidates.length === 0) {
+        return {
+          hand: null,
+          tasks: [],
+          pendingToday,
+          remainingEligible: 0,
+          swapsRemaining,
+          canSwap: false,
+        };
+      }
+
+      const hands = await db.hands.where("date").equals(date).toArray();
+      const ordinal = hands.reduce((max, candidate) => Math.max(max, candidate.ordinal), 0) + 1;
+      const created: Hand = {
+        id: `hand:${date}:${ordinal}`,
+        date,
+        ordinal,
+        occurrenceIds: candidates.map((candidate) => candidate.occurrenceId),
+        deferredOccurrenceIds: [],
+        status: "open",
+        createdAt: now,
+        closedAt: null,
       };
-    }
+      await db.hands.add(created);
 
-    const hands = await db.hands.where("date").equals(date).toArray();
-    const ordinal = hands.reduce((max, candidate) => Math.max(max, candidate.ordinal), 0) + 1;
-    const created: Hand = {
-      id: `hand:${date}:${ordinal}`,
-      date,
-      ordinal,
-      occurrenceIds: candidates.map((candidate) => candidate.occurrenceId),
-      deferredOccurrenceIds: [],
-      status: "open",
-      createdAt: now,
-      closedAt: null,
-    };
-    await db.hands.add(created);
-
-    const excluded = new Set(created.occurrenceIds);
-    const remainingEligible = eligibleCandidates({
-      tasks,
-      occurrences,
-      now,
-      seed,
-      excludeOccurrenceIds: [...excluded],
-    }).length;
-    return {
-      hand: created,
-      tasks: taskViewsForHand(created, tasks, occurrences, now),
-      pendingToday,
-      remainingEligible,
-      swapsRemaining,
-      canSwap: swapsRemaining > 0 && remainingEligible > 0,
-    };
-  });
+      const excluded = new Set(created.occurrenceIds);
+      const remainingEligible = eligibleCandidates({
+        tasks,
+        occurrences,
+        now,
+        seed,
+        excludeOccurrenceIds: [...excluded],
+        routines,
+      }).length;
+      return {
+        hand: created,
+        tasks: taskViewsForHand(created, tasks, occurrences, now, routines),
+        pendingToday,
+        remainingEligible,
+        swapsRemaining,
+        canSwap: swapsRemaining > 0 && remainingEligible > 0,
+      };
+    },
+  );
 }
 
 /** Explicit end-of-day exit: preserves elapsed work, pays nothing pending, closes the day. */
@@ -1636,7 +1927,8 @@ export async function swapFranjaTask(
   assertId(occurrenceId);
   assertTimestamp(now);
 
-  return db.transaction("rw", db.days, db.hands, db.sessions, db.events, async () => {
+  return db.transaction("rw", db.days, db.hands, db.sessions, db.events, db.routines, async () => {
+    const routines = await db.routines.toArray();
     const hand = await db.hands.get(handId);
     if (!hand || hand.status !== "open") return { swapped: false, reason: "not_in_hand" };
 
@@ -1664,6 +1956,7 @@ export async function swapFranjaTask(
       now,
       seed,
       excludeOccurrenceIds: [...excluded],
+      routines,
     }).find((candidate) => occurrenceById.has(candidate.occurrenceId));
     if (!alternative) return { swapped: false, reason: "no_alternative" };
 

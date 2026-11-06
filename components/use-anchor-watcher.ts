@@ -2,18 +2,19 @@
 
 import { useEffect, useRef } from "react";
 import { openDatabase, type RunoDatabase } from "@/lib/db/database";
-import { claimAnchor, ensureOccurrence, listTasks, pauseSession } from "@/lib/db/repository";
+import { claimAnchor, ensureOccurrence, listRoutines, listTasks, pauseSession } from "@/lib/db/repository";
 import { findDueAnchor } from "@/lib/domain/anchors";
 import { pulse } from "@/lib/platform/haptics";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
 import type { Occurrence, Task } from "@/lib/domain/types";
+import type { RoutineProgress } from "@/lib/domain/selection";
 
 export function useAnchorWatcher({
   enabled,
   onAnchor,
 }: {
   enabled: boolean;
-  onAnchor: (task: Task, occurrence: Occurrence) => void;
+  onAnchor: (task: Task, occurrence: Occurrence, routine?: RoutineProgress) => void;
 }) {
   const onAnchorRef = useRef(onAnchor);
 
@@ -35,7 +36,7 @@ export function useAnchorWatcher({
         const day = await db.days.get(date);
         if (day?.closedAt != null) return;
 
-        const tasks = await listTasks(db);
+        const [tasks, routines] = await Promise.all([listTasks(db), listRoutines(db)]);
         const weekday = weekdayOf(date);
         for (const task of tasks) {
           if (!task.days.includes(weekday)) continue;
@@ -46,7 +47,7 @@ export function useAnchorWatcher({
           }
         }
         const occurrences = await db.occurrences.where("date").equals(date).toArray();
-        const due = findDueAnchor(tasks, occurrences, now);
+        const due = findDueAnchor(tasks, occurrences, now, routines);
         if (!due) return;
 
         const active = await db.sessions
@@ -65,7 +66,7 @@ export function useAnchorWatcher({
         });
         if (claimed && !cancelled) {
           pulse("anchor");
-          onAnchorRef.current(due.task, claimed);
+          onAnchorRef.current(due.task, claimed, due.routine);
         }
       } catch (cause) {
         if (!cancelled) console.error("No se pudo revisar el ancla", cause);

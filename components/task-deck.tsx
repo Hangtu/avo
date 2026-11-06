@@ -232,7 +232,15 @@ function DeckCard({
         inert={!active || turning}
         style={{ opacity: fullOpacity }}
       >
-        <p className="first-eyebrow">{t("eyebrow")}</p>
+        <p className="first-eyebrow">
+          {task.routine
+            ? t("routineProgress", {
+                name: task.routine.title,
+                step: task.routine.step,
+                total: task.routine.total,
+              })
+            : t("eyebrow")}
+        </p>
         <h2 id={ids.title} className="first-title">
           {task.title}
         </h2>
@@ -262,11 +270,12 @@ function DeckCard({
         disabled={busy || turning || !isBack}
         tabIndex={isBack ? 0 : -1}
         aria-hidden={!isBack || undefined}
-        aria-labelledby={`${id}-peek-action ${id}-peek-title ${id}-peek-duration`}
         style={{ opacity: previewOpacity }}
       >
         <span className="peek-back-top">
-          <span className="peek-back-label">{t("otherOption")}</span>
+          <span id={`${id}-peek-label`} className="peek-back-label">
+            {t("otherOption")}
+          </span>
           <span id={`${id}-peek-action`} className="peek-back-action">
             {t("chooseTask")}
           </span>
@@ -274,6 +283,15 @@ function DeckCard({
         <span id={`${id}-peek-title`} className="peek-back-title">
           {task.title}
         </span>
+        {task.routine ? (
+          <span id={`${id}-peek-routine`} className="peek-back-label">
+            {t("routineProgress", {
+              name: task.routine.title,
+              step: task.routine.step,
+              total: task.routine.total,
+            })}
+          </span>
+        ) : null}
         <span id={`${id}-peek-duration`} className="peek-back-duration">
           {common("minutes", { count: task.remainingMin })}
           {task.isMissed ? (

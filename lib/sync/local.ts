@@ -1,7 +1,7 @@
 import type { Table } from "dexie";
 import type { RunoDatabase } from "@/lib/db/database";
 import { newOperationId } from "@/lib/domain/id";
-import type { Pending, Settings, Task } from "@/lib/domain/types";
+import type { Pending, Routine, Settings, Task } from "@/lib/domain/types";
 import { defaultSettings } from "@/lib/domain/validation";
 import {
   entityKey,
@@ -42,10 +42,11 @@ export async function enqueue(db: RunoDatabase, kind: DurableKind, value: Durabl
 export async function writeValue(db: RunoDatabase, kind: DurableKind, value: DurableValue) {
   if (kind === "task") await db.tasks.put(value as Task);
   else if (kind === "pending") await db.pendings.put(value as Pending);
+  else if (kind === "routine") await db.routines.put(value as Routine);
   else await db.settings.put(value as Settings);
 }
 export function allDurableTables(db: RunoDatabase): Table[] {
-  return [db.tasks, db.pendings, db.settings, db.outbox, db.syncRecords, db.metadata];
+  return [db.tasks, db.pendings, db.routines, db.settings, db.outbox, db.syncRecords, db.metadata];
 }
 /** Merge, never replace the DB: execution, guest data, and local edits survive. */
 export async function mergeRemote(db: RunoDatabase, records: DurableRecord[]): Promise<boolean> {
@@ -103,7 +104,14 @@ export async function mergeRemote(db: RunoDatabase, records: DurableRecord[]): P
           await enqueue(db, "pending", value);
         }
       }
-      const table = record.kind === "task" ? db.tasks : record.kind === "pending" ? db.pendings : db.settings;
+      const table =
+        record.kind === "task"
+          ? db.tasks
+          : record.kind === "pending"
+            ? db.pendings
+            : record.kind === "routine"
+              ? db.routines
+              : db.settings;
       const previous = await table.get(record.id);
       if (!previous || !sameValue(previous, value)) {
         await writeValue(db, record.kind, value);

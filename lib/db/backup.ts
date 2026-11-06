@@ -5,9 +5,10 @@ import { validateSettings } from "@/lib/domain/validation";
 
 /** Read a complete local snapshot; this does not upload or synchronize data. */
 export async function exportLocalSnapshot(db: RunoDatabase, exportedAt: number): Promise<RunoSnapshot> {
-  const [tasks, pendings, occurrences, days, hands, sessions, events, ledger, settings, metadata] =
+  const [tasks, routines, pendings, occurrences, days, hands, sessions, events, ledger, settings, metadata] =
     await Promise.all([
       db.tasks.toArray(),
+      db.routines.toArray(),
       db.pendings.toArray(),
       db.occurrences.toArray(),
       db.days.toArray(),
@@ -23,6 +24,7 @@ export async function exportLocalSnapshot(db: RunoDatabase, exportedAt: number):
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt,
     tasks,
+    routines,
     pendings,
     occurrences,
     days,
@@ -50,6 +52,7 @@ export async function importLocalSnapshot(db: RunoDatabase, snapshot: RunoSnapsh
     "rw",
     [
       db.tasks,
+      db.routines,
       db.pendings,
       db.occurrences,
       db.days,
@@ -62,6 +65,7 @@ export async function importLocalSnapshot(db: RunoDatabase, snapshot: RunoSnapsh
     ],
     async () => {
       await db.tasks.clear();
+      await db.routines.clear();
       await db.pendings.clear();
       await db.occurrences.clear();
       await db.days.clear();
@@ -73,6 +77,7 @@ export async function importLocalSnapshot(db: RunoDatabase, snapshot: RunoSnapsh
       await db.settings.clear();
 
       if (snapshot.tasks.length) await db.tasks.bulkAdd(snapshot.tasks);
+      if (snapshot.routines.length) await db.routines.bulkAdd(snapshot.routines);
       if (snapshot.pendings.length) await db.pendings.bulkAdd(snapshot.pendings);
       if (snapshot.occurrences.length) await db.occurrences.bulkAdd(snapshot.occurrences);
       if (snapshot.days.length) await db.days.bulkAdd(snapshot.days);

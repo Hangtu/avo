@@ -1,19 +1,21 @@
 import { openDatabaseForSpace, type RunoDatabase } from "@/lib/db/database";
 import { SPACE_STORAGE_KEYS } from "@/lib/db/local-space";
 import { newOperationId, stableDigest } from "@/lib/domain/id";
-import type { Pending, Settings, Task } from "@/lib/domain/types";
-import { defaultSettings } from "@/lib/domain/validation";
+import type { Pending, Routine, Settings, Task } from "@/lib/domain/types";
+import { defaultSettings, validateRoutineInput } from "@/lib/domain/validation";
 import { allDurableTables, enqueue } from "./local";
 import { ProtocolError, validTaskOrder } from "./protocol";
 
 export interface GuestPreview {
   tasks: Task[];
+  routines: Routine[];
   pendings: Pending[];
   settings: Settings;
 }
 async function preview(db: RunoDatabase): Promise<GuestPreview> {
-  const result = await db.transaction("r", db.tasks, db.pendings, db.settings, async () => ({
+  const result = await db.transaction("r", db.tasks, db.routines, db.pendings, db.settings, async () => ({
     tasks: await db.tasks.orderBy("id").toArray(),
+    routines: await db.routines.orderBy("id").toArray(),
     pendings: await db.pendings.orderBy("id").toArray(),
     settings: (await db.settings.get("preferences")) ?? defaultSettings(0),
   }));
@@ -35,6 +37,30 @@ export async function guestPreview(): Promise<GuestPreview> {
     db.close();
   }
 }
+function validateGuestRoutineReferences(current: GuestPreview): void {
+  const taskById = new Map(current.tasks.map((task) => [task.id, task]));
+  const activeMembership = new Set<string>();
+  for (const routine of current.routines) {
+    validateRoutineInput(routine);
+    const members = routine.taskIds.map((taskId) => taskById.get(taskId));
+    if (members.some((task) => !task)) throw new ProtocolError("routine_task_missing");
+    if (routine.archivedAt !== null) continue;
+    const activeMembers = members.filter((task): task is Task => task !== undefined);
+    const first = activeMembers[0];
+    if (!first || activeMembers.some((task) => task.archivedAt !== null)) {
+      throw new ProtocolError("routine_task_missing");
+    }
+    const days = JSON.stringify([...first.days].sort((a, b) => a - b));
+    if (activeMembers.some((task) => JSON.stringify([...task.days].sort((a, b) => a - b)) !== days)) {
+      throw new ProtocolError("routine_days_mismatch");
+    }
+    for (const taskId of routine.taskIds) {
+      if (activeMembership.has(taskId)) throw new ProtocolError("routine_task_grouped");
+      activeMembership.add(taskId);
+    }
+  }
+}
+
 function importedId(source: string, kind: string, id: string): string {
   return `guest:${stableDigest(`${source}:${kind}:${id}`)}`;
 }
@@ -46,6 +72,7 @@ export async function importGuest(db: RunoDatabase, consented: GuestPreview): Pr
     const current = await preview(guest);
     if (JSON.stringify(current) !== JSON.stringify(consented))
       throw new ProtocolError("guest_changed_review_again");
+    validateGuestRoutineReferences(current);
     const source = await guest.transaction("rw", guest.metadata, async () => {
       const stored = await guest.metadata.get("guest-source-v1");
       if (typeof stored?.value === "string") return stored.value;
@@ -56,6 +83,9 @@ export async function importGuest(db: RunoDatabase, consented: GuestPreview): Pr
     const fingerprint = importedId(source, "preview", JSON.stringify(current));
     const taskIds = new Map(
       current.tasks.map((task) => [task.id, importedId(source, "task", task.id)] as const),
+    );
+    const routineIds = new Map(
+      current.routines.map((routine) => [routine.id, importedId(source, "routine", routine.id)] as const),
     );
     const pendingIds = new Map(
       current.pendings.map((pending) => [pending.id, importedId(source, "pending", pending.id)] as const),
@@ -71,6 +101,20 @@ export async function importGuest(db: RunoDatabase, consented: GuestPreview): Pr
         const task = { ...original, id };
         await db.tasks.add(task);
         await enqueue(db, "task", task);
+        added++;
+      }
+      for (const original of current.routines) {
+        const id = routineIds.get(original.id)!;
+        if (await db.routines.get(id)) continue;
+        const stepIds = original.taskIds.map((taskId) => taskIds.get(taskId));
+        if (stepIds.some((taskId) => taskId === undefined)) throw new ProtocolError("routine_task_missing");
+        const routine: Routine = {
+          ...original,
+          id,
+          taskIds: stepIds.filter((taskId): taskId is string => taskId !== undefined),
+        };
+        await db.routines.add(routine);
+        await enqueue(db, "routine", routine);
         added++;
       }
       for (const original of current.pendings) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Task } from "@/lib/domain/types";
+import type { Routine, Task } from "@/lib/domain/types";
 import { parseBackupSnapshot, rowsForSnapshot, type RunoSnapshot } from "./snapshot";
 
 const now = Date.UTC(2026, 9, 31, 12, 0, 0);
@@ -18,10 +18,20 @@ function snapshot(): RunoSnapshot {
     updatedAt: now,
     archivedAt: null,
   };
+  const secondTask: Task = { ...task, id: "task-2", title: "Comer" };
+  const routine: Routine = {
+    id: "routine-1",
+    title: "Comida",
+    taskIds: [task.id, secondTask.id],
+    createdAt: now,
+    updatedAt: now,
+    archivedAt: null,
+  };
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     exportedAt: now,
-    tasks: [task],
+    tasks: [task, secondTask],
+    routines: [routine],
     pendings: [],
     occurrences: [],
     days: [],
@@ -54,6 +64,11 @@ describe("local snapshot and migration row mapping", () => {
       windowStart: null,
       shortStepDurationMin: 1,
     });
+    expect(rows.routines[0]).toMatchObject({
+      id: "routine-1",
+      userId: "owner",
+      taskIds: ["task-1", "task-2"],
+    });
     expect(rows.settings.userId).toBe("owner");
     expect(rows.metadata[0]?.key).toBe("initial-tasks-v1");
   });
@@ -64,8 +79,19 @@ describe("local snapshot and migration row mapping", () => {
     expect(parseBackupSnapshot(next).settings.sound).toBe("ocean");
   });
 
+  it("reads version-3 backups without routines", () => {
+    const legacy = { ...snapshot(), schemaVersion: 3, routines: undefined };
+    expect(parseBackupSnapshot(legacy).routines).toEqual([]);
+  });
+
   it("rejects a different snapshot version", () => {
     expect(() => parseBackupSnapshot({ ...snapshot(), schemaVersion: 2 })).toThrow(/versión/i);
+  });
+
+  it("rejects routines with missing or incompatible member habits", () => {
+    const invalid = snapshot();
+    invalid.routines[0] = { ...invalid.routines[0], taskIds: ["task-1", "missing"] };
+    expect(() => parseBackupSnapshot(invalid)).toThrow(/inexistente/i);
   });
 
   it("rejects malformed task data before writing", () => {

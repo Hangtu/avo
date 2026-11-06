@@ -12,9 +12,13 @@ import { canonicalJSON, ProtocolError } from "./protocol";
  * tombstones, never physical domain deletes. Counts + revision sums therefore
  * change monotonically without a new metadata token that old writers could miss.
  * Read inside the same RR transaction as the payload. This scans narrow values
- * on Postgres, but transfers only three aggregate rows, not full records.
+ * on Postgres, but transfers only three aggregate rows in v1 / four in v2, not full records.
  */
-export async function snapshotEtag(transaction: ServerDatabase, ownerId: string): Promise<string> {
+export async function snapshotEtag(
+  transaction: ServerDatabase,
+  ownerId: string,
+  protocolVersion: 1 | 2 = 1,
+): Promise<string> {
   const versions = await unionAll(
     transaction
       .select({
@@ -41,11 +45,23 @@ export async function snapshotEtag(transaction: ServerDatabase, ownerId: string)
       .from(schema.settings)
       .where(eq(schema.settings.userId, ownerId)),
   );
-  if (versions.some((row) => row.count > 10_000)) throw new ProtocolError("snapshot_too_large");
+  const routineVersions =
+    protocolVersion === 2
+      ? await transaction
+          .select({
+            kind: sql<string>`'routine'`.as("kind"),
+            count: count(),
+            revision: sql<string>`coalesce(sum(${schema.routines.revision}), 0)::text`,
+          })
+          .from(schema.routines)
+          .where(eq(schema.routines.userId, ownerId))
+      : [];
+  const allVersions = [...versions, ...routineVersions];
+  if (allVersions.some((row) => row.count > 10_000)) throw new ProtocolError("snapshot_too_large");
   const version = canonicalJSON({
     ownerId,
-    protocol: 1,
-    versions: versions.toSorted((a, b) => a.kind.localeCompare(b.kind)),
+    protocol: protocolVersion,
+    versions: allVersions.toSorted((a, b) => a.kind.localeCompare(b.kind)),
   });
   return `"avo-snapshot:v2:${createHash("sha256").update(version).digest("hex")}"`;
 }
