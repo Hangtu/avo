@@ -6,6 +6,7 @@ import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { defaultLocale, messages } from "@/lib/i18n/config";
 import { themeBootScript } from "@/lib/domain/theme-boot";
 import { siteName, siteUrl } from "@/lib/config/site";
+import { socialImage } from "@/lib/config/social-image";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -28,8 +29,14 @@ export const metadata: Metadata = {
     title: siteName,
     description,
     locale: "es_MX",
+    images: [socialImage],
   },
-  twitter: { card: "summary", title: siteName, description },
+  twitter: {
+    card: "summary_large_image",
+    title: siteName,
+    description,
+    images: [socialImage],
+  },
   robots: { index: true, follow: true },
   appleWebApp: {
     capable: true,

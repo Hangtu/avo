@@ -1,7 +1,36 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-const canonicalPath = (path: string) => new RegExp(`^https?://[^/]+${path}$`);
+const canonicalPath = (path: string) => new RegExp(`^https?://[^/]+${path === "/" ? "/?" : path}$`);
+
+async function expectSocialPreview(
+  page: Page,
+  path: string,
+  title: string,
+  description: string,
+  alt: string,
+) {
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", title);
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute("content", description);
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", canonicalPath(path));
+  await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Avo");
+  await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute("content", "es_MX");
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    canonicalPath("/og/avo-share.png"),
+  );
+  await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
+  await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute("content", "630");
+  await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute("content", alt);
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
+  await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute("content", title);
+  await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute("content", description);
+  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute(
+    "content",
+    canonicalPath("/og/avo-share.png"),
+  );
+  await expect(page.locator('meta[name="twitter:image:alt"]')).toHaveAttribute("content", alt);
+}
 
 test.describe("legal pages", () => {
   test("privacy page publishes a title, description, and canonical URL", async ({ page }) => {
@@ -12,6 +41,13 @@ test.describe("legal pages", () => {
     await expect(page).toHaveTitle("Aviso de privacidad | Avo");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", canonicalPath("/privacy"));
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Avo/);
+    await expectSocialPreview(
+      page,
+      "/privacy",
+      "Aviso de privacidad | Avo",
+      "Cómo Avo usa y protege tus datos, y cómo solicitar su eliminación.",
+      "Avo, un aguacate sonriente con reloj, junto a la frase «Retoma donde te quedaste».",
+    );
   });
 
   test("data-deletion page explains local deletion and the support channel", async ({ page }) => {
@@ -27,6 +63,13 @@ test.describe("legal pages", () => {
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
       canonicalPath("/data-deletion"),
+    );
+    await expectSocialPreview(
+      page,
+      "/data-deletion",
+      "Eliminación de datos | Avo",
+      "Borra tus datos locales o solicita la eliminación de tu cuenta y tus datos de Avo.",
+      "Avo, un aguacate sonriente con reloj, junto a la frase «Retoma donde te quedaste».",
     );
   });
 
@@ -57,8 +100,23 @@ test.describe("public shell", () => {
       "href",
       "/data-deletion",
     );
+    await expectSocialPreview(
+      page,
+      "/",
+      "Avo",
+      "Hábitos, pendientes y tiempo para ti.",
+      "Avo, un aguacate sonriente con reloj, junto a la frase «Retoma donde te quedaste».",
+    );
 
     await context.close();
+  });
+
+  test("serves a compact social preview image", async ({ request }) => {
+    const response = await request.get("/og/avo-share.png");
+
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toMatch(/^image\/png/);
+    expect((await response.body()).byteLength).toBeLessThan(5 * 1024 * 1024);
   });
 
   test("keeps guest account guidance in Settings and the dark backdrop fixed while scrolling", async ({
