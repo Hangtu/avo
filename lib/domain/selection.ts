@@ -174,6 +174,9 @@ export function eligibleCandidates(input: SelectionInput): Candidate[] {
   return candidates.sort((a, b) => {
     const anchor = Number(b.isDueAnchor) - Number(a.isDueAnchor);
     if (anchor) return anchor;
+    // Keep the current routine step in the focus slot; later steps are still hidden.
+    const routineStep = Number(Boolean(b.routine)) - Number(Boolean(a.routine));
+    if (routineStep) return routineStep;
     const priority = b.task.priority - a.task.priority;
     if (priority) return priority;
     // Same priority: an unresolved earlier window goes first, then the window

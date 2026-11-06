@@ -15,7 +15,7 @@ Convert existing habits into ordered routines that appear as one current-step ca
 
 ## Next step
 
-Owner reviews the shared routine drag handle and move-menu UX on a real device and decides whether to close 024; local verification is complete.
+Owner reviews the corrected routine focus flow on a real device and decides whether to close 024; local checks and E2E pass.
 
 ## Checklist
 
@@ -60,6 +60,8 @@ Owner reviews the shared routine drag handle and move-menu UX on a real device a
 - 2026-11-06 — Task 023 is parked for its outstanding visual acceptance; the task board is the work-state source of truth. Do not stage/unstage the existing task-022 changes.
 - 2026-11-06 — Owner requested the shared Habits drag handle instead of visible routine-order arrows. Keep keyboard sorting and a one-click menu alternative for users who cannot drag.
 
+- 2026-11-06 — Owner confirmed the current eligible routine step must take the Today focus slot after the prior step resolves; unrelated tasks remain alternatives and later steps stay hidden.
+
 ## Validation
 
 | Date | Check / scope | Result | Evidence or limitation |
@@ -67,7 +69,7 @@ Owner reviews the shared routine drag handle and move-menu UX on a real device a
 | 2026-11-06 | Initial task registration | Passed | Task 023 parked; 024 activated; `npm run check:tasks` reported 0 errors and 0 warnings. |
 | 2026-11-06 | Full unit suite | Passed | `npm test`: 520 tests across 52 files, including synthetic PGlite/IndexedDB coverage. |
 | 2026-11-06 | Typecheck, lint, formatting, DB journal and task guard | Passed | `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run db:check`, `npm run check:tasks`; 21 tasks, 0 errors and 0 warnings. |
-| 2026-11-06 | Isolated production build and public E2E | Passed | In `/tmp/avo-sequential-routines-check.Ihl4h4`, `npm run build` and `npm run test:e2e`: 30/30 Chromium tests, including ES/EN routine journeys, sortable ordering, click-menu alternative and Axe. Synthetic loopback DB URL/auth secret only; persistence logged unavailable during static build, no DB connection/OAuth/Neon/device coverage. |
+| 2026-11-06 | Isolated production build and public E2E | Passed | In `/tmp/avo-sequential-routines-check.Ihl4h4`, `npm run build` and `npm run test:e2e`: 31/31 Chromium tests, including ES/EN routine journeys, a high-priority unrelated habit, sortable ordering, move-menu alternative and Axe. Synthetic loopback DB URL/auth secret only; persistence logged unavailable during static build, no DB connection/OAuth/Neon/device coverage. |
 | 2026-11-06 | Diff review | Passed | Additive `0005_orange_jack_flag.sql` reviewed and tested locally only. Staged changes were observed during final review; no staging, unstaging or commit performed. Owner still needs real-device visual acceptance. |
 
 ## Log
@@ -79,4 +81,6 @@ Owner reviews the shared routine drag handle and move-menu UX on a real device a
 - 2026-11-06 — Full local checks passed: 520 unit tests, typecheck, lint, format, Drizzle journal, task guard and diff check. The isolated production build and all 30 public Chromium E2E tests passed; the synthetic DB was unreachable by design, so this does not prove account persistence, Neon, OAuth or physical-device behavior.
 - 2026-11-06 — Replaced routine-order arrows with the existing sortable grip, dnd-kit keyboard support and a one-click move menu. E2E verifies pointer reorder, menu alternative, ES/EN copy and Axe.
 - 2026-11-06 — Final review found staged changes in the worktree; no staging or commit operation was performed. Routine UX on a real device remains for the owner to accept.
-- 2026-11-06 — Follow-up completed: routine editor ordering uses the same grip, keyboard drag support and accessible one-click move menu as Habits; targeted journey and full 30-test E2E passed.
+- 2026-11-06 — Owner confirmed the current eligible routine step should move into Today’s focus slot after the prior step resolves. Promoted it ahead of unrelated candidates and added regression coverage.
+- 2026-11-06 — Follow-up completed: routine editor ordering uses the same grip, keyboard drag support and accessible one-click move menu as Habits; pointer drag and menu alternative pass Axe.
+- 2026-11-06 — The screenshot-reported Today issue was fixed: the eligible current routine step is ranked ahead of unrelated habits (after due anchors). Regression tests cover a higher-priority unrelated task; the isolated public E2E suite now passes 31/31.

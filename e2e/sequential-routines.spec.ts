@@ -11,6 +11,11 @@ test("una rutina muestra un solo paso por vez y deshacerla conserva los hábitos
   await expect(page.getByRole("button", { name: "Ajustes", exact: true })).toBeEnabled({ timeout: 20_000 });
   await page.getByRole("button", { name: "Hábitos", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Tus hábitos", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Nuevo hábito", exact: true }).click();
+  await page.getByLabel("Nombre", { exact: true }).fill("Darle vitaminas a Elian");
+  await page.getByRole("combobox", { name: "Importancia", exact: true }).click();
+  await page.getByRole("option", { name: "Alta", exact: true }).click();
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
 
   const prepare = page.getByRole("listitem").filter({ hasText: "Cepillarme los dientes" });
   await prepare.getByRole("button", { name: "Cepillarme los dientes: Más opciones", exact: true }).click();

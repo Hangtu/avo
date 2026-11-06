@@ -1847,7 +1847,12 @@ describe("rutinas secuenciales", () => {
     const db = await testDb();
     const first = await createTask(db, "task:prep", taskInput({ title: "Preparar comida" }), NOW);
     const second = await createTask(db, "task:eat", taskInput({ title: "Comer" }), NOW + 1);
-    const unrelated = await createTask(db, "task:other", taskInput({ title: "Regar plantas" }), NOW + 2);
+    const unrelated = await createTask(
+      db,
+      "task:other",
+      taskInput({ title: "Regar plantas", priority: 3 }),
+      NOW + 2,
+    );
     await createRoutine(db, "routine:meal", { title: "Comida", taskIds: [first.id, second.id] }, NOW + 3);
     for (const task of [first, second, unrelated]) await ensureOccurrence(db, task.id, MONDAY, NOW + 4);
 
@@ -1858,6 +1863,7 @@ describe("rutinas secuenciales", () => {
       tasks: [first, second, unrelated],
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
+    expect(initial.tasks[0]?.task.id).toBe(first.id);
     expect(initial.tasks.map((view) => view.task.id)).toContain(first.id);
     expect(initial.tasks.map((view) => view.task.id)).not.toContain(second.id);
     expect(initial.tasks.find((view) => view.task.id === first.id)?.routine).toMatchObject({
@@ -1875,6 +1881,7 @@ describe("rutinas secuenciales", () => {
       tasks: [first, second, unrelated],
       occurrences: await db.occurrences.where("date").equals(MONDAY).toArray(),
     });
+    expect(advanced.tasks[0]?.task.id).toBe(second.id);
     expect(advanced.tasks.map((view) => view.task.id)).toContain(second.id);
     expect(advanced.tasks.map((view) => view.task.id)).not.toContain(first.id);
     expect(advanced.tasks.find((view) => view.task.id === second.id)?.routine).toMatchObject({

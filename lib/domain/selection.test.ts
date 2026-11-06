@@ -151,7 +151,7 @@ describe("elegibilidad antes de prioridad", () => {
 describe("progresión de rutinas", () => {
   const prepare = task("prepare", { window: { start: "06:00", end: "12:00" } });
   const eat = task("eat", { window: { start: "12:00", end: "18:00" } });
-  const unrelated = task("unrelated");
+  const unrelated = task("unrelated", { priority: 3 });
   const routine: Routine = {
     id: "routine:meal",
     title: "Comida",
@@ -170,6 +170,7 @@ describe("progresión de rutinas", () => {
       seed: "s",
     });
     expect(candidates.map((candidate) => candidate.task.id)).toContain(prepare.id);
+    expect(candidates[0]?.task.id).toBe(prepare.id);
     expect(candidates.map((candidate) => candidate.task.id)).not.toContain(eat.id);
     expect(candidates.find((candidate) => candidate.task.id === prepare.id)?.routine).toEqual({
       id: routine.id,
@@ -197,7 +198,7 @@ describe("progresión de rutinas", () => {
     const completed = occurrence(prepare, { status: "completed" });
     expect(
       chooseNextTask({
-        tasks: [prepare, eat],
+        tasks: [prepare, eat, unrelated],
         occurrences: [completed],
         routines: [routine],
         now: at(13),
@@ -208,7 +209,7 @@ describe("progresión de rutinas", () => {
     const skipped = occurrence(prepare, { status: "not_applicable" });
     expect(
       chooseNextTask({
-        tasks: [prepare, eat],
+        tasks: [prepare, eat, unrelated],
         occurrences: [skipped],
         routines: [routine],
         now: at(13),
@@ -217,7 +218,13 @@ describe("progresión de rutinas", () => {
     ).toBe(eat.id);
 
     expect(
-      chooseNextTask({ tasks: [prepare, eat], occurrences: [], routines: [routine], now: at(13), seed: "s" }),
+      chooseNextTask({
+        tasks: [prepare, eat, unrelated],
+        occurrences: [],
+        routines: [routine],
+        now: at(13),
+        seed: "s",
+      }),
     ).toMatchObject({ task: { id: prepare.id }, isMissed: true, routine: { step: 1 } });
   });
 

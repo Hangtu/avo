@@ -270,12 +270,12 @@ function DeckCard({
         disabled={busy || turning || !isBack}
         tabIndex={isBack ? 0 : -1}
         aria-hidden={!isBack || undefined}
-        aria-labelledby={`${id}-peek-action ${id}-peek-title ${id}-peek-duration`}
-        aria-describedby={task.routine ? `${id}-peek-routine` : undefined}
         style={{ opacity: previewOpacity }}
       >
         <span className="peek-back-top">
-          <span className="peek-back-label">{t("otherOption")}</span>
+          <span id={`${id}-peek-label`} className="peek-back-label">
+            {t("otherOption")}
+          </span>
           <span id={`${id}-peek-action`} className="peek-back-action">
             {t("chooseTask")}
           </span>
