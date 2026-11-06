@@ -11,10 +11,13 @@ import {
   createTask,
   getSettings,
   listPendings,
+  listTasks,
   saveSettings,
   startPendingSession,
   startSession,
+  updatePending,
   updateTask,
+  updateTaskWithCopies,
   updateSettings,
 } from "@/lib/db/repository";
 import { seedDatabase } from "@/lib/db/seed";
@@ -104,6 +107,17 @@ describe("durable local queue — no real browser or network", () => {
     expect(await db.pendings.count()).toBe(0);
     expect(await db.outbox.count()).toBe(0);
   });
+  it("rolls back a pending edit if the outbox write fails", async () => {
+    const db = await local();
+    const original = await createPending(db, "p1", { title: "Buro", durationMin: 25 }, NOW);
+    vi.spyOn(db.outbox, "put").mockRejectedValueOnce(new Error("synthetic quota failure"));
+
+    await expect(
+      updatePending(db, "p1", { title: "Recoger paquete", durationMin: 15 }, NOW + 1),
+    ).rejects.toThrow("quota");
+    expect(await db.pendings.get("p1")).toEqual(original);
+    expect(await db.outbox.get("pending:p1")).toMatchObject({ value: original });
+  });
   it("retains the queue across close/reopen and coalesces creation and completion", async () => {
     const db = await local();
     await createPending(db, "p1", { title: "Buro", durationMin: 25 }, NOW);
@@ -158,6 +172,40 @@ describe("durable local queue — no real browser or network", () => {
 });
 
 describe("selective account persistence — real SQL in local PGlite", () => {
+  it("syncs a task edit and its added moments as separate definitions", async () => {
+    const id = await identity();
+    const db = await local(id);
+    const morning = taskInput({ title: "Leer", window: { start: "05:00", end: "12:00" } });
+    await createTask(db, "morning", morning, NOW);
+    await syncOnce(db, id, transport);
+
+    await updateTaskWithCopies(db, {
+      id: "morning",
+      input: taskInput({ title: "Leer 20 minutos", window: morning.window }),
+      copies: [
+        {
+          id: "afternoon",
+          input: taskInput({
+            title: "Leer 20 minutos",
+            window: { start: "12:00", end: "19:00" },
+          }),
+        },
+      ],
+      now: NOW + 1,
+      actionId: "edit:morning:add-afternoon",
+    });
+    expect(await db.outbox.count()).toBe(2);
+    await syncOnce(db, id, transport);
+    expect(await db.outbox.count()).toBe(0);
+
+    db.close();
+    await db.delete();
+    const recovered = await local(id);
+    await syncOnce(recovered, id, transport);
+    expect((await listTasks(recovered)).map((task) => task.id)).toEqual(["morning", "afternoon"]);
+    expect((await recovered.tasks.get("morning"))?.title).toBe("Leer 20 minutos");
+    expect((await recovered.tasks.get("afternoon"))?.window).toEqual({ start: "12:00", end: "19:00" });
+  });
   it("recovers a created pending after discarding all local account storage", async () => {
     const id = await identity();
     const db = await local(id);
@@ -172,6 +220,22 @@ describe("selective account persistence — real SQL in local PGlite", () => {
     expect(await listPendings(empty)).toEqual([pendingValue()]);
     expect(await empty.sessions.count()).toBe(0);
     expect(await empty.events.count()).toBe(0);
+  });
+  it("syncs pending edits and recovers the latest title and duration", async () => {
+    const id = await identity();
+    const db = await local(id);
+    await createPending(db, "p1", { title: "Buro", durationMin: 25 }, NOW);
+    await syncOnce(db, id, transport);
+
+    const updated = await updatePending(db, "p1", { title: "Recoger paquete", durationMin: 15 }, NOW + 1);
+    await syncOnce(db, id, transport);
+    expect(await db.outbox.count()).toBe(0);
+    db.close();
+    await db.delete();
+
+    const recovered = await local(id);
+    await syncOnce(recovered, id, transport);
+    expect(await listPendings(recovered)).toEqual([updated]);
   });
   it("isolates A and B with identical entity IDs and never adopts legacy owner data", async () => {
     const a = await identity(),

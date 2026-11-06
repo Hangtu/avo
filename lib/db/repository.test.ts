@@ -36,7 +36,9 @@ import {
   startQuickSession,
   startSession,
   swapFranjaTask,
+  updatePending,
   updateTask,
+  updateTaskWithCopies,
 } from "./repository";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 import type { RunoEvent } from "@/lib/domain/types";
@@ -1750,6 +1752,86 @@ describe("reconciliación de propuestas, lote y exposición", () => {
     expect(await db.tasks.count()).toBe(2);
     expect(await db.events.where("type").equals("task_created").count()).toBe(2);
   });
+
+  it("actualiza el hábito y agrega copias atómicas sin perder la identidad ni duplicar al reintentar", async () => {
+    const db = await testDb();
+    const originalInput = taskInput({
+      title: "Caminar",
+      window: { start: "05:00", end: "12:00" },
+    });
+    const original = await createTask(db, "task:morning", originalInput, NOW);
+    await ensureOccurrence(db, original.id, MONDAY, NOW + 1);
+    const request = {
+      id: original.id,
+      input: taskInput({ title: "Caminar 20 minutos", window: originalInput.window }),
+      copies: [
+        {
+          id: "task:afternoon",
+          input: taskInput({
+            title: "Caminar 20 minutos",
+            window: { start: "12:00", end: "19:00" },
+          }),
+        },
+        {
+          id: "task:night",
+          input: taskInput({
+            title: "Caminar 20 minutos",
+            window: { start: "19:00", end: "23:59" },
+          }),
+        },
+      ],
+      now: NOW + 2,
+      actionId: "edit:task:morning:times",
+    };
+
+    const result = await updateTaskWithCopies(db, request);
+    expect(result.task).toMatchObject({
+      id: original.id,
+      title: "Caminar 20 minutos",
+      createdAt: original.createdAt,
+      updatedAt: NOW + 2,
+    });
+    expect(result.copies.map((task) => task.id)).toEqual(["task:afternoon", "task:night"]);
+    expect(result.copies.map((task) => task.window)).toEqual([
+      { start: "12:00", end: "19:00" },
+      { start: "19:00", end: "23:59" },
+    ]);
+    expect(await db.occurrences.count()).toBe(1);
+
+    const retried = await updateTaskWithCopies(db, { ...request, now: NOW + 3 });
+    expect(retried.task.updatedAt).toBe(NOW + 2);
+    expect(retried.copies.map((task) => task.id)).toEqual(["task:afternoon", "task:night"]);
+    expect(await db.tasks.count()).toBe(3);
+    expect(await db.events.where("type").equals("task_created").count()).toBe(3);
+    expect(await db.events.where("type").equals("task_updated").count()).toBe(1);
+  });
+
+  it("revierte la edición y todas las copias si una copia no puede registrarse", async () => {
+    const db = await testDb();
+    const original = await createTask(db, "task:morning", taskInput({ title: "Caminar" }), NOW);
+    const collision: RunoEvent = {
+      id: eventIdFor("task:create:task:afternoon", "task_created"),
+      actionId: "otra-accion",
+      type: "task_created",
+      at: NOW,
+      context: {},
+    };
+    await db.events.add(collision);
+
+    await expect(
+      updateTaskWithCopies(db, {
+        id: original.id,
+        input: taskInput({ title: "Caminar 20 minutos" }),
+        copies: [{ id: "task:afternoon", input: taskInput({ title: "Caminar 20 minutos" }) }],
+        now: NOW + 1,
+        actionId: "edit:task:morning:failed-copies",
+      }),
+    ).rejects.toMatchObject({ code: "conflict" });
+    expect(await db.tasks.get(original.id)).toEqual(original);
+    expect(await db.tasks.get("task:afternoon")).toBeUndefined();
+    expect(await db.events.where("type").equals("task_updated").count()).toBe(0);
+    expect(await db.events.where("type").equals("task_created").count()).toBe(2);
+  });
 });
 
 describe("sesiones rápidas", () => {
@@ -1952,6 +2034,49 @@ describe("pendientes de una sola vez", () => {
     expect((await db.days.get(MONDAY))!.closedAt).toBeNull();
   });
 
+  it("edita título y duración sin cambiar la identidad ni renovar un valor sin cambios", async () => {
+    const db = await testDb();
+    const original = await createPending(db, "p1", { title: "Pagar las cuentas", durationMin: 25 }, NOW);
+
+    expect(await updatePending(db, "p1", { title: "Pagar las cuentas", durationMin: 25 }, NOW + 1)).toEqual(
+      original,
+    );
+
+    const updated = await updatePending(db, "p1", { title: "  Comprar pilas  ", durationMin: 15 }, NOW + 2);
+    expect(updated).toEqual({
+      ...original,
+      title: "Comprar pilas",
+      durationMin: 15,
+      updatedAt: NOW + 2,
+    });
+    expect(await listPendings(db)).toEqual([updated]);
+    expect(await db.tasks.count()).toBe(0);
+    expect(await db.occurrences.count()).toBe(0);
+    expect(await db.ledger.count()).toBe(0);
+  });
+
+  it("no edita un pendiente inexistente, terminado, quitado o con datos inválidos", async () => {
+    const db = await testDb();
+    const values = { title: "Comprar pilas", durationMin: 15 };
+
+    await expect(updatePending(db, "missing", values, NOW)).rejects.toMatchObject({ code: "not_found" });
+    await expect(updatePending(db, "missing", { title: "  ", durationMin: 15 }, NOW)).rejects.toMatchObject({
+      code: "validation",
+    });
+
+    await createPending(db, "done", { title: "Ya terminó", durationMin: 5 }, NOW);
+    await completePendingDirect(db, "done", NOW + 1);
+    await expect(updatePending(db, "done", values, NOW + 2)).rejects.toMatchObject({
+      code: "invalid_transition",
+    });
+
+    await createPending(db, "removed", { title: "Se quitó", durationMin: 5 }, NOW + 3);
+    await deletePending(db, "removed", NOW + 4);
+    await expect(updatePending(db, "removed", values, NOW + 5)).rejects.toMatchObject({
+      code: "not_found",
+    });
+  });
+
   it("corre con el día cerrado, bloquea otra sesión y al completar quita el pendiente sin RC", async () => {
     const db = await testDb();
     await ensureDay(db, MONDAY, NOW);
@@ -2085,5 +2210,8 @@ describe("pendientes de una sola vez", () => {
     await startPendingSession(db, { sessionId: "ps3", pendingId: "p3", now: NOW + 1 });
     await expect(deletePending(db, "p3", NOW + 2)).rejects.toThrow("tiempo de este pendiente");
     await expect(completePendingDirect(db, "p3", NOW + 3)).rejects.toThrow("tiempo de este pendiente");
+    await expect(
+      updatePending(db, "p3", { title: "Cambiar", durationMin: 10 }, NOW + 4),
+    ).rejects.toMatchObject({ code: "conflict" });
   });
 });

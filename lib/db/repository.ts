@@ -35,6 +35,57 @@ export interface CreateTaskBatchItem {
   input: TaskInput;
 }
 
+type ValidatedTaskBatchItem = CreateTaskBatchItem;
+
+function validateTaskBatch(
+  items: readonly CreateTaskBatchItem[],
+  reservedIds: readonly string[] = [],
+): ValidatedTaskBatchItem[] {
+  const seen = new Set(reservedIds);
+  return items.map((item) => {
+    assertId(item.id);
+    if (seen.has(item.id)) {
+      throw new DomainError("validation", "El lote contiene una tarea repetida.");
+    }
+    seen.add(item.id);
+    return { id: item.id, input: validateTaskInput(item.input) };
+  });
+}
+
+async function createTasksInTransaction(
+  db: RunoDatabase,
+  items: readonly ValidatedTaskBatchItem[],
+  now: number,
+): Promise<Task[]> {
+  const created: Task[] = [];
+  for (const item of items) {
+    const { inserted } = await appendEvent(db, {
+      actionId: `task:create:${item.id}`,
+      type: "task_created",
+      at: now,
+      taskId: item.id,
+      context: taskEventContext(item.input),
+    });
+    if (!inserted) {
+      const existing = await db.tasks.get(item.id);
+      if (!existing) throw new DomainError("conflict", "Esa tarea ya no está.");
+      created.push(existing);
+      continue;
+    }
+    const task: Task = {
+      ...item.input,
+      id: item.id,
+      createdAt: now,
+      updatedAt: now,
+      archivedAt: null,
+    };
+    await db.tasks.add(task);
+    await enqueue(db, "task", task);
+    created.push(task);
+  }
+  return created;
+}
+
 /**
  * Creates a set of independent task templates as one operation. All inputs are
  * validated before the transaction, so a failed write leaves no partial batch.
@@ -46,46 +97,12 @@ export async function createTasks(
   now: number,
 ): Promise<Task[]> {
   assertTimestamp(now);
-  if (items.length === 0) return [];
-  const seen = new Set<string>();
-  const values = items.map((item) => {
-    assertId(item.id);
-    if (seen.has(item.id)) {
-      throw new DomainError("validation", "El lote contiene una tarea repetida.");
-    }
-    seen.add(item.id);
-    return { id: item.id, input: validateTaskInput(item.input) };
-  });
+  const values = validateTaskBatch(items);
+  if (values.length === 0) return [];
 
-  return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
-    const created: Task[] = [];
-    for (const item of values) {
-      const { inserted } = await appendEvent(db, {
-        actionId: `task:create:${item.id}`,
-        type: "task_created",
-        at: now,
-        taskId: item.id,
-        context: taskEventContext(item.input),
-      });
-      if (!inserted) {
-        const existing = await db.tasks.get(item.id);
-        if (!existing) throw new DomainError("conflict", "Esa tarea ya no está.");
-        created.push(existing);
-        continue;
-      }
-      const task: Task = {
-        ...item.input,
-        id: item.id,
-        createdAt: now,
-        updatedAt: now,
-        archivedAt: null,
-      };
-      await db.tasks.add(task);
-      await enqueue(db, "task", task);
-      created.push(task);
-    }
-    return created;
-  });
+  return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], () =>
+    createTasksInTransaction(db, values, now),
+  );
 }
 
 export async function createTask(db: RunoDatabase, id: string, input: TaskInput, now: number): Promise<Task> {
@@ -124,6 +141,50 @@ export async function updateTask(
     await db.tasks.put(task);
     await enqueue(db, "task", task);
     return task;
+  });
+}
+
+export interface UpdateTaskWithCopiesInput {
+  id: string;
+  input: TaskInput;
+  copies: readonly CreateTaskBatchItem[];
+  now: number;
+  actionId: string;
+}
+
+/** Updates one template and creates its additional moments atomically. */
+export async function updateTaskWithCopies(
+  db: RunoDatabase,
+  { id, input, copies, now, actionId }: UpdateTaskWithCopiesInput,
+): Promise<{ task: Task; copies: Task[] }> {
+  assertId(id);
+  assertId(actionId);
+  assertTimestamp(now);
+  const values = validateTaskInput(input);
+  const copyValues = validateTaskBatch(copies, [id]);
+
+  return db.transaction("rw", [db.tasks, db.events, ...syncTables(db)], async () => {
+    const previous = await db.tasks.get(id);
+    if (!previous) throw new DomainError("not_found", "Esa tarea ya no está.");
+    const { inserted } = await appendEvent(db, {
+      actionId,
+      type: "task_updated",
+      at: now,
+      taskId: id,
+      context: taskEventContext(values),
+    });
+    let task = previous;
+    if (inserted) {
+      task = { ...previous, ...values, updatedAt: now };
+      delete task.window;
+      delete task.fixedTime;
+      delete task.shortStep;
+      Object.assign(task, values);
+      await db.tasks.put(task);
+      await enqueue(db, "task", task);
+    }
+    const createdCopies = await createTasksInTransaction(db, copyValues, now);
+    return { task, copies: createdCopies };
   });
 }
 
@@ -201,6 +262,45 @@ export async function createPending(
     await db.pendings.add(pending);
     await enqueue(db, "pending", pending);
     return pending;
+  });
+}
+
+/** Updates an unfinished pending and its sync record as one local transaction. */
+export async function updatePending(
+  db: RunoDatabase,
+  pendingId: string,
+  input: PendingInput,
+  now: number,
+): Promise<Pending> {
+  assertId(pendingId);
+  assertTimestamp(now);
+  const values = validatePendingInput(input);
+
+  return db.transaction("rw", [db.pendings, db.sessions, ...syncTables(db)], async () => {
+    const pending = await db.pendings.get(pendingId);
+    if (!pending || pending.deletedAt !== null) {
+      throw new DomainError("not_found", "Ese pendiente ya no está.");
+    }
+    if (pending.completedAt !== null) {
+      throw new DomainError("invalid_transition", "Ese pendiente ya está hecho.");
+    }
+
+    const active = await db.sessions
+      .filter(
+        (session) =>
+          session.pendingId === pendingId &&
+          ["running", "paused", "awaiting_confirmation"].includes(session.status),
+      )
+      .first();
+    if (active) {
+      throw new DomainError("conflict", "Primero termina el tiempo de este pendiente.");
+    }
+    if (pending.title === values.title && pending.durationMin === values.durationMin) return pending;
+
+    const updated: Pending = { ...pending, ...values, updatedAt: now };
+    await db.pendings.put(updated);
+    await enqueue(db, "pending", updated);
+    return updated;
   });
 }
 

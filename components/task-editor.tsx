@@ -38,11 +38,11 @@ import { useWorkspace } from "./workspace-context";
 import {
   archiveTask,
   createTasks,
-  createTask,
   listTasks,
   reactivateOccurrence,
   restoreArchivedTask,
   updateTask,
+  updateTaskWithCopies,
 } from "@/lib/db/repository";
 import { BLOCK_RANGES, blockForTime, taskTime, windowPreset, type BlockKey } from "@/lib/domain/schedule";
 import { isMissedOccurrence } from "@/lib/domain/selection";
@@ -76,6 +76,10 @@ const BLOCKS = [
   { value: "afternoon", labelKey: "blocks.afternoon" },
   { value: "night", labelKey: "blocks.night" },
 ] as const;
+
+function isBlockKey(value: string): value is BlockKey {
+  return BLOCKS.some((block) => block.value === value);
+}
 
 const DRAFT_KEY = "runo:task-editor-draft:v1";
 const CLOSED_SECTIONS_KEY = "runo:task-editor-closed-sections:v1";
@@ -194,7 +198,6 @@ interface EditorDraft {
   customWindow: boolean;
   newBlocks: BlockKey[];
   newCustom: boolean;
-  copiedBlocks: BlockKey[];
   selectedDay: Weekday;
 }
 
@@ -212,7 +215,6 @@ function readDraft(): EditorDraft | null {
       customWindow: draft.customWindow === true,
       newBlocks: Array.isArray(draft.newBlocks) ? draft.newBlocks : [],
       newCustom: draft.newCustom === true,
-      copiedBlocks: Array.isArray(draft.copiedBlocks) ? draft.copiedBlocks : [],
       selectedDay:
         typeof draft.selectedDay === "number"
           ? (draft.selectedDay as Weekday)
@@ -537,8 +539,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [customWindow, setCustomWindow] = useState(false);
   const [newBlocks, setNewBlocks] = useState<BlockKey[]>([]);
   const [newCustom, setNewCustom] = useState(false);
-  const [copiedBlocks, setCopiedBlocks] = useState<BlockKey[]>([]);
-  const [duplicateBlock, setDuplicateBlock] = useState<BlockKey | null>(null);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -558,7 +558,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [taskOrderStorageKey] = useState(() => activeStorageKey(TASK_ORDER_KEY));
   const orderRef = useRef(taskOrder);
   const { revision, preferences } = useWorkspace();
-  const retryBatch = useRef<{ signature: string; ids: string[] } | null>(null);
+  const retryBatch = useRef<{ signature: string; ids: string[]; actionId?: string } | null>(null);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -566,8 +566,8 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       clearDraft();
       return;
     }
-    writeDraft({ form, categoryMode, customWindow, newBlocks, newCustom, copiedBlocks, selectedDay });
-  }, [draftReady, form, categoryMode, customWindow, newBlocks, newCustom, copiedBlocks, selectedDay]);
+    writeDraft({ form, categoryMode, customWindow, newBlocks, newCustom, selectedDay });
+  }, [draftReady, form, categoryMode, customWindow, newBlocks, newCustom, selectedDay]);
 
   useEffect(() => {
     writeClosedSections(closedSections);
@@ -627,7 +627,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 setCustomWindow(draft.customWindow);
                 setNewBlocks(draft.newBlocks);
                 setNewCustom(draft.newCustom);
-                setCopiedBlocks(draft.copiedBlocks);
                 setSelectedDay(draft.selectedDay);
               }
             }
@@ -642,12 +641,15 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             if (target) {
               openedInitialTask.current = true;
               retryBatch.current = null;
+              const targetForm = formFromTask(target);
+              const targetBlock = targetForm.useWindow
+                ? windowPreset(targetForm.windowStart, targetForm.windowEnd)
+                : "any";
               setCategoryMode("existing");
-              setCustomWindow(false);
-              setNewBlocks([]);
+              setCustomWindow(targetBlock === "custom");
+              setNewBlocks(isBlockKey(targetBlock) ? [targetBlock] : []);
               setNewCustom(false);
-              setCopiedBlocks([]);
-              setForm(formFromTask(target));
+              setForm(targetForm);
             }
           }
         }
@@ -688,7 +690,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     setCustomWindow(false);
     setNewBlocks([]);
     setNewCustom(false);
-    setCopiedBlocks([]);
     setForm(next);
   }
 
@@ -699,10 +700,12 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     retryBatch.current = null;
     setCategoryMode("existing");
     setCustomWindow(false);
-    setNewBlocks([]);
+    const taskForm = formFromTask(task);
+    const block = taskForm.useWindow ? windowPreset(taskForm.windowStart, taskForm.windowEnd) : "any";
+    setNewBlocks(isBlockKey(block) ? [block] : []);
     setNewCustom(false);
-    setCopiedBlocks([]);
-    setForm(formFromTask(task));
+    setCustomWindow(block === "custom");
+    setForm(taskForm);
   }
 
   function patch(changes: Partial<FormState>) {
@@ -760,49 +763,15 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   function chooseNewAny() {
     setNewBlocks([]);
     setNewCustom(false);
+    setCustomWindow(false);
     patch({ useWindow: false });
   }
 
   function chooseNewCustom() {
     setNewBlocks([]);
     setNewCustom(true);
+    setCustomWindow(true);
     patch({ useWindow: true });
-  }
-
-  async function duplicateInto(block: BlockKey) {
-    if (!form?.id || duplicateBlock || copiedBlocks.includes(block) || saving) return;
-    setDuplicateBlock(block);
-    setNotice(null);
-    try {
-      const db = await openDatabase();
-      try {
-        const range = BLOCK_RANGES[block];
-        const input = toInput({
-          ...form,
-          useWindow: true,
-          windowStart: range.start,
-          windowEnd: range.end,
-          useFixedTime: false,
-        });
-        await createTask(db, `task:${newId()}`, input, Date.now());
-      } finally {
-        db.close();
-      }
-      setCopiedBlocks((current) => [...current, block]);
-      const copyKey =
-        block === "morning"
-          ? "notices.copyMorning"
-          : block === "afternoon"
-            ? "notices.copyAfternoon"
-            : "notices.copyNight";
-      toastManager.add({ title: t(copyKey), type: "success", timeout: 4000 });
-      setReloadKey((key) => key + 1);
-    } catch (error) {
-      console.error("No se pudo duplicar la tarea", error);
-      setNotice(t("notices.copyError"));
-    } finally {
-      setDuplicateBlock(null);
-    }
   }
 
   async function save(event: FormEvent) {
@@ -825,7 +794,43 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       try {
         const now = Date.now();
         if (form.id) {
-          await updateTask(db, form.id, toInput(form), now, `edit:${form.id}:${newId()}`);
+          const input = toInput(form);
+          const copyBlocks = copiesToAdd();
+          if (copyBlocks.length === 0) {
+            await updateTask(db, form.id, input, now, `edit:${form.id}:${newId()}`);
+          } else {
+            const copyInputs = copyBlocks.map((block) => {
+              const range = BLOCK_RANGES[block];
+              return toInput({
+                ...form,
+                useWindow: true,
+                windowStart: range.start,
+                windowEnd: range.end,
+                useFixedTime: false,
+              });
+            });
+            const signature = JSON.stringify({ id: form.id, input, copyInputs });
+            const previous = retryBatch.current;
+            const retry =
+              previous?.signature === signature &&
+              previous.actionId &&
+              previous.ids.length === copyInputs.length
+                ? { signature, ids: previous.ids, actionId: previous.actionId }
+                : {
+                    signature,
+                    ids: copyInputs.map(() => `task:${newId()}`),
+                    actionId: `edit:${form.id}:${newId()}`,
+                  };
+            retryBatch.current = retry;
+            await updateTaskWithCopies(db, {
+              id: form.id,
+              input,
+              copies: copyInputs.map((copyInput, index) => ({ id: retry.ids[index], input: copyInput })),
+              now,
+              actionId: retry.actionId,
+            });
+            savedMessage = t("notices.tasksCopied", { count: copyInputs.length });
+          }
         } else {
           if (newBlocks.length > 1 && form.useFixedTime) {
             throw new Error(t("notices.sameTime"));
@@ -866,7 +871,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       setForm(null);
       clearDraft();
       retryBatch.current = null;
-      if (form.id) savedMessage = t("notices.saved");
+      if (form.id && !savedMessage) savedMessage = t("notices.saved");
       setReloadKey((key) => key + 1);
       toastManager.add({
         title: savedMessage ?? t("notices.saved"),
@@ -964,24 +969,50 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     return windowPreset(form.windowStart, form.windowEnd);
   }
 
-  function chooseBlock(block: "any" | "morning" | "afternoon" | "night" | "custom") {
-    if (!form) return;
-    if (block === "any") {
-      setCustomWindow(false);
-      patch({ useWindow: false });
+  function whenSelection(): string[] {
+    if (newCustom || formBlock() === "custom") return ["custom"];
+    if (newBlocks.length > 0) return newBlocks;
+    return [formBlock()];
+  }
+
+  function chooseWhen(values: string[]) {
+    const selectedBefore = whenSelection();
+    const added = values.find((value) => !selectedBefore.includes(value));
+    if (added === "custom") {
+      chooseNewCustom();
       return;
     }
-    if (block === "custom") {
-      setCustomWindow(true);
-      patch({ useWindow: true });
+    if (added === "any") {
+      chooseNewAny();
       return;
     }
+
+    const blocks = BLOCKS.filter((block) => values.includes(block.value)).map((block) => block.value);
+    if (blocks.length === 0) {
+      chooseNewAny();
+      return;
+    }
+
+    const exactTimeOnly = Boolean(form?.id && form.useFixedTime && !form.useWindow);
+    const current = form?.id ? formBlock() : "any";
+    const primary = isBlockKey(current) && blocks.includes(current) ? current : blocks[0];
+    setNewBlocks(blocks);
+    setNewCustom(false);
     setCustomWindow(false);
+    if (exactTimeOnly) return;
     patch({
       useWindow: true,
-      windowStart: BLOCK_RANGES[block].start,
-      windowEnd: BLOCK_RANGES[block].end,
+      windowStart: BLOCK_RANGES[primary].start,
+      windowEnd: BLOCK_RANGES[primary].end,
     });
+  }
+
+  function copiesToAdd(): BlockKey[] {
+    if (!form?.id || newBlocks.length === 0) return [];
+    if (form.useFixedTime && !form.useWindow) return newBlocks;
+    if (newBlocks.length < 2) return [];
+    const primary = formBlock();
+    return newBlocks.filter((block) => block !== primary);
   }
   const dayTasks = active.filter((task) => task.days.includes(selectedDay));
   const dayCounts = WEEKDAYS.map((day) => ({
@@ -989,6 +1020,15 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     count: active.filter((task) => task.days.includes(day.value)).length,
   }));
   const selectedDayInfo = WEEKDAYS.find((day) => day.value === selectedDay) ?? WEEKDAYS[0];
+  const editCopies = copiesToAdd();
+  const selectedMoment = formBlock();
+  const selectedMomentOption = BLOCKS.find((block) => block.value === selectedMoment);
+  const selectedMomentLabel =
+    form?.id && form.useFixedTime && !form.useWindow
+      ? t("exactTime")
+      : selectedMomentOption
+        ? t(selectedMomentOption.labelKey)
+        : t(selectedMoment === "custom" ? "chooseHours" : "anyTime");
 
   const blocks = (
     [
@@ -1224,160 +1264,64 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                   {form.id ? t("whenHelpEdit") : t("whenHelpNew")}
                 </HelpTip>
               </legend>
+              <ToggleGroup
+                multiple
+                value={whenSelection()}
+                onValueChange={chooseWhen}
+                className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
+                aria-label={t("when")}
+              >
+                <Toggle value="any" className="day-toggle block-toggle justify-center">
+                  {t("anyTime")}
+                </Toggle>
+                {BLOCKS.map((block) => (
+                  <Toggle
+                    key={block.value}
+                    value={block.value}
+                    className="day-toggle block-toggle justify-center"
+                  >
+                    {t(block.labelKey)}
+                  </Toggle>
+                ))}
+                <Toggle value="custom" className="day-toggle block-toggle justify-center">
+                  {t("chooseHours")}
+                </Toggle>
+              </ToggleGroup>
+              <Reveal show={formBlock() === "custom"} reduceMotion={reduceMotion} className="mt-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm text-muted">{t("from")}</span>
+                    <input
+                      type="time"
+                      value={form.windowStart}
+                      onChange={(event) => patch({ windowStart: event.target.value })}
+                      className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm text-muted">{t("to")}</span>
+                    <input
+                      type="time"
+                      value={form.windowEnd}
+                      onChange={(event) => patch({ windowEnd: event.target.value })}
+                      className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                    />
+                  </label>
+                </div>
+              </Reveal>
+              {form.useWindow ? (
+                <p className="mt-2 text-xs tabular-nums text-muted">
+                  {t("range", { from: form.windowStart, to: form.windowEnd })}
+                </p>
+              ) : null}
               {form.id ? (
-                <>
-                  <ToggleGroup
-                    value={[formBlock()]}
-                    onValueChange={(values) => {
-                      const value = values[0];
-                      if (value) {
-                        chooseBlock(value as "any" | "morning" | "afternoon" | "night" | "custom");
-                      }
-                    }}
-                    className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
-                    aria-label={t("when")}
-                  >
-                    {(
-                      [
-                        ["any", "anyTime"],
-                        ["morning", "morning"],
-                        ["afternoon", "afternoon"],
-                        ["night", "night"],
-                        ["custom", "chooseHours"],
-                      ] as const
-                    ).map(([value, key]) => (
-                      <Toggle key={value} value={value} className="day-toggle block-toggle justify-center">
-                        {t(key)}
-                      </Toggle>
-                    ))}
-                  </ToggleGroup>
-                  <Reveal show={formBlock() === "custom"} reduceMotion={reduceMotion} className="mt-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-sm text-muted">{t("from")}</span>
-                        <input
-                          type="time"
-                          value={form.windowStart}
-                          onChange={(event) => patch({ windowStart: event.target.value })}
-                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-sm text-muted">{t("to")}</span>
-                        <input
-                          type="time"
-                          value={form.windowEnd}
-                          onChange={(event) => patch({ windowEnd: event.target.value })}
-                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                        />
-                      </label>
-                    </div>
-                  </Reveal>
-                  {form.useWindow ? (
-                    <p className="mt-2 text-xs tabular-nums text-muted">
-                      {t("range", { from: form.windowStart, to: form.windowEnd })}
-                    </p>
+                <div role="status" className="mt-3 border-s-2 border-line ps-3 text-sm text-muted">
+                  <p>{t("whenEditLocation", { moment: selectedMomentLabel })}</p>
+                  {editCopies.length > 0 ? (
+                    <p>{t("whenEditCopiesPreview", { count: editCopies.length })}</p>
                   ) : null}
-                  <div className="mt-4 border-t border-line pt-4">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{t("copyTitle")}</p>
-                      <HelpTip label={t("copyHelp")}>{t("copyHelp")}</HelpTip>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {BLOCKS.map((block) => (
-                        <button
-                          key={block.value}
-                          type="button"
-                          disabled={
-                            duplicateBlock !== null ||
-                            copiedBlocks.includes(block.value) ||
-                            formBlock() === block.value
-                          }
-                          onClick={() => void duplicateInto(block.value)}
-                          className="day-toggle disabled:opacity-40"
-                        >
-                          + {t(block.labelKey)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <ToggleGroup
-                    multiple
-                    value={newCustom ? ["custom"] : newBlocks.length > 0 ? newBlocks : ["any"]}
-                    onValueChange={(values) => {
-                      const previous = newCustom ? ["custom"] : newBlocks.length > 0 ? newBlocks : ["any"];
-                      const added = values.find((value) => !previous.includes(value));
-                      if (added === "custom") {
-                        chooseNewCustom();
-                        return;
-                      }
-                      if (added === "any") {
-                        chooseNewAny();
-                        return;
-                      }
-                      const blocks = values.filter((value): value is BlockKey =>
-                        BLOCKS.some((block) => block.value === value),
-                      );
-                      if (blocks.length === 0) {
-                        chooseNewAny();
-                        return;
-                      }
-                      setNewBlocks(blocks);
-                      setNewCustom(false);
-                      const first = BLOCK_RANGES[blocks[0]];
-                      patch({ useWindow: true, windowStart: first.start, windowEnd: first.end });
-                    }}
-                    className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
-                    aria-label={t("when")}
-                  >
-                    <Toggle value="any" className="day-toggle block-toggle justify-center">
-                      {t("anyTime")}
-                    </Toggle>
-                    {BLOCKS.map((block) => (
-                      <Toggle
-                        key={block.value}
-                        value={block.value}
-                        className="day-toggle block-toggle justify-center"
-                      >
-                        {t(block.labelKey)}
-                      </Toggle>
-                    ))}
-                    <Toggle value="custom" className="day-toggle block-toggle justify-center">
-                      {t("chooseHours")}
-                    </Toggle>
-                  </ToggleGroup>
-                  <Reveal show={newCustom} reduceMotion={reduceMotion} className="mt-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-sm text-muted">{t("from")}</span>
-                        <input
-                          type="time"
-                          value={form.windowStart}
-                          onChange={(event) => patch({ windowStart: event.target.value })}
-                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-sm text-muted">{t("to")}</span>
-                        <input
-                          type="time"
-                          value={form.windowEnd}
-                          onChange={(event) => patch({ windowEnd: event.target.value })}
-                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                        />
-                      </label>
-                    </div>
-                  </Reveal>
-                  {newCustom && form.useWindow ? (
-                    <p className="mt-2 text-xs tabular-nums text-muted">
-                      {t("range", { from: form.windowStart, to: form.windowEnd })}
-                    </p>
-                  ) : null}
-                </>
-              )}
+                </div>
+              ) : null}
             </fieldset>
 
             <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
