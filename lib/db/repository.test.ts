@@ -949,6 +949,7 @@ describe("cambios de franja", () => {
     expect(result.day.swapsUsed).toBe(1);
     expect(result.hand.deferredOccurrenceIds).toContain(original);
     expect(result.hand.occurrenceIds).not.toContain(original);
+    expect(await db.occurrences.get(original)).toMatchObject({ status: "pending" });
     expect(result.hand.occurrenceIds).toHaveLength(3);
     expect(await db.events.where("type").equals("swapped").count()).toBe(1);
     expect(await db.ledger.count()).toBe(0);
@@ -1069,6 +1070,56 @@ describe("cambios de franja", () => {
     });
     expect(next.hand).toMatchObject({ ordinal: 2, status: "open" });
     expect(next.hand!.occurrenceIds).toContain(original);
+  });
+
+  it("prioriza la tarea diferida en la siguiente franja aunque haya tareas con más prioridad", async () => {
+    const { db, tasks, occurrences } = await fourTasks();
+    const first = await ensureFranja(db, { date: MONDAY, now: NOW, seed: "s", tasks, occurrences });
+    const original = first.hand!.occurrenceIds[2];
+    expect(original).toBeDefined();
+    if (!original) return;
+
+    const swapped = await swapFranjaTask(db, {
+      handId: first.hand!.id,
+      occurrenceId: original,
+      now: NOW + 1000,
+      seed: "s",
+      tasks,
+      occurrences,
+    });
+    expect(swapped.swapped).toBe(true);
+    if (!swapped.swapped) return;
+
+    for (let index = 0; index < 3; index += 1) {
+      const id = `higher-${index}`;
+      await createTask(db, id, taskInput({ title: id, priority: 3 }), NOW + 1000);
+      await ensureOccurrence(db, id, MONDAY, NOW + 1000);
+    }
+    for (const occurrenceId of swapped.hand.occurrenceIds) {
+      await db.occurrences.update(occurrenceId, { status: "completed" });
+    }
+
+    const currentTasks = await listTasks(db);
+    const currentOccurrences = await db.occurrences.where("date").equals(MONDAY).toArray();
+    const next = await ensureFranja(db, {
+      date: MONDAY,
+      now: NOW + 2000,
+      seed: "s",
+      tasks: currentTasks,
+      occurrences: currentOccurrences,
+    });
+    expect(next.hand).toMatchObject({ ordinal: 2, status: "open" });
+    expect(next.hand!.occurrenceIds[0]).toBe(original);
+    expect(next.tasks[0]?.occurrenceId).toBe(original);
+
+    const refreshed = await ensureFranja(db, {
+      date: MONDAY,
+      now: NOW + 2000,
+      seed: "s",
+      tasks: currentTasks,
+      occurrences: currentOccurrences,
+    });
+    expect(refreshed.hand!.occurrenceIds).toContain(original);
   });
 });
 

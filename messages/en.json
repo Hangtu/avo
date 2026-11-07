@@ -65,7 +65,7 @@
     "notices": {
       "alreadyDone": "Marked as already done.",
       "notToday": "Not today.",
-      "swapped": "Done, I swapped it.",
+      "swapped": "Done. It stays pending; you'll see it again later in Today.",
       "noAlternative": "No other task for now.",
       "noSwaps": "You already swapped 3 times today.",
       "active": "Finish what you started first."
@@ -96,7 +96,6 @@
     "routineProgress": "Routine “{name}” · step {step} of {total}",
     "start": "Start",
     "continue": "Continue {remaining} min",
-    "showAnother": "Show another",
     "shortStep": "I only have {minutes} min ⏱️",
     "swap": "Swap for another task 🔄",
     "alreadyDone": "Already done ✅",

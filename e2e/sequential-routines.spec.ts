@@ -16,6 +16,11 @@ test("una rutina muestra un solo paso por vez y deshacerla conserva los hábitos
   await page.getByRole("combobox", { name: "Importancia", exact: true }).click();
   await page.getByRole("option", { name: "Alta", exact: true }).click();
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  await page.getByRole("button", { name: "Nuevo hábito", exact: true }).click();
+  await page.getByLabel("Nombre", { exact: true }).fill("Sacar la basura");
+  await page.getByRole("combobox", { name: "Importancia", exact: true }).click();
+  await page.getByRole("option", { name: "Alta", exact: true }).click();
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
 
   const prepare = page.getByRole("listitem").filter({ hasText: "Cepillarme los dientes" });
   await prepare.getByRole("button", { name: "Cepillarme los dientes: Más opciones", exact: true }).click();
@@ -54,6 +59,21 @@ test("una rutina muestra un solo paso por vez y deshacerla conserva los hábitos
   await page.getByRole("button", { name: "Hoy", exact: true }).click();
   const firstStep = "Rutina «Mañana» · paso 1 de 2";
   await expect(page.locator(".first-eyebrow").filter({ hasText: firstStep })).toBeVisible();
+  const actionRow = page.locator('.peek-card[data-deck-role="front"] .first-actions');
+  await expect(actionRow.getByRole("button")).toHaveCount(2);
+  await page.getByRole("button", { name: "Más opciones", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Hoy no ❌", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Mostrar otra opción", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Terminar por hoy", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  const frontTitle = page.locator('.peek-card[data-deck-role="front"] .first-title');
+  const focusedTitle = await frontTitle.textContent();
+  const alternateTitle = page.locator('.peek-card[data-deck-role="back"] .peek-back-title');
+  const alternative = await alternateTitle.textContent();
+  await page.locator('.peek-card[data-deck-role="back"] .peek-back').click();
+  await expect(frontTitle).toHaveText(alternative ?? "");
+  await page.locator('.peek-card[data-deck-role="back"] .peek-back').click();
+  await expect(frontTitle).toHaveText(focusedTitle ?? "");
   const todayAxe = await new AxeBuilder({ page })
     .include(".peek-layout")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -106,4 +126,7 @@ test("la creación y presentación de rutinas también funciona en inglés", asy
   await expect(
     page.locator(".first-eyebrow").filter({ hasText: "Routine “Morning” · step 1 of 2" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "More options", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Not today ❌", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Finish for today", exact: true })).toHaveCount(0);
 });

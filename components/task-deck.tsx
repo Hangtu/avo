@@ -16,7 +16,6 @@ import {
   deckLayer,
   deckPreviewOpacity,
   deckTransform,
-  nextDeckAlternative,
   promoteDeckSelection,
   resolveDeckSelection,
   type DeckRole,
@@ -29,7 +28,6 @@ interface DeckActions {
   active: boolean;
   disabled: boolean;
   startButtonRef: RefObject<HTMLButtonElement | null>;
-  showAnother: () => void;
   ids: { title: string; duration: string; start: string };
 }
 
@@ -129,16 +127,6 @@ export function TaskDeck({ tasks, handId, busy, onOffer, onPromote, renderAction
     setTurn(current);
   }
 
-  function showAnother() {
-    if (busy || turnLock.current) return;
-    setSelection(
-      nextDeckAlternative(
-        tasks.map((task) => task.id),
-        current,
-      ),
-    );
-  }
-
   return (
     <div
       ref={stageRef}
@@ -160,7 +148,6 @@ export function TaskDeck({ tasks, handId, busy, onOffer, onPromote, renderAction
           reveal={reveal}
           focusOnSelect={focusTargetId === task.id}
           onChoose={promoteSecondary}
-          showAnother={showAnother}
           renderActions={renderActions}
         />
       ))}
@@ -179,7 +166,6 @@ function DeckCard({
   reveal,
   focusOnSelect,
   onChoose,
-  showAnother,
   renderActions,
 }: {
   task: FranjaTask;
@@ -192,7 +178,6 @@ function DeckCard({
   reveal: MotionValue<number>;
   focusOnSelect: boolean;
   onChoose: () => void;
-  showAnother: () => void;
   renderActions: TaskDeckProps["renderActions"];
 }) {
   const t = useTranslations("franja");
@@ -258,7 +243,6 @@ function DeckCard({
             active,
             disabled: busy || turning || !active,
             startButtonRef,
-            showAnother,
             ids,
           })}
         </div>

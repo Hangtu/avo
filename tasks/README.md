@@ -5,7 +5,7 @@ Git and linked archives preserve history.
 
 ## Current focus
 
-- [024 — Sequential routines](active/024-sequential-routines.md) — Group existing habits into ordered routines while preserving task history.
+- [024 — Sequential routines](active/024-sequential-routines.md) — Routine flow and simplified Today task menu verified locally; owner device acceptance pending.
 
 ## Backlog (in priority order)
 

@@ -65,7 +65,7 @@
     "notices": {
       "alreadyDone": "Ya estaba hecho.",
       "notToday": "Hoy no.",
-      "swapped": "Listo, la cambié.",
+      "swapped": "Listo. Sigue pendiente; la verás más adelante en Hoy.",
       "noAlternative": "No hay otra tarea para ahora.",
       "noSwaps": "Ya cambiaste 3 veces hoy.",
       "active": "Primero termina lo que ya empezaste."
@@ -96,7 +96,6 @@
     "routineProgress": "Rutina «{name}» · paso {step} de {total}",
     "start": "Comenzar",
     "continue": "Continuar {remaining} min",
-    "showAnother": "Ver otra",
     "shortStep": "Solo tengo {minutes} min ⏱️",
     "swap": "Cambiar por otra tarea 🔄",
     "alreadyDone": "Ya está hecho ✅",

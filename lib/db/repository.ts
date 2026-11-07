@@ -10,6 +10,7 @@ import {
   isMissedOccurrence,
   proposeHand,
   type RoutineProgress,
+  type SelectionInput,
 } from "@/lib/domain/selection";
 import { blockForTime, taskTime, type TaskBlock } from "@/lib/domain/schedule";
 import { assertTimestamp, parseLocalDate, toLocalDate, weekdayOf, type LocalDate } from "@/lib/domain/time";
@@ -1659,6 +1660,26 @@ async function closeHand(
   });
 }
 
+async function deferredOccurrenceIdsFromClosedHands(db: RunoDatabase, date: LocalDate): Promise<string[]> {
+  const hands = (await db.hands.where("date").equals(date).toArray())
+    .filter((hand) => hand.status === "closed")
+    .sort((a, b) => a.ordinal - b.ordinal);
+  return [...new Set(hands.flatMap((hand) => hand.deferredOccurrenceIds))];
+}
+
+function proposeHandWithDeferred(input: SelectionInput, deferredOccurrenceIds: readonly string[]) {
+  const deferred = new Set(deferredOccurrenceIds);
+  const prioritized = eligibleCandidates(input).filter(
+    (candidate) => candidate.isDueAnchor || deferred.has(candidate.occurrenceId),
+  );
+  const prioritizedIds = prioritized.map((candidate) => candidate.occurrenceId);
+  const remaining = proposeHand({
+    ...input,
+    excludeOccurrenceIds: [...new Set([...(input.excludeOccurrenceIds ?? []), ...prioritizedIds])],
+  });
+  return [...prioritized, ...remaining];
+}
+
 /**
  * Keeps one open franja per date. While at least one card remains, the open
  * franja is re-evaluated against the current clock and keeps at least two
@@ -1719,8 +1740,8 @@ export async function ensureFranja(
         } else {
           // Re-evaluate the open franja with the current clock. Started/partial
           // cards keep their place; the rest can be reordered or replaced by a
-          // better current candidate. Deferred cards stay out until the next
-          // franja, and this never consumes a manual "Otra" change.
+          // better current candidate. Swapped cards stay out of this hand and
+          // are prioritized when a later hand is formed.
           const occurrenceById = new Map(currentOccurrences.map((occurrence) => [occurrence.id, occurrence]));
           const taskById = new Map(currentTasks.map((task) => [task.id, task]));
           const protectedIds = hand.occurrenceIds.filter((occurrenceId) => {
@@ -1732,14 +1753,18 @@ export async function ensureFranja(
               occurrence.shortStepCompleted || occurrence.agreement !== null || occurrence.timerElapsedSec > 0
             );
           });
-          const ranked = proposeHand({
-            tasks,
-            occurrences,
-            now,
-            seed,
-            excludeOccurrenceIds: hand.deferredOccurrenceIds,
-            routines,
-          });
+          const deferredFromClosedHands = await deferredOccurrenceIdsFromClosedHands(db, date);
+          const ranked = proposeHandWithDeferred(
+            {
+              tasks,
+              occurrences,
+              now,
+              seed,
+              excludeOccurrenceIds: hand.deferredOccurrenceIds,
+              routines,
+            },
+            deferredFromClosedHands,
+          );
           const occurrenceIds: string[] = [];
           for (const occurrenceId of protectedIds) {
             if (!occurrenceIds.includes(occurrenceId)) occurrenceIds.push(occurrenceId);
@@ -1795,7 +1820,11 @@ export async function ensureFranja(
         }
       }
 
-      const candidates = proposeHand({ tasks, occurrences, now, seed, routines });
+      const deferredFromClosedHands = await deferredOccurrenceIdsFromClosedHands(db, date);
+      const candidates = proposeHandWithDeferred(
+        { tasks, occurrences, now, seed, routines },
+        deferredFromClosedHands,
+      ).slice(0, 3);
       if (candidates.length === 0) {
         return {
           hand: null,
@@ -1907,9 +1936,10 @@ export type SwapResult =
   | { swapped: false; reason: SwapReason };
 
 /**
- * Replaces one card in the open franja without refilling the slot. The swapped
- * occurrence stays pending and is deferred until a later franja. Three changes
- * are shared per local date and never spent without a real alternative.
+ * Replaces one card in the open franja without completing the swapped task.
+ * Its pending occurrence stays out of this hand and is prioritized in the next
+ * hand formed while it remains eligible. Three changes are shared per date and
+ * never spent without a real alternative.
  */
 export async function swapFranjaTask(
   db: RunoDatabase,

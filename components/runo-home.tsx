@@ -1050,7 +1050,6 @@ export function RunoHome() {
                           onAlreadyDone={(task) => void correctTask(task, "already_done")}
                           onNotApplicable={(task) => void correctTask(task, "not_applicable")}
                           onEdit={(task) => openEditorForTask(task.id)}
-                          onEndDay={() => void openEndDayReview()}
                           swapping={swapping}
                           correctingId={correctingId}
                           tone={voice.tone ?? 0}
@@ -1266,7 +1265,6 @@ function Franja({
   onAlreadyDone,
   onNotApplicable,
   onEdit,
-  onEndDay,
   swapping,
   correctingId,
   tone,
@@ -1278,7 +1276,6 @@ function Franja({
   onAlreadyDone: (task: FranjaTask) => void;
   onNotApplicable: (task: FranjaTask) => void;
   onEdit: (task: FranjaTask) => void;
-  onEndDay: () => void;
   swapping: boolean;
   correctingId: string | null;
   tone: VoiceTone;
@@ -1315,7 +1312,7 @@ function Franja({
         busy={busy}
         onOffer={onOffer}
         onPromote={() => setMenuOpen(false)}
-        renderActions={(task, { active, disabled, startButtonRef, showAnother, ids }) => (
+        renderActions={(task, { active, disabled, startButtonRef, ids }) => (
           <>
             <motion.button
               ref={startButtonRef}
@@ -1334,11 +1331,6 @@ function Franja({
                 ▶️
               </span>
             </motion.button>
-            {view.tasks.length > 2 ? (
-              <button type="button" className="first-secondary" disabled={disabled} onClick={showAnother}>
-                {t("showAnother")}
-              </button>
-            ) : null}
             <Menu.Root open={active && menuOpen} onOpenChange={setMenuOpen}>
               <Menu.Trigger
                 type="button"
@@ -1391,16 +1383,6 @@ function Franja({
                     </Menu.Item>
                     <Menu.Item className="first-menu-item" disabled={disabled} onClick={() => onEdit(task)}>
                       {t("edit")}
-                    </Menu.Item>
-                    <Menu.Item
-                      className="first-menu-item"
-                      disabled={disabled}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onEndDay();
-                      }}
-                    >
-                      {t("endDay")}
                     </Menu.Item>
                   </Menu.Popup>
                 </Menu.Positioner>
