@@ -138,7 +138,7 @@ test.describe("public shell", () => {
     await settingsButton.click();
     await expect(page.getByRole("heading", { level: 2, name: "Ajustes" })).toBeVisible();
     await expect(
-      page.getByText(/Al iniciar sesión, podrás respaldar tus hábitos y pendientes/),
+      page.getByText(/Al iniciar sesión, podrás respaldar tus hábitos, rutinas y pendientes/),
     ).toBeVisible();
     await expect(
       page.getByText("Guardado solo en este navegador. Sin cuenta, no hay respaldo en la nube.", {

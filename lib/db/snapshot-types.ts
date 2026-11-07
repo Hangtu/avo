@@ -5,18 +5,20 @@ import type {
   Metadata,
   Occurrence,
   Pending,
+  Routine,
   RunoEvent,
   Session,
   Settings,
   Task,
 } from "@/lib/domain/types";
 
-export const BACKUP_SCHEMA_VERSION = 3 as const;
+export const BACKUP_SCHEMA_VERSION = 4 as const;
 
 export interface RunoSnapshot {
   schemaVersion: typeof BACKUP_SCHEMA_VERSION;
   exportedAt: number;
   tasks: Task[];
+  routines: Routine[];
   pendings: Pending[];
   occurrences: Occurrence[];
   days: Day[];

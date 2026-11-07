@@ -7,7 +7,7 @@ import {
   proposeHand,
 } from "./selection";
 import { occurrenceIdFor } from "./occurrence";
-import type { Occurrence, Task, TaskInput } from "./types";
+import type { Occurrence, Routine, Task, TaskInput } from "./types";
 import { validateTaskInput } from "./validation";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 
@@ -145,6 +145,112 @@ describe("elegibilidad antes de prioridad", () => {
     const next = chooseNextTask({ tasks: [edited], occurrences: [partial], now: NOW, seed: "s" });
     expect(next!.task.title).toBe("Lavar ropa");
     expect(next!.task.durationMin).toBe(15);
+  });
+});
+
+describe("progresión de rutinas", () => {
+  const prepare = task("prepare", { window: { start: "06:00", end: "12:00" } });
+  const eat = task("eat", { window: { start: "12:00", end: "18:00" } });
+  const unrelated = task("unrelated", { priority: 3 });
+  const routine: Routine = {
+    id: "routine:meal",
+    title: "Comida",
+    taskIds: [prepare.id, eat.id],
+    createdAt: NOW,
+    updatedAt: NOW,
+    archivedAt: null,
+  };
+
+  it("ofrece solo el paso actual y muestra su posición", () => {
+    const candidates = eligibleCandidates({
+      tasks: [prepare, eat, unrelated],
+      occurrences: [],
+      routines: [routine],
+      now: at(9),
+      seed: "s",
+    });
+    expect(candidates.map((candidate) => candidate.task.id)).toContain(prepare.id);
+    expect(candidates[0]?.task.id).toBe(prepare.id);
+    expect(candidates.map((candidate) => candidate.task.id)).not.toContain(eat.id);
+    expect(candidates.find((candidate) => candidate.task.id === prepare.id)?.routine).toEqual({
+      id: routine.id,
+      title: "Comida",
+      step: 1,
+      total: 2,
+    });
+  });
+
+  it("espera el horario del paso actual sin mostrar pasos posteriores y deja usar otros hábitos", () => {
+    const latePrepare = task("late-prepare", { window: { start: "14:00", end: "15:00" } });
+    const next = task("next", { window: { start: "08:00", end: "18:00" } });
+    const group: Routine = { ...routine, taskIds: [latePrepare.id, next.id] };
+    const candidates = eligibleCandidates({
+      tasks: [latePrepare, next, unrelated],
+      occurrences: [],
+      routines: [group],
+      now: at(9),
+      seed: "s",
+    });
+    expect(candidates.map((candidate) => candidate.task.id)).toEqual([unrelated.id]);
+  });
+
+  it("avanza después de completar o saltar un paso, y mantiene una demora como missed", () => {
+    const completed = occurrence(prepare, { status: "completed" });
+    expect(
+      chooseNextTask({
+        tasks: [prepare, eat, unrelated],
+        occurrences: [completed],
+        routines: [routine],
+        now: at(13),
+        seed: "s",
+      }),
+    ).toMatchObject({ task: { id: eat.id }, routine: { step: 2, total: 2 } });
+
+    const skipped = occurrence(prepare, { status: "not_applicable" });
+    expect(
+      chooseNextTask({
+        tasks: [prepare, eat, unrelated],
+        occurrences: [skipped],
+        routines: [routine],
+        now: at(13),
+        seed: "s",
+      })?.task.id,
+    ).toBe(eat.id);
+
+    expect(
+      chooseNextTask({
+        tasks: [prepare, eat, unrelated],
+        occurrences: [],
+        routines: [routine],
+        now: at(13),
+        seed: "s",
+      }),
+    ).toMatchObject({ task: { id: prepare.id }, isMissed: true, routine: { step: 1 } });
+  });
+
+  it("no muestra pasos de una rutina ya terminada ni una rutina archivada", () => {
+    const complete = [
+      occurrence(prepare, { status: "completed" }),
+      occurrence(eat, { status: "already_done" }),
+    ];
+    expect(
+      proposeHand({
+        tasks: [prepare, eat],
+        occurrences: complete,
+        routines: [routine],
+        now: at(13),
+        seed: "s",
+      }),
+    ).toEqual([]);
+    expect(
+      proposeHand({
+        tasks: [prepare, eat],
+        occurrences: [],
+        routines: [{ ...routine, archivedAt: NOW }],
+        now: at(13),
+        seed: "s",
+      }),
+    ).toHaveLength(2);
   });
 });
 

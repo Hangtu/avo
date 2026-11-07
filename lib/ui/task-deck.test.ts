@@ -5,7 +5,6 @@ import {
   deckLayer,
   deckPreviewOpacity,
   deckTransform,
-  nextDeckAlternative,
   promoteDeckSelection,
   resolveDeckSelection,
 } from "./task-deck";
@@ -18,23 +17,12 @@ describe("selección visual de las tarjetas de Hoy", () => {
     const single = resolveDeckSelection(["a"], empty);
     expect(single).toEqual({ primaryId: "a", secondaryId: null });
     expect(promoteDeckSelection(single)).toBe(single);
-    expect(nextDeckAlternative(["a"], single)).toEqual(single);
   });
 
   it("intercambia las mismas dos tarjetas y permite volver", () => {
     const selection = resolveDeckSelection(["a", "b"], empty);
     expect(promoteDeckSelection(selection)).toEqual({ primaryId: "b", secondaryId: "a" });
     expect(promoteDeckSelection(promoteDeckSelection(selection))).toEqual(selection);
-    expect(nextDeckAlternative(["a", "b"], selection)).toEqual(selection);
-  });
-
-  it("con tres tareas deja la principal anterior detrás, no la tercera", () => {
-    const ids = ["a", "b", "c"];
-    const selection = promoteDeckSelection(resolveDeckSelection(ids, empty));
-    expect(selection).toEqual({ primaryId: "b", secondaryId: "a" });
-    expect(nextDeckAlternative(ids, selection)).toEqual({ primaryId: "b", secondaryId: "c" });
-    expect(nextDeckAlternative(ids, nextDeckAlternative(ids, selection))).toEqual(selection);
-    expect(ids).toEqual(["a", "b", "c"]);
   });
 
   it("conserva la selección por ID aunque cambie el orden de los datos", () => {

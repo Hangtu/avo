@@ -1,17 +1,19 @@
-import type { Pending, Settings, Task } from "@/lib/domain/types";
+import type { Pending, Routine, Settings, Task } from "@/lib/domain/types";
 import {
   MAX_CATEGORY_LENGTH,
+  MAX_ROUTINE_STEPS,
   MAX_TITLE_LENGTH,
   assertId,
   validatePendingInput,
+  validateRoutineInput,
   validateSettings,
   validateTaskInput,
 } from "@/lib/domain/validation";
 import type { TaskOrder } from "@/lib/domain/task-order";
 
 /** Only durable definitions/preferences cross this boundary. Never execution data. */
-export type DurableKind = "task" | "pending" | "settings";
-export type DurableValue = Task | Pending | Settings;
+export type DurableKind = "task" | "pending" | "routine" | "settings";
+export type DurableValue = Task | Pending | Routine | Settings;
 export interface DurableRecord {
   key: string;
   kind: DurableKind;
@@ -44,7 +46,7 @@ export interface RemoteIssue {
   code: "invalid_record";
 }
 export interface Bootstrap {
-  version: 1;
+  version: 1 | 2;
   accountId: string;
   records: DurableRecord[];
   issues?: RemoteIssue[];
@@ -146,6 +148,19 @@ export function validValue(kind: DurableKind, id: string, input: unknown): Durab
       taskOrder: validTaskOrder(raw.taskOrder ?? {}),
     } as Settings);
   }
+  if (kind === "routine") {
+    keys(raw, ["id", "title", "taskIds", "createdAt", "updatedAt", "archivedAt"]);
+    if (!Array.isArray(raw.taskIds) || raw.taskIds.length > MAX_ROUTINE_STEPS) {
+      throw new ProtocolError("invalid_routine_steps");
+    }
+    return {
+      ...validateRoutineInput({ title: raw.title as string, taskIds: raw.taskIds as string[] }),
+      id,
+      createdAt: instant(raw.createdAt),
+      updatedAt,
+      archivedAt: nullableInstant(raw.archivedAt),
+    };
+  }
   text(raw.title);
   duration(raw.durationMin);
   const createdAt = instant(raw.createdAt);
@@ -190,18 +205,24 @@ export function validValue(kind: DurableKind, id: string, input: unknown): Durab
     archivedAt: nullableInstant(raw.archivedAt),
   };
 }
-export function validKind(value: unknown): DurableKind {
-  if (value !== "task" && value !== "pending" && value !== "settings")
+export function validKind(value: unknown, version: 1 | 2 = 2): DurableKind {
+  if (
+    value !== "task" &&
+    value !== "pending" &&
+    value !== "settings" &&
+    !(version === 2 && value === "routine")
+  ) {
     throw new ProtocolError("invalid_kind");
+  }
   return value;
 }
-export function validMutation(input: unknown): Mutation {
+export function validMutation(input: unknown, version: 1 | 2 = 2): Mutation {
   const raw = object(input);
   keys(raw, ["operationId", "kind", "id", "baseRevision", "value"]);
   const operationId = validId(raw.operationId);
   if (!/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(operationId))
     throw new ProtocolError("invalid_operation");
-  const kind = validKind(raw.kind),
+  const kind = validKind(raw.kind, version),
     id = validId(raw.id);
   return {
     operationId,
@@ -211,32 +232,34 @@ export function validMutation(input: unknown): Mutation {
     value: validValue(kind, id, raw.value),
   };
 }
-export function validRecord(input: unknown): DurableRecord {
+export function validRecord(input: unknown, version: 1 | 2 = 2): DurableRecord {
   const raw = object(input),
-    kind = validKind(raw.kind),
+    kind = validKind(raw.kind, version),
     id = validId(raw.id);
   const key = entityKey(kind, id);
   if (raw.key !== key) throw new ProtocolError("invalid_key");
   return { key, kind, id, revision: revision(raw.revision), value: validValue(kind, id, raw.value) };
 }
-export function validBootstrap(input: unknown, accountId: string): Bootstrap {
+export function validBootstrap(input: unknown, accountId: string, expectedVersion?: 1 | 2): Bootstrap {
   const raw = object(input);
   if (
-    raw.version !== 1 ||
+    (raw.version !== 1 && raw.version !== 2) ||
+    (expectedVersion !== undefined && raw.version !== expectedVersion) ||
     raw.accountId !== accountId ||
     !Array.isArray(raw.records) ||
     raw.records.length > 30_000
   ) {
     throw new ProtocolError("invalid_bootstrap");
   }
-  const records = raw.records.map(validRecord);
+  const version = raw.version;
+  const records = raw.records.map((record) => validRecord(record, version));
   if (new Set(records.map((row) => row.key)).size !== records.length)
     throw new ProtocolError("duplicate_record");
   const issues = raw.issues === undefined ? [] : raw.issues;
   if (!Array.isArray(issues) || issues.length > 30_000) throw new ProtocolError("invalid_issues");
   const cleanIssues: RemoteIssue[] = issues.map((input) => {
     const row = object(input),
-      kind = validKind(row.kind),
+      kind = validKind(row.kind, version),
       id = validId(row.id);
     if (row.key !== entityKey(kind, id) || row.code !== "invalid_record")
       throw new ProtocolError("invalid_issue");
@@ -245,7 +268,7 @@ export function validBootstrap(input: unknown, accountId: string): Bootstrap {
   if (raw.notModified !== undefined && (raw.notModified !== true || records.length || cleanIssues.length))
     throw new ProtocolError("invalid_not_modified");
   return {
-    version: 1,
+    version,
     accountId,
     records,
     ...(cleanIssues.length ? { issues: cleanIssues } : {}),

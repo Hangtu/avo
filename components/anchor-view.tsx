@@ -3,16 +3,19 @@
 import { useTranslations } from "next-intl";
 import { motion, useReducedMotion } from "motion/react";
 import type { Task } from "@/lib/domain/types";
+import type { RoutineProgress } from "@/lib/domain/selection";
 import { HelpTip } from "./help-tip";
 
 export function AnchorView({
   task,
+  routine,
   busy,
   onStart,
   onLeave,
   onNotApplicable,
 }: {
   task: Task;
+  routine?: RoutineProgress;
   busy: boolean;
   onStart: () => void;
   onLeave: () => void;
@@ -37,6 +40,11 @@ export function AnchorView({
         </h2>
         <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
       </div>
+      {routine ? (
+        <p className="mt-3 text-sm font-medium text-muted">
+          {t("routineProgress", { name: routine.title, step: routine.step, total: routine.total })}
+        </p>
+      ) : null}
       <p className="mt-3 text-sm leading-6 text-muted">{t("duration", { minutes: task.durationMin })}</p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <button

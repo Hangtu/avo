@@ -35,12 +35,22 @@ function ReviewRow({
   const t = useTranslations("home.review");
   const blocks = useTranslations("common.blocks");
   const common = useTranslations("common");
+  const franja = useTranslations("franja");
   const blocked = busy || disabled;
 
   return (
     <div className="runo-review-item" role="listitem">
       <div className="runo-review-copy">
         <p className="runo-review-title">{item.task.title}</p>
+        {item.task.routine ? (
+          <p className="runo-review-meta">
+            {franja("routineProgress", {
+              name: item.task.routine.title,
+              step: item.task.routine.step,
+              total: item.task.routine.total,
+            })}
+          </p>
+        ) : null}
         <p className="runo-review-meta">
           <span>{blocks(item.task.block)}</span>
           <span>{common("minutes", { count: item.task.remainingMin })}</span>

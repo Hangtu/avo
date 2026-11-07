@@ -10,10 +10,23 @@ import {
   validMutation,
 } from "@/lib/sync/protocol";
 
+function syncVersion(request: Request): 1 | 2 {
+  const value = request.headers.get("x-avo-sync-version");
+  if (value === null || value === "1") return 1;
+  if (value === "2") return 2;
+  throw new ProtocolError("invalid_version");
+}
+
 export async function GET(request: Request) {
   try {
     const accountId = await verifiedAccount(request);
-    const data = await readAccountData(db, accountId, request.headers.get("if-none-match") ?? undefined);
+    const version = syncVersion(request);
+    const data = await readAccountData(
+      db,
+      accountId,
+      request.headers.get("if-none-match") ?? undefined,
+      version,
+    );
     const headers = { ...privateHeaders, ETag: data.etag };
     if (data.notModified) return new Response(null, { status: 304, headers });
     return Response.json(data, { headers });
@@ -52,22 +65,23 @@ export async function POST(request: Request) {
   try {
     const accountId = await verifiedAccount(request, true);
     const raw = object(await boundedJSON(request));
+    const version = raw.version;
     if (
       Object.keys(raw).some((key) => !["version", "mutations"].includes(key)) ||
-      raw.version !== 1 ||
+      (version !== 1 && version !== 2) ||
       !Array.isArray(raw.mutations) ||
       raw.mutations.length < 1 ||
       raw.mutations.length > MAX_BATCH
     )
       throw new ProtocolError("invalid_batch");
-    const mutations = raw.mutations.map(validMutation);
+    const mutations = raw.mutations.map((mutation) => validMutation(mutation, version));
     if (
       new Set(mutations.map((row) => entityKey(row.kind, row.id))).size !== mutations.length ||
       new Set(mutations.map((row) => row.operationId)).size !== mutations.length
     )
       throw new ProtocolError("duplicate_mutation");
     return Response.json(
-      { version: 1, accountId, results: await mutateAccountData(db, accountId, mutations) },
+      { version, accountId, results: await mutateAccountData(db, accountId, mutations, version) },
       { headers: privateHeaders },
     );
   } catch (error) {

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { TaskInput } from "./types";
-import { defaultSettings, validatePendingInput, validateSettings, validateTaskInput } from "./validation";
+import {
+  defaultSettings,
+  validatePendingInput,
+  validateRoutineInput,
+  validateSettings,
+  validateTaskInput,
+} from "./validation";
 import { NOW, taskInput } from "@/tests/fixtures";
 
 describe("validación de tareas", () => {
@@ -63,6 +69,27 @@ describe("límites compartidos con el protocolo de cuenta", () => {
     expect(() => validateTaskInput(taskInput({ title: "x".repeat(1025) }))).toThrow();
     expect(() => validateTaskInput(taskInput({ category: "x".repeat(257) }))).toThrow();
     expect(() => validatePendingInput({ title: "x".repeat(1025), durationMin: 25 })).toThrow();
+  });
+});
+
+describe("validación de rutinas", () => {
+  it("recorta el nombre y conserva el orden de hábitos", () => {
+    const input = { title: "  Antes de comer  ", taskIds: ["task:prep", "task:eat"] };
+    expect(validateRoutineInput(input)).toEqual({
+      title: "Antes de comer",
+      taskIds: ["task:prep", "task:eat"],
+    });
+    expect(input.title).toBe("  Antes de comer  ");
+  });
+
+  it.each([
+    { title: "", taskIds: ["task:a", "task:b"] },
+    { title: "Rutina", taskIds: ["task:a"] },
+    { title: "Rutina", taskIds: ["task:a", "task:a"] },
+    { title: "Rutina", taskIds: ["task:a", " task:b"] },
+    { title: "Rutina", taskIds: [] },
+  ])("rechaza una rutina inválida: %j", (input) => {
+    expect(() => validateRoutineInput(input)).toThrow();
   });
 });
 

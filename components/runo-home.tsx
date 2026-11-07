@@ -13,6 +13,7 @@ import {
   ensureFranja,
   ensureOccurrence,
   listPendings,
+  listRoutines,
   listTasks,
   markOccurrenceAlreadyDoneDirect,
   markOccurrenceNotApplicableDirect,
@@ -26,9 +27,18 @@ import { seedDatabase } from "@/lib/db/seed";
 import { intlLocales } from "@/lib/i18n/config";
 import { buildDayReview, type DayReview, type DayReviewItem } from "@/lib/domain/day-review";
 import { toLocalDate, weekdayOf } from "@/lib/domain/time";
+import { dateFromOccurrenceId } from "@/lib/domain/occurrence";
 import { chooseVoicePhrase, type VoiceTone } from "@/lib/domain/voice";
 import { voicePhrasesFromMessages } from "@/lib/i18n/voice";
-import type { Occurrence, Pending, Session, Task } from "@/lib/domain/types";
+import {
+  TERMINAL_OCCURRENCE_STATUSES,
+  type Occurrence,
+  type Pending,
+  type Routine,
+  type Session,
+  type Task,
+} from "@/lib/domain/types";
+import type { RoutineProgress } from "@/lib/domain/selection";
 import { BreakCard } from "./break-card";
 import { ConfirmDialog } from "./confirm-dialog";
 import { HelpTip } from "./help-tip";
@@ -54,8 +64,8 @@ import { TaskDeckSkeleton } from "./task-deck-skeleton";
 type View =
   | { kind: "loading" }
   | { kind: "error"; message: string }
-  | { kind: "session"; dateLabel: string; session: Session }
-  | { kind: "anchor"; dateLabel: string; task: Task; occurrence: Occurrence }
+  | { kind: "session"; dateLabel: string; session: Session; routine?: RoutineProgress }
+  | { kind: "anchor"; dateLabel: string; task: Task; occurrence: Occurrence; routine?: RoutineProgress }
   | {
       kind: "ready";
       dateLabel: string;
@@ -86,6 +96,21 @@ function newSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function routineProgressForSession(
+  routine: Routine | undefined,
+  occurrences: readonly Occurrence[],
+  taskId: string,
+): RoutineProgress | undefined {
+  if (!routine || routine.archivedAt !== null) return undefined;
+  const byTask = new Map(occurrences.map((occurrence) => [occurrence.taskId, occurrence]));
+  const step = routine.taskIds.findIndex((memberId) => {
+    const occurrence = byTask.get(memberId);
+    return !occurrence || !TERMINAL_OCCURRENCE_STATUSES.has(occurrence.status);
+  });
+  if (step < 0 || routine.taskIds[step] !== taskId) return undefined;
+  return { id: routine.id, title: routine.title, step: step + 1, total: routine.taskIds.length };
+}
+
 function toReviewTask(item: DayReviewItem): ReviewTask {
   const { task, occurrence, block, missed, canStart } = item;
   return {
@@ -102,6 +127,7 @@ function toReviewTask(item: DayReviewItem): ReviewTask {
       remainingRc: Math.max(0, task.durationMin - occurrence.creditedRc),
       block,
       isMissed: missed,
+      ...(item.routine ? { routine: item.routine } : {}),
     },
     canStart,
   };
@@ -188,7 +214,17 @@ export function RunoHome() {
         if (cancelled) return;
 
         if (active) {
-          setView({ kind: "session", dateLabel, session: active });
+          const sessionDate = dateFromOccurrenceId(active.occurrenceId);
+          const [activeRoutines, sessionOccurrences] = await Promise.all([
+            listRoutines(db),
+            db.occurrences.where("date").equals(sessionDate).toArray(),
+          ]);
+          const routine = routineProgressForSession(
+            activeRoutines.find((candidate) => candidate.taskIds.includes(active.taskSnapshot.id)),
+            sessionOccurrences,
+            active.taskSnapshot.id,
+          );
+          setView({ kind: "session", dateLabel, session: active, ...(routine ? { routine } : {}) });
           return;
         }
 
@@ -220,7 +256,16 @@ export function RunoHome() {
             handId: franja.hand.id,
             ordinal: franja.hand.ordinal,
             tasks: franja.tasks.map(
-              ({ task, occurrenceId, shortStepCompleted, remainingMin, remainingRc, block, isMissed }) => ({
+              ({
+                task,
+                occurrenceId,
+                shortStepCompleted,
+                remainingMin,
+                remainingRc,
+                block,
+                isMissed,
+                routine,
+              }) => ({
                 id: task.id,
                 occurrenceId,
                 title: task.title,
@@ -233,6 +278,7 @@ export function RunoHome() {
                 remainingRc,
                 block,
                 isMissed,
+                ...(routine ? { routine } : {}),
               }),
             ),
             pendingToday: franja.pendingToday,
@@ -339,7 +385,7 @@ export function RunoHome() {
   );
 
   const openAnchor = useCallback(
-    (task: Task, occurrence: Occurrence) => {
+    (task: Task, occurrence: Occurrence, routine?: RoutineProgress) => {
       setShowBreak(false);
       setShowPending(false);
       setQuickFormOpen(false);
@@ -349,13 +395,14 @@ export function RunoHome() {
         dateLabel: formatDate(Date.now(), intlLocales[locale]),
         task,
         occurrence,
+        ...(routine ? { routine } : {}),
       });
     },
     [locale],
   );
 
   const beginAnchor = useCallback(
-    async (task: Task, occurrence: Occurrence) => {
+    async (task: Task, occurrence: Occurrence, routine?: RoutineProgress) => {
       if (anchorBusy) return;
       setAnchorBusy(true);
       setNotice(null);
@@ -371,7 +418,12 @@ export function RunoHome() {
             now,
             anchor: true,
           });
-          setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
+          setView({
+            kind: "session",
+            dateLabel: formatDate(now, intlLocales[locale]),
+            session,
+            ...(routine ? { routine } : {}),
+          });
         } finally {
           db.close();
         }
@@ -513,9 +565,12 @@ export function RunoHome() {
       let review: DayReview;
       try {
         const now = Date.now();
-        const tasks = await listTasks(db);
-        const occurrences = await db.occurrences.where("date").equals(toLocalDate(now)).toArray();
-        review = buildDayReview({ tasks, occurrences, now });
+        const [tasks, routines, occurrences] = await Promise.all([
+          listTasks(db),
+          listRoutines(db),
+          db.occurrences.where("date").equals(toLocalDate(now)).toArray(),
+        ]);
+        review = buildDayReview({ tasks, routines, occurrences, now });
       } finally {
         db.close();
       }
@@ -755,7 +810,12 @@ export function RunoHome() {
             allowMissed: task.isMissed,
           });
           setQuickFormOpen(false);
-          setView({ kind: "session", dateLabel: formatDate(now, intlLocales[locale]), session });
+          setView({
+            kind: "session",
+            dateLabel: formatDate(now, intlLocales[locale]),
+            session,
+            ...(task.routine ? { routine: task.routine } : {}),
+          });
         } finally {
           db.close();
         }
@@ -963,6 +1023,7 @@ export function RunoHome() {
                         <SessionView
                           key={view.session.id}
                           session={view.session}
+                          routine={view.routine}
                           onFinished={finishSession}
                           tone={voice.tone ?? 0}
                         />
@@ -970,8 +1031,9 @@ export function RunoHome() {
                       {view.kind === "anchor" ? (
                         <AnchorView
                           task={view.task}
+                          routine={view.routine}
                           busy={anchorBusy}
-                          onStart={() => void beginAnchor(view.task, view.occurrence)}
+                          onStart={() => void beginAnchor(view.task, view.occurrence, view.routine)}
                           onLeave={leaveAnchor}
                           onNotApplicable={() => void notApplicableAnchor(view.occurrence)}
                         />
@@ -988,7 +1050,6 @@ export function RunoHome() {
                           onAlreadyDone={(task) => void correctTask(task, "already_done")}
                           onNotApplicable={(task) => void correctTask(task, "not_applicable")}
                           onEdit={(task) => openEditorForTask(task.id)}
-                          onEndDay={() => void openEndDayReview()}
                           swapping={swapping}
                           correctingId={correctingId}
                           tone={voice.tone ?? 0}
@@ -1204,7 +1265,6 @@ function Franja({
   onAlreadyDone,
   onNotApplicable,
   onEdit,
-  onEndDay,
   swapping,
   correctingId,
   tone,
@@ -1216,7 +1276,6 @@ function Franja({
   onAlreadyDone: (task: FranjaTask) => void;
   onNotApplicable: (task: FranjaTask) => void;
   onEdit: (task: FranjaTask) => void;
-  onEndDay: () => void;
   swapping: boolean;
   correctingId: string | null;
   tone: VoiceTone;
@@ -1253,7 +1312,7 @@ function Franja({
         busy={busy}
         onOffer={onOffer}
         onPromote={() => setMenuOpen(false)}
-        renderActions={(task, { active, disabled, startButtonRef, showAnother, ids }) => (
+        renderActions={(task, { active, disabled, startButtonRef, ids }) => (
           <>
             <motion.button
               ref={startButtonRef}
@@ -1272,11 +1331,6 @@ function Franja({
                 ▶️
               </span>
             </motion.button>
-            {view.tasks.length > 2 ? (
-              <button type="button" className="first-secondary" disabled={disabled} onClick={showAnother}>
-                {t("showAnother")}
-              </button>
-            ) : null}
             <Menu.Root open={active && menuOpen} onOpenChange={setMenuOpen}>
               <Menu.Trigger
                 type="button"
@@ -1329,16 +1383,6 @@ function Franja({
                     </Menu.Item>
                     <Menu.Item className="first-menu-item" disabled={disabled} onClick={() => onEdit(task)}>
                       {t("edit")}
-                    </Menu.Item>
-                    <Menu.Item
-                      className="first-menu-item"
-                      disabled={disabled}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onEndDay();
-                      }}
-                    >
-                      {t("endDay")}
                     </Menu.Item>
                   </Menu.Popup>
                 </Menu.Positioner>

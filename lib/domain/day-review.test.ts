@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildDayReview } from "./day-review";
 import { occurrenceIdFor } from "./occurrence";
-import type { Occurrence, Task, TaskInput } from "./types";
+import type { Occurrence, Routine, Task, TaskInput } from "./types";
 import { validateTaskInput } from "./validation";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 
@@ -119,6 +119,46 @@ describe("revisión al terminar el día", () => {
       now: at(13),
     });
     expect(review).toEqual({ missed: [], later: [] });
+  });
+
+  it("solo revisa el paso actual de una rutina y avanza cuando se resuelve", () => {
+    const prepare = task("prepare", { title: "Preparar", window: { start: "06:00", end: "12:00" } });
+    const eat = task("eat", { title: "Comer", window: { start: "12:00", end: "18:00" } });
+    const unrelated = task("unrelated", { title: "Otra cosa" });
+    const routine: Routine = {
+      id: "routine:meal",
+      title: "Comida",
+      taskIds: [prepare.id, eat.id],
+      createdAt: NOW,
+      updatedAt: NOW,
+      archivedAt: null,
+    };
+    const first = buildDayReview({
+      tasks: [prepare, eat, unrelated],
+      routines: [routine],
+      occurrences: [occurrence(prepare), occurrence(eat), occurrence(unrelated)],
+      now: at(13),
+    });
+    expect(first.missed.map((item) => item.task.id)).toEqual([prepare.id]);
+    expect(first.missed[0]?.routine).toMatchObject({ title: "Comida", step: 1, total: 2 });
+    expect(first.later.map((item) => item.task.id)).toEqual([unrelated.id]);
+
+    const next = buildDayReview({
+      tasks: [prepare, eat, unrelated],
+      routines: [routine],
+      occurrences: [
+        occurrence(prepare, { status: "not_applicable" }),
+        occurrence(eat),
+        occurrence(unrelated),
+      ],
+      now: at(13),
+    });
+    expect(next.later.map((item) => item.task.id)).toContain(eat.id);
+    expect(next.later.find((item) => item.task.id === eat.id)?.routine).toMatchObject({
+      title: "Comida",
+      step: 2,
+      total: 2,
+    });
   });
 
   it("mantiene una missed parcial con su progreso para poder continuarla", () => {

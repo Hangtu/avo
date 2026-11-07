@@ -1,11 +1,13 @@
 import type { RunoDatabase } from "@/lib/db/database";
 import { newOperationId } from "@/lib/domain/id";
+import type { Routine, Task } from "@/lib/domain/types";
 import { acknowledge, mergeRemote } from "./local";
 import { retryAfterMs } from "./retry-after";
 import {
   canonicalJSON,
   MAX_BATCH,
   MAX_BODY_BYTES,
+  entityKey,
   mutationForWire,
   object,
   ProtocolError,
@@ -32,7 +34,13 @@ export interface SyncTransport {
   bootstrap(accountId: string, etag?: string): Promise<Bootstrap>;
   mutate(accountId: string, mutations: Mutation[]): Promise<MutationResult[]>;
 }
-async function request(accountId: string, signal: AbortSignal, body?: unknown, etag?: string) {
+async function request(
+  accountId: string,
+  signal: AbortSignal,
+  body?: unknown,
+  etag?: string,
+  version: 1 | 2 = 2,
+) {
   const response = await fetch("/api/account/data", {
     method: body ? "POST" : "GET",
     credentials: "same-origin",
@@ -40,6 +48,7 @@ async function request(accountId: string, signal: AbortSignal, body?: unknown, e
     signal,
     headers: {
       "x-avo-account": accountId,
+      "x-avo-sync-version": String(version),
       ...(body ? { "content-type": "application/json" } : {}),
       ...(etag ? { "if-none-match": etag } : {}),
     },
@@ -62,22 +71,23 @@ async function request(accountId: string, signal: AbortSignal, body?: unknown, e
 export function httpTransport(signal: AbortSignal): SyncTransport {
   return {
     bootstrap: async (accountId, etag) => {
-      const response = await request(accountId, signal, undefined, etag);
+      const response = await request(accountId, signal, undefined, etag, 2);
       if (response.status === 304)
-        return { version: 1, accountId, records: [], notModified: true, ...(etag ? { etag } : {}) };
+        return { version: 2, accountId, records: [], notModified: true, ...(etag ? { etag } : {}) };
       return validBootstrap(
         {
           ...object(await response.json()),
           ...(response.headers.get("etag") ? { etag: response.headers.get("etag") } : {}),
         },
         accountId,
+        2,
       );
     },
     mutate: async (accountId, mutations) => {
-      const response = await request(accountId, signal, { version: 1, mutations });
+      const response = await request(accountId, signal, { version: 2, mutations }, undefined, 2);
       const raw = object(await response.json());
       if (
-        raw.version !== 1 ||
+        raw.version !== 2 ||
         raw.accountId !== accountId ||
         !Array.isArray(raw.results) ||
         raw.results.length !== mutations.length
@@ -90,7 +100,7 @@ export function httpTransport(signal: AbortSignal): SyncTransport {
         return {
           operationId: row.operationId,
           status: row.status,
-          record: validRecord(row.record),
+          record: validRecord(row.record, 2),
         } as MutationResult;
       });
       if (new Set(results.map((row) => row.operationId)).size !== mutations.length)
@@ -140,23 +150,55 @@ async function synchronize(
 ): Promise<{ changed: boolean }> {
   let changed = false;
   if (pull) {
-    const saved = (await db.metadata.get("account-bootstrap-v1"))?.value as { etag?: string } | undefined;
-    const bootstrap = validBootstrap(await transport.bootstrap(accountId, saved?.etag), accountId);
+    const saved = (await db.metadata.get("account-bootstrap-v2"))?.value as { etag?: string } | undefined;
+    const bootstrap = validBootstrap(await transport.bootstrap(accountId, saved?.etag), accountId, 2);
     if (!bootstrap.notModified) {
       changed = await mergeRemote(db, bootstrap.records);
       const issues: RemoteIssue[] = bootstrap.issues ?? [];
-      const oldIssues = (await db.metadata.get("account-issues-v1"))?.value ?? [];
+      const oldIssues = (await db.metadata.get("account-issues-v2"))?.value ?? [];
       if (canonicalJSON(oldIssues) !== canonicalJSON(issues))
-        await db.metadata.put({ key: "account-issues-v1", value: JSON.parse(JSON.stringify(issues)) });
+        await db.metadata.put({ key: "account-issues-v2", value: JSON.parse(JSON.stringify(issues)) });
       if (!saved || saved.etag !== bootstrap.etag)
         await db.metadata.put({
-          key: "account-bootstrap-v1",
+          key: "account-bootstrap-v2",
           value: { ...(bootstrap.etag ? { etag: bootstrap.etag } : {}) },
         });
     } else if (!saved?.etag || bootstrap.etag !== saved.etag)
       throw new ProtocolError("unexpected_not_modified");
   }
-  const candidates = await db.outbox.where("state").equals("queued").limit(MAX_BATCH).toArray();
+  const allOutbox = await db.outbox.toArray();
+  const priority = (item: OutboxItem) => {
+    if (item.kind === "routine") {
+      const routine = item.value as Routine;
+      if (routine.archivedAt !== null && item.baseRevision > 0) return 0;
+      return 2;
+    }
+    if (item.kind === "task") {
+      const task = item.value as Task;
+      if (task.archivedAt !== null && item.baseRevision > 0) return 3;
+      return 1;
+    }
+    return item.kind === "pending" ? 4 : 5;
+  };
+  const candidates = allOutbox
+    .filter((item) => item.state === "queued")
+    .sort((a, b) => priority(a) - priority(b) || a.key.localeCompare(b.key))
+    .slice(0, MAX_BATCH);
+  const routineTaskKeys = [
+    ...new Set(
+      candidates.flatMap((item) =>
+        item.kind === "routine" && (item.value as Routine).archivedAt === null
+          ? (item.value as Routine).taskIds.map((taskId) => entityKey("task", taskId))
+          : [],
+      ),
+    ),
+  ];
+  const [dependencyOutbox, dependencyRecords] =
+    routineTaskKeys.length > 0
+      ? await Promise.all([db.outbox.bulkGet(routineTaskKeys), db.syncRecords.bulkGet(routineTaskKeys)])
+      : [[], []];
+  const outboxByKey = new Map(dependencyOutbox.flatMap((item) => (item ? [[item.key, item] as const] : [])));
+  const syncRecordKeys = new Set(dependencyRecords.flatMap((record) => (record ? [record.key] : [])));
   const items: OutboxItem[] = [];
   let bytes = 1024;
   for (const item of candidates) {
@@ -165,6 +207,16 @@ async function synchronize(
     } catch {
       await rejectItem(db, item, "invalid_local_record");
       continue;
+    }
+    if (item.kind === "routine" && (item.value as Routine).archivedAt === null) {
+      const unsyncedMember = (item.value as Routine).taskIds.some((taskId) => {
+        const key = entityKey("task", taskId);
+        const taskOutbox = outboxByKey.get(key);
+        if (taskOutbox)
+          return taskOutbox.state !== "queued" || !items.some((candidate) => candidate.key === key);
+        return !syncRecordKeys.has(key);
+      });
+      if (unsyncedMember) continue;
     }
     const size = new TextEncoder().encode(JSON.stringify(mutationForWire(item))).byteLength;
     if (size + 1024 > MAX_BODY_BYTES) {

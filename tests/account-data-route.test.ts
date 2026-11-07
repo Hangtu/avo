@@ -51,8 +51,8 @@ beforeEach(() => {
   mocks.session.mockResolvedValue({
     user: { id: "auth-A", name: "Synthetic", email: "synthetic@example.test" },
   });
-  mocks.read.mockImplementation(async (_db, accountId, previous) => ({
-    version: 1,
+  mocks.read.mockImplementation(async (_db, accountId, previous, version = 1) => ({
+    version,
     accountId,
     records: [],
     etag: '"synthetic-snapshot"',
@@ -71,7 +71,13 @@ describe("private account API — mocked session/DB, no external services", () =
     expect(mocks.session).toHaveBeenCalledWith(
       expect.objectContaining({ query: { disableCookieCache: true } }),
     );
-    expect(mocks.read).toHaveBeenCalledWith({}, "auth-A", undefined);
+    expect(mocks.read).toHaveBeenCalledWith({}, "auth-A", undefined, 1);
+  });
+  it("negotiates the v2 bootstrap explicitly while preserving v1 as the default", async () => {
+    const response = await GET(req("GET", undefined, { "x-avo-sync-version": "2" }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ version: 2, accountId: "auth-A" });
+    expect(mocks.read).toHaveBeenCalledWith({}, "auth-A", undefined, 2);
   });
   it("uses a private ETag and returns 304 only after authenticating the same account", async () => {
     const first = await GET(req());
@@ -175,7 +181,7 @@ describe("private account API — mocked session/DB, no external services", () =
     const original = mutation();
     const response = await POST(req("POST", { version: 1, mutations: [original] }));
     expect(response.status).toBe(200);
-    expect(mocks.mutate).toHaveBeenCalledWith({}, "auth-A", [original]);
+    expect(mocks.mutate).toHaveBeenCalledWith({}, "auth-A", [original], 1);
     expect(response.headers.get("cache-control")).toContain("no-store");
   });
   it("throttles anonymous requests before checking the session", async () => {

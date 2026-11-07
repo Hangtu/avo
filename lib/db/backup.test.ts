@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { exportLocalSnapshot, importLocalSnapshot } from "./backup";
-import { createTask, getSettings, listTasks } from "./repository";
+import { createRoutine, createTask, getSettings, listTasks } from "./repository";
 import { seedDatabase } from "./seed";
 import { setupTestDatabase } from "@/tests/database";
 import { NOW, taskInput } from "@/tests/fixtures";
@@ -11,6 +11,14 @@ describe("copia local", () => {
   it("exporta e importa el estado completo en una transacción", async () => {
     const source = await testDb();
     await seedDatabase(source, NOW);
+    const tasks = await listTasks(source);
+    expect(tasks).toHaveLength(2);
+    await createRoutine(
+      source,
+      "routine:seed",
+      { title: "Rutina", taskIds: tasks.map((task) => task.id) },
+      NOW + 1,
+    );
     const snapshot = await exportLocalSnapshot(source, NOW);
 
     const target = await testDb();
@@ -18,6 +26,7 @@ describe("copia local", () => {
     await importLocalSnapshot(target, snapshot);
 
     expect(await target.tasks.count()).toBe(2);
+    expect(await target.routines.count()).toBe(1);
     expect((await listTasks(target)).map((task) => task.id).sort()).toEqual([
       "seed:brush-teeth",
       "seed:shower",

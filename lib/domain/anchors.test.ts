@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findDueAnchor } from "./anchors";
 import { occurrenceIdFor } from "./occurrence";
-import type { Occurrence, Task, TaskInput } from "./types";
+import type { Occurrence, Routine, Task, TaskInput } from "./types";
 import { validateTaskInput } from "./validation";
 import { MONDAY, NOW, taskInput } from "@/tests/fixtures";
 
@@ -48,6 +48,30 @@ describe("ancla ligera", () => {
     const gym = task("gym", { fixedTime: "18:00", window: { start: "18:00", end: "18:30" } });
     expect(findDueAnchor([gym], [occurrence(gym, { anchorPresentedAt: NOW })], at(18))).toBeNull();
     expect(findDueAnchor([gym], [occurrence(gym, { status: "completed" })], at(18))).toBeNull();
+  });
+
+  it("no adelanta un ancla que es un paso posterior de una rutina", () => {
+    const first = task("first");
+    const second = task("second", { fixedTime: "18:00" });
+    const routine: Routine = {
+      id: "routine:meal",
+      title: "Comida",
+      taskIds: [first.id, second.id],
+      createdAt: NOW,
+      updatedAt: NOW,
+      archivedAt: null,
+    };
+    expect(
+      findDueAnchor([first, second], [occurrence(first), occurrence(second)], at(18), [routine]),
+    ).toBeNull();
+    expect(
+      findDueAnchor(
+        [first, second],
+        [occurrence(first, { status: "completed" }), occurrence(second)],
+        at(18),
+        [routine],
+      ),
+    ).toMatchObject({ task: { id: second.id }, routine: { step: 2, total: 2 } });
   });
 
   it("ordena varias anclas por hora fija", () => {
