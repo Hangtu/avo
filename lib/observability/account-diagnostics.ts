@@ -15,6 +15,7 @@ export type AccountStage =
   | "account.snapshot_version"
   | "account.tasks"
   | "account.pendings"
+  | "account.routines"
   | "account.preferences"
   | "account.write"
   | "request.parse";

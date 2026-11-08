@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as database from "@/lib/db/database";
-import { createPending, createTask, saveSettings } from "@/lib/db/repository";
+import { createPending, createRoutine, createTask, saveSettings } from "@/lib/db/repository";
 import { defaultSettings } from "@/lib/domain/validation";
 import { NOW, taskInput } from "@/tests/fixtures";
 import { setupTestDatabase } from "@/tests/database";
@@ -80,6 +80,28 @@ describe("consented guest incorporation — synthetic IndexedDB only", () => {
     expect(await guest.pendings.count()).toBe(1);
     expect(await guest.days.count()).toBe(1);
   });
+  it("remaps routine member Task IDs while importing routines with their definitions", async () => {
+    const guest = await source();
+    const target = await account();
+    const first = await createTask(guest, "guest:prepare", taskInput({ title: "Preparar comida" }), NOW);
+    const second = await createTask(guest, "guest:eat", taskInput({ title: "Comer" }), NOW + 1);
+    await createRoutine(
+      guest,
+      "guest:meal-routine",
+      { title: "Comida", taskIds: [first.id, second.id] },
+      NOW + 2,
+    );
+
+    expect(await importGuest(target, await guestPreview())).toEqual({ added: 3 });
+    const [routine] = await target.routines.toArray();
+    expect(routine?.id).not.toBe("guest:meal-routine");
+    expect(routine?.taskIds).toHaveLength(2);
+    expect(routine?.taskIds).not.toContain(first.id);
+    expect(routine?.taskIds).not.toContain(second.id);
+    for (const taskId of routine?.taskIds ?? []) expect(await target.tasks.get(taskId)).toBeDefined();
+    expect(await target.outbox.filter((item) => item.kind === "routine").count()).toBe(1);
+  });
+
   it("keeps existing account preferences rather than overwriting them with guest settings", async () => {
     const guest = await source(),
       target = await account();

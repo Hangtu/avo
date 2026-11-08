@@ -1,8 +1,9 @@
 import { assertTimestamp, clockMinutes, parseClockTime } from "./time";
-import { SOUND_KEYS, type PendingInput, type Settings, type TaskInput } from "./types";
+import { SOUND_KEYS, type PendingInput, type RoutineInput, type Settings, type TaskInput } from "./types";
 
 export const MAX_TITLE_LENGTH = 1024;
 export const MAX_CATEGORY_LENGTH = 256;
+export const MAX_ROUTINE_STEPS = 50;
 
 export class DomainError extends Error {
   constructor(
@@ -94,6 +95,24 @@ export function validateTaskInput(input: TaskInput, options: { allowEmptyDays?: 
     };
   }
   return normalized;
+}
+
+/** A routine is an ordered group; member definitions and their histories remain independent. */
+export function validateRoutineInput(input: RoutineInput): RoutineInput {
+  if (typeof input.title !== "string" || !input.title.trim() || input.title.length > MAX_TITLE_LENGTH) {
+    throw new DomainError("validation", "Escribe el nombre de la rutina.");
+  }
+  if (!Array.isArray(input.taskIds) || input.taskIds.length < 2 || input.taskIds.length > MAX_ROUTINE_STEPS) {
+    throw new DomainError("validation", "Elige entre 2 y 50 hábitos para la rutina.");
+  }
+  const taskIds = input.taskIds.map((id) => {
+    assertId(id);
+    return id;
+  });
+  if (new Set(taskIds).size !== taskIds.length) {
+    throw new DomainError("validation", "Un hábito no puede repetirse en la rutina.");
+  }
+  return { title: input.title.trim(), taskIds };
 }
 
 /** Title and integer minutes are the whole input for a one-off pending item. */

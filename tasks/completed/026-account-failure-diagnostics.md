@@ -1,6 +1,6 @@
-# 023 — Private account failure diagnostics
+# 026 — Private account failure diagnostics
 
-id: 023
+id: 026
 updated: 2026-11-07
 
 ## Goal
@@ -49,6 +49,8 @@ unidentified until real runtime evidence is available.
 - `docs/cloud/2026-11-07-account-diagnostics.md` — activation, fields, incident lookup and limitations.
 
 ## Decisions
+
+- 2026-11-07 — Owner explicitly approved reassignment from branch-local 023 to 026 during merge-conflict resolution; incoming 023 (unified task moments) keeps its identity. Historical diagnostic verification evidence remains unchanged.
 
 - 2026-11-07 — User authorizes implementation of diagnostic code and local automated tests. No remote requests or deployment authorized.
 - 2026-11-07 — Preserve the existing account HTTP contract rather than adopting the reference kit's alternative API/error schema. Local console JSON output only; no third-party analytics or services.

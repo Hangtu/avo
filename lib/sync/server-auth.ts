@@ -55,7 +55,10 @@ export async function verifiedAccount(request: Request, mutation = false): Promi
     throw new AccountHttpError(409, "account_changed");
   return session.user.id;
 }
-export const privateHeaders = { "Cache-Control": "private, no-store", Vary: "Cookie, X-Avo-Account" };
+export const privateHeaders = {
+  "Cache-Control": "private, no-store",
+  Vary: "Cookie, X-Avo-Account, X-Avo-Sync-Version",
+};
 
 /** One generic, non-cacheable error boundary for both account routes. */
 export function accountFailure(error: unknown): Response {

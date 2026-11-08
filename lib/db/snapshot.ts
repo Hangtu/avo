@@ -9,6 +9,7 @@ import type {
   Metadata,
   Occurrence,
   Pending,
+  Routine,
   RunoEvent,
   Session,
   Settings,
@@ -20,6 +21,7 @@ import { parseLocalDate } from "@/lib/domain/time";
 import {
   DomainError,
   validatePendingInput,
+  validateRoutineInput,
   validateSettings,
   validateTaskInput,
 } from "@/lib/domain/validation";
@@ -32,6 +34,7 @@ import {
   metadata as metadataTable,
   occurrences as occurrencesTable,
   pendings as pendingsTable,
+  routines as routinesTable,
   sessions as sessionsTable,
   settings as settingsTable,
   tasks as tasksTable,
@@ -129,6 +132,27 @@ function taskFrom(value: unknown): Task {
     createdAt: ms(raw.createdAt, "task.createdAt"),
     updatedAt: ms(raw.updatedAt, "task.updatedAt"),
     archivedAt: nullableMs(raw.archivedAt, "task.archivedAt"),
+  };
+}
+
+function routineFrom(value: unknown): Routine {
+  const raw = record(value, "routine");
+  let input;
+  try {
+    input = validateRoutineInput({
+      title: raw.title as string,
+      taskIds: raw.taskIds as string[],
+    });
+  } catch (error) {
+    if (error instanceof DomainError) throw new BackupError(error.message);
+    throw error;
+  }
+  return {
+    ...input,
+    id: text(raw.id, "routine.id"),
+    createdAt: ms(raw.createdAt, "routine.createdAt"),
+    updatedAt: ms(raw.updatedAt, "routine.updatedAt"),
+    archivedAt: nullableMs(raw.archivedAt, "routine.archivedAt"),
   };
 }
 
@@ -280,7 +304,7 @@ function metadataFrom(value: unknown): Metadata {
 /** Validate a complete snapshot before local import or use in migration fixtures. */
 export function parseBackupSnapshot(value: unknown): RunoSnapshot {
   const raw = record(value, "snapshot");
-  if (raw.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+  if (raw.schemaVersion !== 3 && raw.schemaVersion !== BACKUP_SCHEMA_VERSION) {
     throw new BackupError("La versión de la copia no es compatible.");
   }
   const settings = (() => {
@@ -292,10 +316,35 @@ export function parseBackupSnapshot(value: unknown): RunoSnapshot {
     }
   })();
 
+  const tasks = array(raw.tasks, "tasks").map(taskFrom);
+  const routines = raw.routines === undefined ? [] : array(raw.routines, "routines").map(routineFrom);
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const activeMembership = new Set<string>();
+  for (const routine of routines) {
+    const members = routine.taskIds.map((taskId) => taskById.get(taskId));
+    if (members.some((task) => !task))
+      throw new BackupError("Una rutina hace referencia a un hábito inexistente.");
+    if (routine.archivedAt !== null) continue;
+    const activeMembers = members.filter((task): task is Task => task !== undefined);
+    const first = activeMembers[0];
+    if (!first || activeMembers.some((task) => task.archivedAt !== null)) {
+      throw new BackupError("Una rutina activa no puede incluir hábitos archivados.");
+    }
+    if (activeMembers.some((task) => task.days.join(",") !== first.days.join(","))) {
+      throw new BackupError("Los hábitos de una rutina deben tener los mismos días.");
+    }
+    for (const taskId of routine.taskIds) {
+      if (activeMembership.has(taskId))
+        throw new BackupError("Un hábito no puede estar en más de una rutina.");
+      activeMembership.add(taskId);
+    }
+  }
+
   return {
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt: ms(raw.exportedAt, "snapshot.exportedAt"),
-    tasks: array(raw.tasks, "tasks").map(taskFrom),
+    tasks,
+    routines,
     pendings: array(raw.pendings, "pendings").map(pendingFrom),
     occurrences: array(raw.occurrences, "occurrences").map(occurrenceFrom),
     days: array(raw.days, "days").map(dayFrom),
@@ -309,6 +358,7 @@ export function parseBackupSnapshot(value: unknown): RunoSnapshot {
 }
 
 type TaskInsert = InferInsertModel<typeof tasksTable>;
+type RoutineInsert = InferInsertModel<typeof routinesTable>;
 type PendingInsert = InferInsertModel<typeof pendingsTable>;
 type DayInsert = InferInsertModel<typeof daysTable>;
 type HandInsert = InferInsertModel<typeof handsTable>;
@@ -324,6 +374,7 @@ type UserInsert = InferInsertModel<typeof usersTable>;
 export interface SnapshotRows {
   user: UserInsert;
   tasks: TaskInsert[];
+  routines: RoutineInsert[];
   pendings: PendingInsert[];
   days: DayInsert[];
   hands: HandInsert[];
@@ -357,6 +408,15 @@ export function rowsForSnapshot(snapshot: RunoSnapshot, ownerId: string, timeZon
     archivedAt: instant(task.archivedAt),
     createdAt: instant(task.createdAt)!,
     updatedAt: instant(task.updatedAt)!,
+  }));
+  const routines: RoutineInsert[] = snapshot.routines.map((routine) => ({
+    id: routine.id,
+    userId: ownerId,
+    title: routine.title,
+    taskIds: routine.taskIds,
+    archivedAt: instant(routine.archivedAt),
+    createdAt: instant(routine.createdAt)!,
+    updatedAt: instant(routine.updatedAt)!,
   }));
   const pendings: PendingInsert[] = snapshot.pendings.map((pending) => ({
     id: pending.id,
@@ -483,6 +543,7 @@ export function rowsForSnapshot(snapshot: RunoSnapshot, ownerId: string, timeZon
   return {
     user: { id: ownerId, timeZone },
     tasks,
+    routines,
     pendings,
     days,
     hands,

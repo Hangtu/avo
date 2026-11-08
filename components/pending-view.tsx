@@ -16,6 +16,7 @@ import {
   deletePending,
   listPendings,
   restorePending,
+  updatePending,
 } from "@/lib/db/repository";
 import type { Pending } from "@/lib/domain/types";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -51,6 +52,7 @@ export function PendingView({
   const toastManager = Toast.useToastManager();
   const [items, setItems] = useState<Pending[]>([]);
   const [showComposer, setShowComposer] = useState(focusComposer > 0);
+  const [editingPending, setEditingPending] = useState<Pending | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export function PendingView({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const minutesRef = useRef<HTMLInputElement>(null);
+  const menuTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
   const addingRef = useRef(false);
   const actionBusyRef = useRef(false);
 
@@ -110,16 +113,34 @@ export function PendingView({
   }, [focusComposer]);
 
   function openComposer() {
+    setEditingPending(null);
     setShowComposer(true);
     setActionError(null);
     requestAnimationFrame(() => titleRef.current?.focus());
   }
 
+  function openEditor(pending: Pending) {
+    setMenuOpenId(null);
+    setEditingPending(pending);
+    setTitle(pending.title);
+    setMinutes(String(pending.durationMin));
+    setFormErrors({});
+    setActionError(null);
+    setShowComposer(true);
+    requestAnimationFrame(() => titleRef.current?.focus());
+  }
+
   function closeComposer() {
+    const pendingId = editingPending?.id;
     setShowComposer(false);
+    setEditingPending(null);
     setTitle("");
     setMinutes("25");
     setFormErrors({});
+    setActionError(null);
+    if (pendingId) {
+      requestAnimationFrame(() => menuTriggerRefs.current.get(pendingId)?.focus());
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -143,22 +164,29 @@ export function PendingView({
     try {
       const db = await openDatabase();
       try {
-        const pending = await createPending(
-          db,
-          newPendingId(),
-          { title: cleanTitle, durationMin: value },
-          Date.now(),
+        const pending = editingPending
+          ? await updatePending(db, editingPending.id, { title: cleanTitle, durationMin: value }, Date.now())
+          : await createPending(db, newPendingId(), { title: cleanTitle, durationMin: value }, Date.now());
+        setItems((previous) =>
+          editingPending
+            ? previous.map((item) => (item.id === pending.id ? pending : item))
+            : [pending, ...previous],
         );
-        setItems((previous) => [pending, ...previous]);
         setTitle("");
         setMinutes("25");
         setShowComposer(false);
-        toastManager.add({ title: persistence("localAdded"), type: "success", timeout: 3500 });
+        if (editingPending) {
+          setEditingPending(null);
+          requestAnimationFrame(() => menuTriggerRefs.current.get(pending.id)?.focus());
+          toastManager.add({ title: t("updated"), type: "success", timeout: 3500 });
+        } else {
+          toastManager.add({ title: persistence("localAdded"), type: "success", timeout: 3500 });
+        }
       } finally {
         db.close();
       }
     } catch (error) {
-      console.error("No se pudo agregar el pendiente", error);
+      console.error("No se pudo guardar el pendiente", error);
       setActionError(errors("savePending"));
     } finally {
       addingRef.current = false;
@@ -298,6 +326,11 @@ export function PendingView({
 
       {showComposer ? (
         <Form noValidate errors={formErrors} onSubmit={submit} className="mt-7 border-y border-line py-5">
+          {editingPending ? (
+            <h3 id="pending-editor-title" className="mb-4 text-lg font-semibold">
+              {t("editTitle")}
+            </h3>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
             <Field.Root name="title" className="form-field min-w-0">
               <Field.Label className="form-label">{t("what")}</Field.Label>
@@ -379,7 +412,7 @@ export function PendingView({
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
               transition={{ duration: 0.12 }}
             >
-              {adding ? t("saving") : t("add")}
+              {adding ? t("saving") : editingPending ? t("saveChanges") : t("add")}
             </motion.button>
           </div>
         </Form>
@@ -444,7 +477,7 @@ export function PendingView({
                     <motion.button
                       type="button"
                       onClick={() => void start(pending)}
-                      disabled={busyId !== null}
+                      disabled={busyId !== null || editingPending !== null}
                       className="min-h-11 rounded-none bg-foreground px-5 text-sm font-semibold text-background disabled:opacity-60"
                       whileTap={reduceMotion ? undefined : { scale: 0.98 }}
                       transition={{ duration: 0.12 }}
@@ -456,9 +489,13 @@ export function PendingView({
                       onOpenChange={(open) => setMenuOpenId(open ? pending.id : null)}
                     >
                       <Menu.Trigger
+                        ref={(element: HTMLButtonElement | null) => {
+                          if (element) menuTriggerRefs.current.set(pending.id, element);
+                          else menuTriggerRefs.current.delete(pending.id);
+                        }}
                         type="button"
                         className="first-more"
-                        disabled={busyId !== null}
+                        disabled={busyId !== null || editingPending !== null}
                         aria-label={common("moreOptions")}
                       >
                         ⋯
@@ -466,6 +503,13 @@ export function PendingView({
                       <Menu.Portal>
                         <Menu.Positioner className="first-menu-positioner" sideOffset={8} align="end">
                           <Menu.Popup className="first-menu">
+                            <Menu.Item
+                              className="first-menu-item"
+                              disabled={busyId !== null}
+                              onClick={() => openEditor(pending)}
+                            >
+                              {t("edit")}
+                            </Menu.Item>
                             <Menu.Item
                               className="first-menu-item"
                               disabled={busyId !== null}

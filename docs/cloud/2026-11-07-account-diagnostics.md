@@ -1,6 +1,6 @@
 # Private account failure diagnostics
 
-Task: [023](../../tasks/completed/023-account-failure-diagnostics.md).
+Task: [026](../../tasks/completed/026-account-failure-diagnostics.md).
 
 ## Purpose and activation
 
@@ -67,7 +67,8 @@ missing or which database the deployment is using. Those are separate facts.
   - `session.read`: Better Auth session lookup.
   - `account.read`: read transaction, including transaction acquisition/commit.
   - Nested `account.owner`, `account.snapshot_version`, `account.tasks`,
-    `account.pendings`, `account.preferences`: linking, ETag aggregates and rows.
+    `account.pendings`, `account.routines`, `account.preferences`: linking, ETag
+    aggregates and rows. Routine reads occur only for protocol v2; v1 stays compatible.
   - `account.write`: existing mutation transaction; no additional writes/retries.
   - `request.parse`: streamed POST body parsing.
   - `request`: an unexpected boundary error outside an annotated stage.
@@ -112,11 +113,13 @@ underlying production incident has been identified/fixed.
 - Route tests inject failures in IP limiter, session, account limiter, reads,
   writes and probe; verify ID correlation, no sensitive output and unchanged
   expected errors/private caching/ETag behavior and framework control-flow rethrows.
+  Merge regression coverage preserves protocol v1/v2 negotiation and conditional
+  reads, v2 routine writes, and read/write diagnostic correlation in both versions.
 - Diagnostic unit tests cover nested/aggregate causes, exact timeout signals,
   unknown/hostile errors, bounded traversal, monotonic timing, concurrent requests
   and recovered/reused error attribution.
 - Isolated PGlite integration tests use actual SQL errors to distinguish owner,
-  snapshot and individual collection failures, missing limiter storage, and
+  snapshot and individual collection failures (including v2 routines), missing limiter storage, and
   cleanup rejection. Schema perturbations/triggers exist only inside the
   disposable in-memory test database; no project migrations are modified.
 - Full project checks/build use synthetic configuration. An automated isolated

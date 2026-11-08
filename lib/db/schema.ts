@@ -21,8 +21,8 @@ import type { TaskOrder } from "@/lib/domain/task-order";
 import { authUsers } from "./auth-schema";
 
 /**
- * Server-side Postgres schema. Account sync exposes only tasks, pendings and
- * portable settings; runtime tables remain legacy-compatible, not synchronized.
+ * Server-side Postgres schema. Account sync exposes tasks, routines, pendings
+ * and portable settings; runtime tables remain legacy-compatible, not synchronized.
  * IndexedDB is the operational layer offline. Composite domain IDs and legacy
  * event/ledger identities are preserved without distributing owner data.
  */
@@ -174,6 +174,29 @@ export const tasks = pgTable(
       "runo_tasks_short_step",
       sql`(${table.shortStepTitle} is null and ${table.shortStepDurationMin} is null) or (${table.shortStepTitle} is not null and ${table.shortStepDurationMin} is not null and ${table.shortStepDurationMin} > 0 and ${table.shortStepDurationMin} < ${table.durationMin})`,
     ),
+  ],
+);
+
+export const routines = pgTable(
+  "runo_routines",
+  {
+    id: text("id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    taskIds: text("task_ids").array().notNull(),
+    archivedAt: timestampColumn("archived_at"),
+    revision: integer("revision").notNull().default(1),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
+    index("runo_routines_user_created_idx").on(table.userId, table.createdAt),
+    check("runo_routines_revision", sql`${table.revision} > 0`),
+    check("runo_routines_title", sql`length(trim(${table.title})) between 1 and 1024`),
+    check("runo_routines_task_ids", sql`cardinality(${table.taskIds}) between 2 and 50`),
   ],
 );
 
@@ -422,6 +445,7 @@ export const metadata = pgTable(
 
 export type UserRow = typeof users.$inferSelect;
 export type TaskRow = typeof tasks.$inferSelect;
+export type RoutineRow = typeof routines.$inferSelect;
 export type PendingRow = typeof pendings.$inferSelect;
 export type OccurrenceRow = typeof occurrences.$inferSelect;
 export type DayRow = typeof days.$inferSelect;

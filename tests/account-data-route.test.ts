@@ -52,8 +52,8 @@ beforeEach(() => {
   mocks.session.mockResolvedValue({
     user: { id: "auth-A", name: "Synthetic", email: "synthetic@example.test" },
   });
-  mocks.read.mockImplementation(async (_db, accountId, previous) => ({
-    version: 1,
+  mocks.read.mockImplementation(async (_db, accountId, previous, version = 1) => ({
+    version,
     accountId,
     records: [],
     etag: '"synthetic-snapshot"',
@@ -72,8 +72,94 @@ describe("private account API — mocked session/DB, no external services", () =
     expect(mocks.session).toHaveBeenCalledWith(
       expect.objectContaining({ query: { disableCookieCache: true } }),
     );
-    expect(mocks.read).toHaveBeenCalledWith({}, "auth-A", undefined);
+    expect(mocks.read).toHaveBeenCalledWith({}, "auth-A", undefined, 1);
   });
+  it("negotiates the v2 bootstrap explicitly while preserving v1 as the default", async () => {
+    const response = await GET(req("GET", undefined, { "x-avo-sync-version": "2" }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ version: 2, accountId: "auth-A" });
+    expect(mocks.read).toHaveBeenCalledWith({}, "auth-A", undefined, 2);
+  });
+  it("keeps v2 routine writes versioned, private and correlated while rejecting them in v1", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const routine = {
+      operationId: crypto.randomUUID(),
+      kind: "routine",
+      id: "meal",
+      baseRevision: 0,
+      value: {
+        id: "meal",
+        title: "Meal",
+        taskIds: ["prepare", "eat"],
+        createdAt: NOW,
+        updatedAt: NOW,
+        archivedAt: null,
+      },
+    };
+    const rejected = await POST(req("POST", { version: 1, mutations: [routine] }));
+    expect(rejected.status).toBe(400);
+    expect(mocks.mutate).not.toHaveBeenCalled();
+    const accepted = await POST(req("POST", { version: 2, mutations: [routine] }));
+    expect(accepted.status).toBe(200);
+    expect(await accepted.json()).toEqual({ version: 2, accountId: "auth-A", results: [] });
+    expect(mocks.mutate).toHaveBeenCalledWith({}, "auth-A", [routine], 2);
+    expect(accepted.headers.get("cache-control")).toBe("private, no-store");
+    expect(accepted.headers.get("vary")).toContain("X-Avo-Sync-Version");
+    expect(accepted.headers.get("x-request-id")).toMatch(/^[a-f\d-]{36}$/);
+    expect(console.error).not.toHaveBeenCalled();
+  });
+  it("preserves v2 conditional reads and rejects unsupported versions without outage logs", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const response = await GET(
+      req("GET", undefined, {
+        "x-avo-sync-version": "2",
+        "if-none-match": '"synthetic-snapshot"',
+      }),
+    );
+    expect(response.status).toBe(304);
+    expect(mocks.read).toHaveBeenCalledWith({}, "auth-A", '"synthetic-snapshot"', 2);
+    expect(response.headers.get("x-request-id")).toMatch(/^[a-f\d-]{36}$/);
+    expect(response.headers.get("vary")).toContain("X-Avo-Sync-Version");
+    mocks.read.mockClear();
+    expect((await GET(req("GET", undefined, { "x-avo-sync-version": "3" }))).status).toBe(400);
+    expect((await POST(req("POST", { version: 3, mutations: [mutation()] }))).status).toBe(400);
+    expect(mocks.read).not.toHaveBeenCalled();
+    expect(mocks.mutate).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
+  });
+  it.each([1, 2] as const)(
+    "retains automatic read/write failure diagnostics for protocol v%s",
+    async (version) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const error = Object.assign(new Error("synthetic-private-v2-query"), { code: "42703" });
+      mocks.read.mockRejectedValueOnce(error);
+      const read = await GET(req("GET", undefined, { "x-avo-sync-version": String(version) }));
+      mocks.mutate.mockRejectedValueOnce(error);
+      const write = await POST(req("POST", { version, mutations: [mutation()] }));
+      for (const response of [read, write]) {
+        expect(response.status).toBe(503);
+        expect(await response.json()).toEqual({ error: "temporarily_unavailable" });
+      }
+      expect(console.error).toHaveBeenCalledTimes(2);
+      const events = vi.mocked(console.error).mock.calls.map(([line]) => JSON.parse(line as string));
+      expect(events).toEqual([
+        expect.objectContaining({
+          operation: "account.data.get",
+          stage: "account.read",
+          errorCodes: ["42703"],
+          requestId: read.headers.get("x-request-id"),
+        }),
+        expect.objectContaining({
+          operation: "account.data.post",
+          stage: "account.write",
+          errorCodes: ["42703"],
+          requestId: write.headers.get("x-request-id"),
+        }),
+      ]);
+      expect(JSON.stringify(events)).not.toContain("synthetic-private");
+      expect(read.headers.get("x-request-id")).not.toBe(write.headers.get("x-request-id"));
+    },
+  );
   it("uses a private ETag and returns 304 only after authenticating the same account", async () => {
     const first = await GET(req());
     const etag = first.headers.get("etag");
@@ -176,7 +262,7 @@ describe("private account API — mocked session/DB, no external services", () =
     const original = mutation();
     const response = await POST(req("POST", { version: 1, mutations: [original] }));
     expect(response.status).toBe(200);
-    expect(mocks.mutate).toHaveBeenCalledWith({}, "auth-A", [original]);
+    expect(mocks.mutate).toHaveBeenCalledWith({}, "auth-A", [original], 1);
     expect(response.headers.get("cache-control")).toContain("no-store");
   });
   it("throttles anonymous requests before checking the session", async () => {

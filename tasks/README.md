@@ -5,11 +5,14 @@ Git and linked archives preserve history.
 
 ## Current focus
 
-None.
+- [027 — Resolve diagnostics and routine-sync merge](active/027-resolve-diagnostics-routine-merge.md) — Preserve both features, verify the combined tree, commit and push the approved merge.
 
 ## Backlog (in priority order)
 
+- [024 — Sequential routines](backlog/024-sequential-routines.md) — Routine flow and simplified Today task menu verified locally; owner device acceptance pending.
 
+- [023 — Unify task moments](backlog/023-unify-task-moments.md) — Owner's actual-browser/device visual acceptance remains pending.
+- [025 — Edit pending items](backlog/025-edit-pending-items.md) — Owner's actual-browser/device visual acceptance is still pending.
 - [017 — Continuous liquid background](backlog/017-continuous-liquid-background.md) — Corrected and locally verified; owner acceptance with fresh dev assets pending.
 - [003 — E4.2 selective account sync](backlog/003-e4-2-selective-account-sync.md) — owner review and recovery in another browser, after local hardening 011/012.
 - [004 — E4.1 real provider sessions](backlog/004-e4-1-real-provider-sessions.md) — real Google session/logout and deployed-environment check.
@@ -43,7 +46,7 @@ The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
 
-Next id: **024** (IDs 008–010 remain retired; no IDs are reused; all IDs through 023 have been assigned).
+Next id: **028** (IDs 008–010 remain retired; all IDs through 027 are assigned. Diagnostics was reassigned from branch-local 023 to 026 with owner approval during the merge).
 
 ## Board conventions
 

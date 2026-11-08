@@ -677,7 +677,6 @@ body > * {
   margin-top: 2rem;
 }
 
-.first-secondary,
 .first-more,
 .first-back {
   border: 0;
@@ -1252,10 +1251,6 @@ body > * {
 
   .peek-front .first-start-icon {
     display: none;
-  }
-
-  .peek-front .first-secondary {
-    max-width: 4rem;
   }
 }
 

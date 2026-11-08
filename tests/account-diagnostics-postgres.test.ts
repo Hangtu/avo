@@ -51,17 +51,19 @@ async function diagnose(work: () => Promise<unknown>) {
 
 describe("diagnostics with real SQL errors — isolated in-memory PGlite, no Neon", () => {
   it.each([
-    ["runo_users", "auth_user_id", "account.owner"],
-    ["runo_tasks", "revision", "account.snapshot_version"],
-    ["runo_tasks", "title", "account.tasks"],
-    ["runo_pendings", "title", "account.pendings"],
-    ["runo_settings", "audio_enabled", "account.preferences"],
-  ] as const)("identifies %s.%s failures at %s", async (table, column, stage) => {
+    ["runo_users", "auth_user_id", "account.owner", 1],
+    ["runo_tasks", "revision", "account.snapshot_version", 1],
+    ["runo_tasks", "title", "account.tasks", 1],
+    ["runo_pendings", "title", "account.pendings", 1],
+    ["runo_settings", "audio_enabled", "account.preferences", 1],
+    ["runo_routines", "revision", "account.snapshot_version", 2],
+    ["runo_routines", "title", "account.routines", 2],
+  ] as const)("identifies %s.%s failures at %s with protocol v%s", async (table, column, stage, version) => {
     // Fixed test literals only; these mutations affect this disposable PGlite instance.
     await pg.exec(`alter table ${table} rename column ${column} to diagnostics_hidden_column`);
     try {
       const event = await diagnose(() =>
-        accountStage("account.read", () => readAccountData(database, authId)),
+        accountStage("account.read", () => readAccountData(database, authId, undefined, version)),
       );
       expect(event).toMatchObject({ stage, stagePath: ["account.read", stage], errorCodes: ["42703"] });
     } finally {

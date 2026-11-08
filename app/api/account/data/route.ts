@@ -11,12 +11,20 @@ import {
   validMutation,
 } from "@/lib/sync/protocol";
 
+function syncVersion(request: Request): 1 | 2 {
+  const value = request.headers.get("x-avo-sync-version");
+  if (value === null || value === "1") return 1;
+  if (value === "2") return 2;
+  throw new ProtocolError("invalid_version");
+}
+
 export async function GET(request: Request) {
   return withAccountDiagnostics("account.data.get", async () => {
     try {
       const accountId = await verifiedAccount(request);
+      const version = syncVersion(request);
       const data = await accountStage("account.read", () =>
-        readAccountData(db, accountId, request.headers.get("if-none-match") ?? undefined),
+        readAccountData(db, accountId, request.headers.get("if-none-match") ?? undefined, version),
       );
       const headers = { ...privateHeaders, ETag: data.etag };
       if (data.notModified) return new Response(null, { status: 304, headers });
@@ -58,15 +66,16 @@ export async function POST(request: Request) {
     try {
       const accountId = await verifiedAccount(request, true);
       const raw = object(await accountStage("request.parse", () => boundedJSON(request)));
+      const version = raw.version;
       if (
         Object.keys(raw).some((key) => !["version", "mutations"].includes(key)) ||
-        raw.version !== 1 ||
+        (version !== 1 && version !== 2) ||
         !Array.isArray(raw.mutations) ||
         raw.mutations.length < 1 ||
         raw.mutations.length > MAX_BATCH
       )
         throw new ProtocolError("invalid_batch");
-      const mutations = raw.mutations.map(validMutation);
+      const mutations = raw.mutations.map((mutation) => validMutation(mutation, version));
       if (
         new Set(mutations.map((row) => entityKey(row.kind, row.id))).size !== mutations.length ||
         new Set(mutations.map((row) => row.operationId)).size !== mutations.length
@@ -74,9 +83,11 @@ export async function POST(request: Request) {
         throw new ProtocolError("duplicate_mutation");
       return Response.json(
         {
-          version: 1,
+          version,
           accountId,
-          results: await accountStage("account.write", () => mutateAccountData(db, accountId, mutations)),
+          results: await accountStage("account.write", () =>
+            mutateAccountData(db, accountId, mutations, version),
+          ),
         },
         { headers: privateHeaders },
       );

@@ -25,9 +25,10 @@ export function accountSnapshot(label: string): RunoSnapshot {
     updatedAt: NOW,
   });
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     exportedAt: NOW,
     tasks: [task],
+    routines: [],
     pendings: [
       {
         id: "pending:same",

@@ -36,16 +36,21 @@ import { activeStorageKey, currentDatabaseName, openDatabase, type RunoDatabase 
 import { writePreferences } from "@/lib/sync/preference-writer";
 import { useWorkspace } from "./workspace-context";
 import {
+  archiveRoutine,
   archiveTask,
+  createRoutine,
   createTasks,
-  createTask,
+  listRoutines,
   listTasks,
   reactivateOccurrence,
   restoreArchivedTask,
+  updateRoutine,
   updateTask,
+  updateTaskWithCopies,
 } from "@/lib/db/repository";
 import { BLOCK_RANGES, blockForTime, taskTime, windowPreset, type BlockKey } from "@/lib/domain/schedule";
 import { isMissedOccurrence } from "@/lib/domain/selection";
+import { DomainError, MAX_ROUTINE_STEPS } from "@/lib/domain/validation";
 import {
   buildTaskOrder,
   reorderTaskOrder,
@@ -53,7 +58,7 @@ import {
   type TaskOrder,
 } from "@/lib/domain/task-order";
 import { toLocalDate, weekdayOf, type ClockTime, type Weekday } from "@/lib/domain/time";
-import type { Occurrence, Task, TaskInput } from "@/lib/domain/types";
+import type { Occurrence, Routine, Task, TaskInput } from "@/lib/domain/types";
 
 const WEEKDAYS = [
   { value: 1, short: "daysShort.mon", full: "daysFull.mon" },
@@ -76,6 +81,10 @@ const BLOCKS = [
   { value: "afternoon", labelKey: "blocks.afternoon" },
   { value: "night", labelKey: "blocks.night" },
 ] as const;
+
+function isBlockKey(value: string): value is BlockKey {
+  return BLOCKS.some((block) => block.value === value);
+}
 
 const DRAFT_KEY = "runo:task-editor-draft:v1";
 const CLOSED_SECTIONS_KEY = "runo:task-editor-closed-sections:v1";
@@ -138,6 +147,14 @@ function emptyForm(): FormState {
   };
 }
 
+function sameWeekdays(left: readonly Weekday[], right: readonly Weekday[]): boolean {
+  const leftSorted = [...left].sort((a, b) => a - b);
+  const rightSorted = [...right].sort((a, b) => a - b);
+  return (
+    leftSorted.length === rightSorted.length && leftSorted.every((day, index) => day === rightSorted[index])
+  );
+}
+
 function formFromTask(task: Task): FormState {
   return {
     id: task.id,
@@ -188,13 +205,19 @@ function newId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+interface RoutineDraft {
+  id: string | null;
+  anchorTaskId: string;
+  title: string;
+  taskIds: string[];
+}
+
 interface EditorDraft {
   form: FormState;
   categoryMode: "existing" | "new";
   customWindow: boolean;
   newBlocks: BlockKey[];
   newCustom: boolean;
-  copiedBlocks: BlockKey[];
   selectedDay: Weekday;
 }
 
@@ -212,7 +235,6 @@ function readDraft(): EditorDraft | null {
       customWindow: draft.customWindow === true,
       newBlocks: Array.isArray(draft.newBlocks) ? draft.newBlocks : [],
       newCustom: draft.newCustom === true,
-      copiedBlocks: Array.isArray(draft.copiedBlocks) ? draft.copiedBlocks : [],
       selectedDay:
         typeof draft.selectedDay === "number"
           ? (draft.selectedDay as Weekday)
@@ -348,11 +370,15 @@ function GripIcon() {
 
 interface TaskRowProps {
   task: Task;
+  routine?: Routine;
+  canConvertToRoutine: boolean;
   occurrence: Occurrence | undefined;
   now: number;
   menuTaskId: string | null;
   onMenuChange: (taskId: string | null) => void;
   onEdit: (task: Task) => void;
+  onConvertToRoutine: (task: Task) => void;
+  onEditRoutine: (routine: Routine) => void;
   onDelete: (task: Task) => void;
   onReactivate: (task: Task, occurrence: Occurrence) => void;
   reactivatingId: string | null;
@@ -360,11 +386,15 @@ interface TaskRowProps {
 
 function TaskRow({
   task,
+  routine,
+  canConvertToRoutine,
   occurrence,
   now,
   menuTaskId,
   onMenuChange,
   onEdit,
+  onConvertToRoutine,
+  onEditRoutine,
   onDelete,
   onReactivate,
   reactivatingId,
@@ -412,6 +442,14 @@ function TaskRow({
               <span>
                 {time ?? t("list.noTime")} · {common("minutes", { count: task.durationMin })}
               </span>
+              {routine ? (
+                <span className="text-xs font-semibold text-muted">
+                  {t("routine.stepShort", {
+                    step: routine.taskIds.indexOf(task.id) + 1,
+                    total: routine.taskIds.length,
+                  })}
+                </span>
+              ) : null}
               {done ? (
                 <span className="task-done-badge">
                   <DoneCheck />
@@ -448,6 +486,27 @@ function TaskRow({
                 >
                   {t("edit")}
                 </Menu.Item>
+                {routine ? (
+                  <Menu.Item
+                    className="first-menu-item"
+                    onClick={() => {
+                      onMenuChange(null);
+                      onEditRoutine(routine);
+                    }}
+                  >
+                    {t("routine.edit")}
+                  </Menu.Item>
+                ) : canConvertToRoutine ? (
+                  <Menu.Item
+                    className="first-menu-item"
+                    onClick={() => {
+                      onMenuChange(null);
+                      onConvertToRoutine(task);
+                    }}
+                  >
+                    {t("routine.convert")}
+                  </Menu.Item>
+                ) : null}
                 {resolved && occurrence ? (
                   <Menu.Item
                     className="first-menu-item"
@@ -460,15 +519,86 @@ function TaskRow({
                     {t("list.reactivate")}
                   </Menu.Item>
                 ) : null}
-                <Menu.Item
-                  className="first-menu-item"
-                  onClick={() => {
-                    onMenuChange(null);
-                    onDelete(task);
-                  }}
-                >
-                  {t("list.delete")}
-                </Menu.Item>
+                {!routine ? (
+                  <Menu.Item
+                    className="first-menu-item"
+                    onClick={() => {
+                      onMenuChange(null);
+                      onDelete(task);
+                    }}
+                  >
+                    {t("list.delete")}
+                  </Menu.Item>
+                ) : null}
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
+      </div>
+    </li>
+  );
+}
+
+function RoutineOrderRow({
+  task,
+  step,
+  total,
+  onMove,
+}: {
+  task: Task;
+  step: number;
+  total: number;
+  onMove: (offset: -1 | 1) => void;
+}) {
+  const t = useTranslations("editor");
+  const reduceMotion = useReducedMotion();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: reduceMotion ? undefined : transition,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`border-b border-line${isDragging ? " task-row-dragging" : ""}`}
+    >
+      <div className="task-row-main flex min-h-14 items-center gap-2 py-3">
+        <button
+          type="button"
+          className="task-grip shrink-0"
+          {...attributes}
+          {...listeners}
+          aria-label={t("list.dragHandle")}
+        >
+          <GripIcon />
+        </button>
+        <span className="w-7 shrink-0 text-sm tabular-nums text-muted">{step}.</span>
+        <span className="min-w-0 flex-1 text-sm font-semibold">{task.title}</span>
+        <Menu.Root>
+          <Menu.Trigger
+            type="button"
+            className="first-more task-row-menu shrink-0"
+            aria-label={t("routine.orderOptions", { name: task.title })}
+          >
+            ⋯
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner className="first-menu-positioner" sideOffset={8} align="end">
+              <Menu.Popup className="first-menu">
+                {step > 1 ? (
+                  <Menu.Item className="first-menu-item" onClick={() => onMove(-1)}>
+                    {t("routine.moveUp", { name: task.title })}
+                  </Menu.Item>
+                ) : null}
+                {step < total ? (
+                  <Menu.Item className="first-menu-item" onClick={() => onMove(1)}>
+                    {t("routine.moveDown", { name: task.title })}
+                  </Menu.Item>
+                ) : null}
               </Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>
@@ -482,10 +612,14 @@ function SortableTaskList({
   tasks,
   renderTask,
   onReorder,
+  ordered = false,
+  ariaLabel,
 }: {
   tasks: readonly Task[];
   renderTask: (task: Task) => ReactNode;
   onReorder: (activeId: string, overId: string, visibleIds: string[]) => void;
+  ordered?: boolean;
+  ariaLabel?: string;
 }) {
   const t = useTranslations("editor");
   const sensors = useSensors(
@@ -493,6 +627,7 @@ function SortableTaskList({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const ids = tasks.map((task) => task.id);
+  const rows = tasks.map(renderTask);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -510,7 +645,15 @@ function SortableTaskList({
       }}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <ul className="task-list">{tasks.map(renderTask)}</ul>
+        {ordered ? (
+          <ol className="task-list" aria-label={ariaLabel}>
+            {rows}
+          </ol>
+        ) : (
+          <ul className="task-list" aria-label={ariaLabel}>
+            {rows}
+          </ul>
+        )}
       </SortableContext>
     </DndContext>
   );
@@ -522,6 +665,10 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const toast = useTranslations("toast");
   const toastManager = Toast.useToastManager();
   const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [routines, setRoutines] = useState<Routine[] | null>(null);
+  const [routineDraft, setRoutineDraft] = useState<RoutineDraft | null>(null);
+  const [routineError, setRoutineError] = useState<string | null>(null);
+  const [routineSaving, setRoutineSaving] = useState(false);
   const [todayOccurrences, setTodayOccurrences] = useState<Occurrence[]>([]);
   const [today] = useState(() => toLocalDate(Date.now()));
   const [now, setNow] = useState(() => Date.now());
@@ -537,8 +684,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [customWindow, setCustomWindow] = useState(false);
   const [newBlocks, setNewBlocks] = useState<BlockKey[]>([]);
   const [newCustom, setNewCustom] = useState(false);
-  const [copiedBlocks, setCopiedBlocks] = useState<BlockKey[]>([]);
-  const [duplicateBlock, setDuplicateBlock] = useState<BlockKey | null>(null);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -558,7 +703,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   const [taskOrderStorageKey] = useState(() => activeStorageKey(TASK_ORDER_KEY));
   const orderRef = useRef(taskOrder);
   const { revision, preferences } = useWorkspace();
-  const retryBatch = useRef<{ signature: string; ids: string[] } | null>(null);
+  const retryBatch = useRef<{ signature: string; ids: string[]; actionId?: string } | null>(null);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -566,8 +711,8 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       clearDraft();
       return;
     }
-    writeDraft({ form, categoryMode, customWindow, newBlocks, newCustom, copiedBlocks, selectedDay });
-  }, [draftReady, form, categoryMode, customWindow, newBlocks, newCustom, copiedBlocks, selectedDay]);
+    writeDraft({ form, categoryMode, customWindow, newBlocks, newCustom, selectedDay });
+  }, [draftReady, form, categoryMode, customWindow, newBlocks, newCustom, selectedDay]);
 
   useEffect(() => {
     writeClosedSections(closedSections);
@@ -610,8 +755,9 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     async function load() {
       try {
         db = await openDatabase();
-        const [list, dayOccurrences] = await Promise.all([
+        const [list, groups, dayOccurrences] = await Promise.all([
           listTasks(db, true),
+          listRoutines(db),
           db.occurrences.where("date").equals(today).toArray(),
         ]);
         if (!cancelled) {
@@ -627,13 +773,13 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                 setCustomWindow(draft.customWindow);
                 setNewBlocks(draft.newBlocks);
                 setNewCustom(draft.newCustom);
-                setCopiedBlocks(draft.copiedBlocks);
                 setSelectedDay(draft.selectedDay);
               }
             }
             setDraftReady(true);
           }
           setTasks(list);
+          setRoutines(groups);
           setTodayOccurrences(dayOccurrences);
           setNow(Date.now());
           setLoadError(null);
@@ -642,12 +788,15 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             if (target) {
               openedInitialTask.current = true;
               retryBatch.current = null;
+              const targetForm = formFromTask(target);
+              const targetBlock = targetForm.useWindow
+                ? windowPreset(targetForm.windowStart, targetForm.windowEnd)
+                : "any";
               setCategoryMode("existing");
-              setCustomWindow(false);
-              setNewBlocks([]);
+              setCustomWindow(targetBlock === "custom");
+              setNewBlocks(isBlockKey(targetBlock) ? [targetBlock] : []);
               setNewCustom(false);
-              setCopiedBlocks([]);
-              setForm(formFromTask(target));
+              setForm(targetForm);
             }
           }
         }
@@ -688,7 +837,6 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     setCustomWindow(false);
     setNewBlocks([]);
     setNewCustom(false);
-    setCopiedBlocks([]);
     setForm(next);
   }
 
@@ -699,10 +847,12 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     retryBatch.current = null;
     setCategoryMode("existing");
     setCustomWindow(false);
-    setNewBlocks([]);
+    const taskForm = formFromTask(task);
+    const block = taskForm.useWindow ? windowPreset(taskForm.windowStart, taskForm.windowEnd) : "any";
+    setNewBlocks(isBlockKey(block) ? [block] : []);
     setNewCustom(false);
-    setCopiedBlocks([]);
-    setForm(formFromTask(task));
+    setCustomWindow(block === "custom");
+    setForm(taskForm);
   }
 
   function patch(changes: Partial<FormState>) {
@@ -760,49 +910,15 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   function chooseNewAny() {
     setNewBlocks([]);
     setNewCustom(false);
+    setCustomWindow(false);
     patch({ useWindow: false });
   }
 
   function chooseNewCustom() {
     setNewBlocks([]);
     setNewCustom(true);
+    setCustomWindow(true);
     patch({ useWindow: true });
-  }
-
-  async function duplicateInto(block: BlockKey) {
-    if (!form?.id || duplicateBlock || copiedBlocks.includes(block) || saving) return;
-    setDuplicateBlock(block);
-    setNotice(null);
-    try {
-      const db = await openDatabase();
-      try {
-        const range = BLOCK_RANGES[block];
-        const input = toInput({
-          ...form,
-          useWindow: true,
-          windowStart: range.start,
-          windowEnd: range.end,
-          useFixedTime: false,
-        });
-        await createTask(db, `task:${newId()}`, input, Date.now());
-      } finally {
-        db.close();
-      }
-      setCopiedBlocks((current) => [...current, block]);
-      const copyKey =
-        block === "morning"
-          ? "notices.copyMorning"
-          : block === "afternoon"
-            ? "notices.copyAfternoon"
-            : "notices.copyNight";
-      toastManager.add({ title: t(copyKey), type: "success", timeout: 4000 });
-      setReloadKey((key) => key + 1);
-    } catch (error) {
-      console.error("No se pudo duplicar la tarea", error);
-      setNotice(t("notices.copyError"));
-    } finally {
-      setDuplicateBlock(null);
-    }
   }
 
   async function save(event: FormEvent) {
@@ -825,7 +941,43 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       try {
         const now = Date.now();
         if (form.id) {
-          await updateTask(db, form.id, toInput(form), now, `edit:${form.id}:${newId()}`);
+          const input = toInput(form);
+          const copyBlocks = copiesToAdd();
+          if (copyBlocks.length === 0) {
+            await updateTask(db, form.id, input, now, `edit:${form.id}:${newId()}`);
+          } else {
+            const copyInputs = copyBlocks.map((block) => {
+              const range = BLOCK_RANGES[block];
+              return toInput({
+                ...form,
+                useWindow: true,
+                windowStart: range.start,
+                windowEnd: range.end,
+                useFixedTime: false,
+              });
+            });
+            const signature = JSON.stringify({ id: form.id, input, copyInputs });
+            const previous = retryBatch.current;
+            const retry =
+              previous?.signature === signature &&
+              previous.actionId &&
+              previous.ids.length === copyInputs.length
+                ? { signature, ids: previous.ids, actionId: previous.actionId }
+                : {
+                    signature,
+                    ids: copyInputs.map(() => `task:${newId()}`),
+                    actionId: `edit:${form.id}:${newId()}`,
+                  };
+            retryBatch.current = retry;
+            await updateTaskWithCopies(db, {
+              id: form.id,
+              input,
+              copies: copyInputs.map((copyInput, index) => ({ id: retry.ids[index], input: copyInput })),
+              now,
+              actionId: retry.actionId,
+            });
+            savedMessage = t("notices.tasksCopied", { count: copyInputs.length });
+          }
         } else {
           if (newBlocks.length > 1 && form.useFixedTime) {
             throw new Error(t("notices.sameTime"));
@@ -866,15 +1018,22 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
       setForm(null);
       clearDraft();
       retryBatch.current = null;
-      if (form.id) savedMessage = t("notices.saved");
+      if (form.id && !savedMessage) savedMessage = t("notices.saved");
       setReloadKey((key) => key + 1);
       toastManager.add({
         title: savedMessage ?? t("notices.saved"),
         type: "success",
         timeout: 4000,
       });
-    } catch {
-      setFormError(t("notices.saveError"));
+    } catch (error) {
+      setFormError(
+        form.id &&
+          routineByTaskId.has(form.id) &&
+          error instanceof DomainError &&
+          error.message === "Los pasos de una rutina deben tener los mismos días."
+          ? t("routine.daysMustMatch")
+          : t("notices.saveError"),
+      );
     } finally {
       setSaving(false);
     }
@@ -949,7 +1108,129 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     }
   }
 
+  function startRoutineFromTask(task: Task) {
+    setRoutineError(null);
+    setRoutineDraft({ id: null, anchorTaskId: task.id, title: task.title, taskIds: [task.id] });
+  }
+
+  function startRoutineEdit(routine: Routine) {
+    const anchorTaskId = routine.taskIds[0];
+    if (!anchorTaskId) return;
+    setRoutineError(null);
+    setRoutineDraft({
+      id: routine.id,
+      anchorTaskId,
+      title: routine.title,
+      taskIds: [...routine.taskIds],
+    });
+  }
+
+  function closeRoutineEditor() {
+    setRoutineDraft(null);
+    setRoutineError(null);
+  }
+
+  function toggleRoutineMember(taskId: string) {
+    if (
+      routineDraft &&
+      !routineDraft.taskIds.includes(taskId) &&
+      routineDraft.taskIds.length >= MAX_ROUTINE_STEPS
+    ) {
+      setRoutineError(t("routine.maxSteps", { count: MAX_ROUTINE_STEPS }));
+      return;
+    }
+    setRoutineDraft((current) => {
+      if (!current) return current;
+      const taskIds = current.taskIds.includes(taskId)
+        ? current.taskIds.filter((id) => id !== taskId)
+        : [...current.taskIds, taskId];
+      return { ...current, taskIds };
+    });
+    setRoutineError(null);
+  }
+
+  function moveRoutineMember(taskId: string, offset: -1 | 1) {
+    setRoutineDraft((current) => {
+      if (!current) return current;
+      const index = current.taskIds.indexOf(taskId);
+      const destination = index + offset;
+      if (index < 0 || destination < 0 || destination >= current.taskIds.length) return current;
+      const taskIds = [...current.taskIds];
+      const [moving] = taskIds.splice(index, 1);
+      if (!moving) return current;
+      taskIds.splice(destination, 0, moving);
+      return { ...current, taskIds };
+    });
+  }
+
+  function reorderRoutineDraft(activeId: string, overId: string) {
+    setRoutineDraft((current) => {
+      if (!current) return current;
+      const from = current.taskIds.indexOf(activeId);
+      const to = current.taskIds.indexOf(overId);
+      if (from < 0 || to < 0 || from === to) return current;
+      const taskIds = [...current.taskIds];
+      const [moving] = taskIds.splice(from, 1);
+      if (!moving) return current;
+      taskIds.splice(to, 0, moving);
+      return { ...current, taskIds };
+    });
+  }
+
+  async function saveRoutine(event: FormEvent) {
+    event.preventDefault();
+    if (!routineDraft || routineSaving) return;
+    if (!routineDraft.title.trim()) {
+      setRoutineError(t("routine.nameRequired"));
+      return;
+    }
+    if (routineDraft.taskIds.length < 2) {
+      setRoutineError(t("routine.needsTwoSteps"));
+      return;
+    }
+    setRoutineSaving(true);
+    setRoutineError(null);
+    try {
+      const db = await openDatabase();
+      try {
+        const input = { title: routineDraft.title, taskIds: routineDraft.taskIds };
+        if (routineDraft.id) await updateRoutine(db, routineDraft.id, input, Date.now());
+        else await createRoutine(db, `routine:${newId()}`, input, Date.now());
+      } finally {
+        db.close();
+      }
+      setRoutineDraft(null);
+      setReloadKey((key) => key + 1);
+      toastManager.add({ title: t("routine.saved"), type: "success", timeout: 4000 });
+    } catch (error) {
+      console.error("No se pudo guardar la rutina", error);
+      setRoutineError(t("routine.saveError"));
+    } finally {
+      setRoutineSaving(false);
+    }
+  }
+
+  async function ungroupRoutine(routine: Routine) {
+    try {
+      const db = await openDatabase();
+      try {
+        await archiveRoutine(db, routine.id, Date.now());
+      } finally {
+        db.close();
+      }
+      setReloadKey((key) => key + 1);
+      toastManager.add({ title: t("routine.ungrouped"), type: "success", timeout: 4000 });
+    } catch (error) {
+      console.error("No se pudo deshacer la rutina", error);
+      setNotice(t("routine.saveError"));
+    }
+  }
+
   const active = tasks?.filter((task) => task.archivedAt === null) ?? [];
+  const activeRoutines = routines?.filter((routine) => routine.archivedAt === null) ?? [];
+  const routineByTaskId = new Map(
+    activeRoutines.flatMap((routine) => routine.taskIds.map((taskId) => [taskId, routine] as const)),
+  );
   const effectiveTaskOrder = useMemo(
     () => (tasks ? buildTaskOrder(tasks, taskOrder) : taskOrder),
     [tasks, taskOrder],
@@ -964,31 +1245,79 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
     return windowPreset(form.windowStart, form.windowEnd);
   }
 
-  function chooseBlock(block: "any" | "morning" | "afternoon" | "night" | "custom") {
-    if (!form) return;
-    if (block === "any") {
-      setCustomWindow(false);
-      patch({ useWindow: false });
+  function whenSelection(): string[] {
+    if (newCustom || formBlock() === "custom") return ["custom"];
+    if (newBlocks.length > 0) return newBlocks;
+    return [formBlock()];
+  }
+
+  function chooseWhen(values: string[]) {
+    const selectedBefore = whenSelection();
+    const added = values.find((value) => !selectedBefore.includes(value));
+    if (added === "custom") {
+      chooseNewCustom();
       return;
     }
-    if (block === "custom") {
-      setCustomWindow(true);
-      patch({ useWindow: true });
+    if (added === "any") {
+      chooseNewAny();
       return;
     }
+
+    const blocks = BLOCKS.filter((block) => values.includes(block.value)).map((block) => block.value);
+    if (blocks.length === 0) {
+      chooseNewAny();
+      return;
+    }
+
+    const exactTimeOnly = Boolean(form?.id && form.useFixedTime && !form.useWindow);
+    const current = form?.id ? formBlock() : "any";
+    const primary = isBlockKey(current) && blocks.includes(current) ? current : blocks[0];
+    setNewBlocks(blocks);
+    setNewCustom(false);
     setCustomWindow(false);
+    if (exactTimeOnly) return;
     patch({
       useWindow: true,
-      windowStart: BLOCK_RANGES[block].start,
-      windowEnd: BLOCK_RANGES[block].end,
+      windowStart: BLOCK_RANGES[primary].start,
+      windowEnd: BLOCK_RANGES[primary].end,
     });
   }
+
+  function copiesToAdd(): BlockKey[] {
+    if (!form?.id || newBlocks.length === 0) return [];
+    if (form.useFixedTime && !form.useWindow) return newBlocks;
+    if (newBlocks.length < 2) return [];
+    const primary = formBlock();
+    return newBlocks.filter((block) => block !== primary);
+  }
   const dayTasks = active.filter((task) => task.days.includes(selectedDay));
+  const dayTaskIds = new Set(dayTasks.map((task) => task.id));
+  const dayRoutines = activeRoutines.filter((routine) => routine.taskIds.some((id) => dayTaskIds.has(id)));
+  const groupedTaskIds = new Set(activeRoutines.flatMap((routine) => routine.taskIds));
+  const routineBaseTask = routineDraft
+    ? active.find((task) => task.id === routineDraft.anchorTaskId)
+    : undefined;
+  const routineCandidates = routineBaseTask
+    ? active.filter((task) => {
+        if (!sameWeekdays(task.days, routineBaseTask.days)) return false;
+        const existingRoutine = routineByTaskId.get(task.id);
+        return !existingRoutine || existingRoutine.id === routineDraft?.id;
+      })
+    : [];
   const dayCounts = WEEKDAYS.map((day) => ({
     ...day,
     count: active.filter((task) => task.days.includes(day.value)).length,
   }));
   const selectedDayInfo = WEEKDAYS.find((day) => day.value === selectedDay) ?? WEEKDAYS[0];
+  const editCopies = copiesToAdd();
+  const selectedMoment = formBlock();
+  const selectedMomentOption = BLOCKS.find((block) => block.value === selectedMoment);
+  const selectedMomentLabel =
+    form?.id && form.useFixedTime && !form.useWindow
+      ? t("exactTime")
+      : selectedMomentOption
+        ? t(selectedMomentOption.labelKey)
+        : t(selectedMoment === "custom" ? "chooseHours" : "anyTime");
 
   const blocks = (
     [
@@ -1000,7 +1329,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
   ).map((block) => ({
     ...block,
     tasks: sortTasksForDisplay(
-      dayTasks.filter((task) => blockForTime(taskTime(task)) === block.key),
+      dayTasks.filter((task) => blockForTime(taskTime(task)) === block.key && !groupedTaskIds.has(task.id)),
       effectiveTaskOrder,
     ),
   }));
@@ -1011,6 +1340,60 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
 
   const todayWeekday = weekdayOf(today);
   const occurrenceByTask = new Map(todayOccurrences.map((occurrence) => [occurrence.taskId, occurrence]));
+
+  function renderTaskRow(task: Task, routine?: Routine) {
+    const occurrence = selectedDay === todayWeekday ? occurrenceByTask.get(task.id) : undefined;
+    const canConvertToRoutine =
+      !routine &&
+      routines !== null &&
+      active.some(
+        (candidate) =>
+          candidate.id !== task.id &&
+          !routineByTaskId.has(candidate.id) &&
+          sameWeekdays(candidate.days, task.days),
+      );
+    return (
+      <TaskRow
+        key={task.id}
+        task={task}
+        routine={routine}
+        canConvertToRoutine={canConvertToRoutine}
+        occurrence={occurrence}
+        now={now}
+        menuTaskId={menuTaskId}
+        onMenuChange={setMenuTaskId}
+        onEdit={startEdit}
+        onConvertToRoutine={startRoutineFromTask}
+        onEditRoutine={startRoutineEdit}
+        onDelete={setDeleteTask}
+        onReactivate={(target, currentOccurrence) => void reactivate(target, currentOccurrence)}
+        reactivatingId={reactivatingId}
+      />
+    );
+  }
+
+  function reorderRoutine(routine: Routine, activeId: string, overId: string) {
+    const from = routine.taskIds.indexOf(activeId);
+    const to = routine.taskIds.indexOf(overId);
+    if (from < 0 || to < 0 || from === to) return;
+    const taskIds = [...routine.taskIds];
+    const [moving] = taskIds.splice(from, 1);
+    if (!moving) return;
+    taskIds.splice(to, 0, moving);
+    void openDatabase()
+      .then(async (db) => {
+        try {
+          await updateRoutine(db, routine.id, { title: routine.title, taskIds }, Date.now());
+        } finally {
+          db.close();
+        }
+        setReloadKey((key) => key + 1);
+      })
+      .catch((error) => {
+        console.error("No se pudo reordenar la rutina", error);
+        setNotice(t("routine.saveError"));
+      });
+  }
 
   function reorderSection(activeId: string, overId: string, visibleIds: string[]) {
     const base = buildTaskOrder(active, orderRef.current);
@@ -1033,7 +1416,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
             <HelpTip label={t("helpLabel")}>{t("help")}</HelpTip>
           </div>
         </div>
-        {!form ? (
+        {!form && !routineDraft ? (
           <button
             type="button"
             onClick={startNew}
@@ -1048,6 +1431,89 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         <p className="mt-4 border-l-2 border-line pl-4 text-sm" role="status">
           {notice}
         </p>
+      ) : null}
+
+      {routineDraft ? (
+        <form onSubmit={saveRoutine} className="mt-5 border-y border-line py-6">
+          <h3 className="text-xl font-semibold">
+            {routineDraft.id ? t("routine.editTitle") : t("routine.createTitle")}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-muted">{t("routine.help")}</p>
+          <label htmlFor="routine-title" className="form-label mt-4 block">
+            {t("routine.name")}
+          </label>
+          <input
+            id="routine-title"
+            value={routineDraft.title}
+            onChange={(event) => setRoutineDraft({ ...routineDraft, title: event.target.value })}
+            maxLength={1024}
+            className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+          />
+          <fieldset className="mt-5">
+            <legend className="text-sm font-semibold">{t("routine.chooseSteps")}</legend>
+            <div className="mt-2 grid gap-2">
+              {routineCandidates.map((task) => (
+                <label key={task.id} className="flex min-h-11 items-center gap-3 border-b border-line py-2">
+                  <input
+                    type="checkbox"
+                    checked={routineDraft.taskIds.includes(task.id)}
+                    disabled={
+                      !routineDraft.taskIds.includes(task.id) &&
+                      routineDraft.taskIds.length >= MAX_ROUTINE_STEPS
+                    }
+                    onChange={() => toggleRoutineMember(task.id)}
+                    className="h-5 w-5 accent-foreground"
+                  />
+                  <span className="min-w-0 flex-1 text-sm font-medium">{task.title}</span>
+                  <span className="text-xs text-muted">{taskTime(task) ?? t("list.noTime")}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="mt-5">
+            <h4 className="text-sm font-semibold">{t("routine.order")}</h4>
+            <SortableTaskList
+              tasks={routineDraft.taskIds.flatMap((taskId) => {
+                const task = active.find((candidate) => candidate.id === taskId);
+                return task ? [task] : [];
+              })}
+              ordered
+              ariaLabel={t("routine.order")}
+              onReorder={(activeId, overId) => reorderRoutineDraft(activeId, overId)}
+              renderTask={(task) => (
+                <RoutineOrderRow
+                  key={task.id}
+                  task={task}
+                  step={routineDraft.taskIds.indexOf(task.id) + 1}
+                  total={routineDraft.taskIds.length}
+                  onMove={(offset) => moveRoutineMember(task.id, offset)}
+                />
+              )}
+            />
+          </div>
+          {routineError ? (
+            <p className="mt-4 text-sm" role="alert">
+              {routineError}
+            </p>
+          ) : null}
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="submit"
+              disabled={routineSaving}
+              className="min-h-11 bg-foreground px-6 text-sm font-semibold text-background disabled:opacity-60"
+            >
+              {routineSaving ? t("saving") : t("routine.save")}
+            </button>
+            <button
+              type="button"
+              disabled={routineSaving}
+              onClick={closeRoutineEditor}
+              className="min-h-11 border border-control px-6 text-sm font-semibold disabled:opacity-60"
+            >
+              {common("cancel")}
+            </button>
+          </div>
+        </form>
       ) : null}
 
       {form ? (
@@ -1224,160 +1690,64 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                   {form.id ? t("whenHelpEdit") : t("whenHelpNew")}
                 </HelpTip>
               </legend>
+              <ToggleGroup
+                multiple
+                value={whenSelection()}
+                onValueChange={chooseWhen}
+                className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
+                aria-label={t("when")}
+              >
+                <Toggle value="any" className="day-toggle block-toggle justify-center">
+                  {t("anyTime")}
+                </Toggle>
+                {BLOCKS.map((block) => (
+                  <Toggle
+                    key={block.value}
+                    value={block.value}
+                    className="day-toggle block-toggle justify-center"
+                  >
+                    {t(block.labelKey)}
+                  </Toggle>
+                ))}
+                <Toggle value="custom" className="day-toggle block-toggle justify-center">
+                  {t("chooseHours")}
+                </Toggle>
+              </ToggleGroup>
+              <Reveal show={formBlock() === "custom"} reduceMotion={reduceMotion} className="mt-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm text-muted">{t("from")}</span>
+                    <input
+                      type="time"
+                      value={form.windowStart}
+                      onChange={(event) => patch({ windowStart: event.target.value })}
+                      className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm text-muted">{t("to")}</span>
+                    <input
+                      type="time"
+                      value={form.windowEnd}
+                      onChange={(event) => patch({ windowEnd: event.target.value })}
+                      className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
+                    />
+                  </label>
+                </div>
+              </Reveal>
+              {form.useWindow ? (
+                <p className="mt-2 text-xs tabular-nums text-muted">
+                  {t("range", { from: form.windowStart, to: form.windowEnd })}
+                </p>
+              ) : null}
               {form.id ? (
-                <>
-                  <ToggleGroup
-                    value={[formBlock()]}
-                    onValueChange={(values) => {
-                      const value = values[0];
-                      if (value) {
-                        chooseBlock(value as "any" | "morning" | "afternoon" | "night" | "custom");
-                      }
-                    }}
-                    className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
-                    aria-label={t("when")}
-                  >
-                    {(
-                      [
-                        ["any", "anyTime"],
-                        ["morning", "morning"],
-                        ["afternoon", "afternoon"],
-                        ["night", "night"],
-                        ["custom", "chooseHours"],
-                      ] as const
-                    ).map(([value, key]) => (
-                      <Toggle key={value} value={value} className="day-toggle block-toggle justify-center">
-                        {t(key)}
-                      </Toggle>
-                    ))}
-                  </ToggleGroup>
-                  <Reveal show={formBlock() === "custom"} reduceMotion={reduceMotion} className="mt-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-sm text-muted">{t("from")}</span>
-                        <input
-                          type="time"
-                          value={form.windowStart}
-                          onChange={(event) => patch({ windowStart: event.target.value })}
-                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-sm text-muted">{t("to")}</span>
-                        <input
-                          type="time"
-                          value={form.windowEnd}
-                          onChange={(event) => patch({ windowEnd: event.target.value })}
-                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                        />
-                      </label>
-                    </div>
-                  </Reveal>
-                  {form.useWindow ? (
-                    <p className="mt-2 text-xs tabular-nums text-muted">
-                      {t("range", { from: form.windowStart, to: form.windowEnd })}
-                    </p>
+                <div role="status" className="mt-3 border-s-2 border-line ps-3 text-sm text-muted">
+                  <p>{t("whenEditLocation", { moment: selectedMomentLabel })}</p>
+                  {editCopies.length > 0 ? (
+                    <p>{t("whenEditCopiesPreview", { count: editCopies.length })}</p>
                   ) : null}
-                  <div className="mt-4 border-t border-line pt-4">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{t("copyTitle")}</p>
-                      <HelpTip label={t("copyHelp")}>{t("copyHelp")}</HelpTip>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {BLOCKS.map((block) => (
-                        <button
-                          key={block.value}
-                          type="button"
-                          disabled={
-                            duplicateBlock !== null ||
-                            copiedBlocks.includes(block.value) ||
-                            formBlock() === block.value
-                          }
-                          onClick={() => void duplicateInto(block.value)}
-                          className="day-toggle disabled:opacity-40"
-                        >
-                          + {t(block.labelKey)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <ToggleGroup
-                    multiple
-                    value={newCustom ? ["custom"] : newBlocks.length > 0 ? newBlocks : ["any"]}
-                    onValueChange={(values) => {
-                      const previous = newCustom ? ["custom"] : newBlocks.length > 0 ? newBlocks : ["any"];
-                      const added = values.find((value) => !previous.includes(value));
-                      if (added === "custom") {
-                        chooseNewCustom();
-                        return;
-                      }
-                      if (added === "any") {
-                        chooseNewAny();
-                        return;
-                      }
-                      const blocks = values.filter((value): value is BlockKey =>
-                        BLOCKS.some((block) => block.value === value),
-                      );
-                      if (blocks.length === 0) {
-                        chooseNewAny();
-                        return;
-                      }
-                      setNewBlocks(blocks);
-                      setNewCustom(false);
-                      const first = BLOCK_RANGES[blocks[0]];
-                      patch({ useWindow: true, windowStart: first.start, windowEnd: first.end });
-                    }}
-                    className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
-                    aria-label={t("when")}
-                  >
-                    <Toggle value="any" className="day-toggle block-toggle justify-center">
-                      {t("anyTime")}
-                    </Toggle>
-                    {BLOCKS.map((block) => (
-                      <Toggle
-                        key={block.value}
-                        value={block.value}
-                        className="day-toggle block-toggle justify-center"
-                      >
-                        {t(block.labelKey)}
-                      </Toggle>
-                    ))}
-                    <Toggle value="custom" className="day-toggle block-toggle justify-center">
-                      {t("chooseHours")}
-                    </Toggle>
-                  </ToggleGroup>
-                  <Reveal show={newCustom} reduceMotion={reduceMotion} className="mt-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-sm text-muted">{t("from")}</span>
-                        <input
-                          type="time"
-                          value={form.windowStart}
-                          onChange={(event) => patch({ windowStart: event.target.value })}
-                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-sm text-muted">{t("to")}</span>
-                        <input
-                          type="time"
-                          value={form.windowEnd}
-                          onChange={(event) => patch({ windowEnd: event.target.value })}
-                          className="mt-1 min-h-11 w-full rounded-none border border-control bg-background px-3 text-base"
-                        />
-                      </label>
-                    </div>
-                  </Reveal>
-                  {newCustom && form.useWindow ? (
-                    <p className="mt-2 text-xs tabular-nums text-muted">
-                      {t("range", { from: form.windowStart, to: form.windowEnd })}
-                    </p>
-                  ) : null}
-                </>
-              )}
+                </div>
+              ) : null}
             </fieldset>
 
             <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
@@ -1486,7 +1856,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
         </Form>
       ) : null}
 
-      {form ? null : loadError ? (
+      {form || routineDraft ? null : loadError ? (
         <div className="mt-6 border-l-2 border-accent pl-4" role="alert">
           <p className="text-sm leading-6">{loadError}</p>
           <button
@@ -1549,6 +1919,48 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
               </div>
             ) : (
               <div className="mt-2">
+                {dayRoutines.map((routine) => (
+                  <section
+                    key={routine.id}
+                    className="mt-5 border border-line px-3"
+                    aria-label={t("routine.groupLabel", { name: routine.title })}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-3">
+                      <div className="min-w-0">
+                        <h4 className="text-base font-semibold">{routine.title}</h4>
+                        <p className="mt-1 text-xs text-muted">
+                          {t("routine.stepCount", { count: routine.taskIds.length })}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startRoutineEdit(routine)}
+                          className="min-h-11 px-2 text-sm font-semibold underline underline-offset-4"
+                        >
+                          {t("routine.edit")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void ungroupRoutine(routine)}
+                          className="min-h-11 px-2 text-sm font-semibold underline underline-offset-4"
+                        >
+                          {t("routine.ungroup")}
+                        </button>
+                      </div>
+                    </div>
+                    <SortableTaskList
+                      tasks={routine.taskIds.flatMap((taskId) => {
+                        const task = active.find((candidate) => candidate.id === taskId);
+                        return task ? [task] : [];
+                      })}
+                      ordered
+                      ariaLabel={t("routine.order")}
+                      onReorder={(activeId, overId) => reorderRoutine(routine, activeId, overId)}
+                      renderTask={(task) => renderTaskRow(task, routine)}
+                    />
+                  </section>
+                ))}
                 {blocks.map((block) =>
                   block.tasks.length > 0 ? (
                     <details
@@ -1569,26 +1981,7 @@ export function TaskEditor({ initialTaskId }: { initialTaskId?: string | null })
                       <SortableTaskList
                         tasks={block.tasks}
                         onReorder={reorderSection}
-                        renderTask={(task) => {
-                          const occurrence =
-                            selectedDay === todayWeekday ? occurrenceByTask.get(task.id) : undefined;
-                          return (
-                            <TaskRow
-                              key={task.id}
-                              task={task}
-                              occurrence={occurrence}
-                              now={now}
-                              menuTaskId={menuTaskId}
-                              onMenuChange={setMenuTaskId}
-                              onEdit={startEdit}
-                              onDelete={setDeleteTask}
-                              onReactivate={(target, currentOccurrence) =>
-                                void reactivate(target, currentOccurrence)
-                              }
-                              reactivatingId={reactivatingId}
-                            />
-                          );
-                        }}
+                        renderTask={(task) => renderTaskRow(task)}
                       />
                     </details>
                   ) : null,

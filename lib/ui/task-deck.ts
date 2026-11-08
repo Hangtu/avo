@@ -22,17 +22,6 @@ export function promoteDeckSelection(selection: DeckSelection): DeckSelection {
   return { primaryId: selection.secondaryId, secondaryId: selection.primaryId };
 }
 
-export function nextDeckAlternative(ids: readonly string[], selection: DeckSelection): DeckSelection {
-  const current = resolveDeckSelection(ids, selection);
-  const alternatives = ids.filter((id) => id !== current.primaryId);
-  if (alternatives.length < 2) return current;
-  const index = alternatives.indexOf(current.secondaryId ?? "");
-  return {
-    primaryId: current.primaryId,
-    secondaryId: alternatives[(index + 1) % alternatives.length] ?? null,
-  };
-}
-
 function turnAmount(progress: number): number {
   return (1 - Math.cos(Math.PI * Math.max(0, Math.min(1, progress)))) / 2;
 }

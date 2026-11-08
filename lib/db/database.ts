@@ -6,6 +6,7 @@ import type {
   Metadata,
   Occurrence,
   Pending,
+  Routine,
   RunoEvent,
   Session,
   Settings,
@@ -23,7 +24,7 @@ import {
 import type { DurableRecord, OutboxItem } from "@/lib/sync/protocol";
 
 export const DATABASE_NAME = LEGACY_DATABASE_NAME;
-export const DATABASE_VERSION = 5;
+export const DATABASE_VERSION = 6;
 const connections = new Set<RunoDatabase>();
 
 /**
@@ -83,6 +84,15 @@ const STORES_V3 = {
   sessions: "id, occurrenceId, status, &runningSlot, updatedAt, pendingId",
   pendings: "id, createdAt, completedAt, deletedAt",
 } as const;
+const STORES_V5 = {
+  ...STORES_V3,
+  outbox: "key, state",
+  syncRecords: "key",
+} as const;
+const STORES_V6 = {
+  ...STORES_V5,
+  routines: "id, createdAt, updatedAt, archivedAt, *taskIds",
+} as const;
 
 /** No module-level connection: importing this file during SSR never opens storage. */
 export class RunoDatabase extends Dexie {
@@ -98,6 +108,7 @@ export class RunoDatabase extends Dexie {
   declare events: Table<RunoEvent, string>;
   declare ledger: Table<LedgerEntry, string>;
   declare pendings: Table<Pending, string>;
+  declare routines: Table<Routine, string>;
   declare settings: Table<Settings, string>;
   declare metadata: Table<Metadata, string>;
 
@@ -128,8 +139,8 @@ export class RunoDatabase extends Dexie {
             }
           }),
       );
-    this.version(DATABASE_VERSION)
-      .stores({ ...STORES_V3, outbox: "key, state", syncRecords: "key" })
+    this.version(5)
+      .stores(STORES_V5)
       .upgrade(async (tx) => {
         if (!this.accountId) return; // Never adopt guest data during an upgrade.
         for (const [table, kind] of [
@@ -151,6 +162,7 @@ export class RunoDatabase extends Dexie {
           }
         }
       });
+    this.version(DATABASE_VERSION).stores(STORES_V6);
   }
 
   override close(): void {

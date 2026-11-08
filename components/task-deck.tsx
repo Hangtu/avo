@@ -16,7 +16,6 @@ import {
   deckLayer,
   deckPreviewOpacity,
   deckTransform,
-  nextDeckAlternative,
   promoteDeckSelection,
   resolveDeckSelection,
   type DeckRole,
@@ -29,7 +28,6 @@ interface DeckActions {
   active: boolean;
   disabled: boolean;
   startButtonRef: RefObject<HTMLButtonElement | null>;
-  showAnother: () => void;
   ids: { title: string; duration: string; start: string };
 }
 
@@ -129,16 +127,6 @@ export function TaskDeck({ tasks, handId, busy, onOffer, onPromote, renderAction
     setTurn(current);
   }
 
-  function showAnother() {
-    if (busy || turnLock.current) return;
-    setSelection(
-      nextDeckAlternative(
-        tasks.map((task) => task.id),
-        current,
-      ),
-    );
-  }
-
   return (
     <div
       ref={stageRef}
@@ -160,7 +148,6 @@ export function TaskDeck({ tasks, handId, busy, onOffer, onPromote, renderAction
           reveal={reveal}
           focusOnSelect={focusTargetId === task.id}
           onChoose={promoteSecondary}
-          showAnother={showAnother}
           renderActions={renderActions}
         />
       ))}
@@ -179,7 +166,6 @@ function DeckCard({
   reveal,
   focusOnSelect,
   onChoose,
-  showAnother,
   renderActions,
 }: {
   task: FranjaTask;
@@ -192,7 +178,6 @@ function DeckCard({
   reveal: MotionValue<number>;
   focusOnSelect: boolean;
   onChoose: () => void;
-  showAnother: () => void;
   renderActions: TaskDeckProps["renderActions"];
 }) {
   const t = useTranslations("franja");
@@ -232,7 +217,15 @@ function DeckCard({
         inert={!active || turning}
         style={{ opacity: fullOpacity }}
       >
-        <p className="first-eyebrow">{t("eyebrow")}</p>
+        <p className="first-eyebrow">
+          {task.routine
+            ? t("routineProgress", {
+                name: task.routine.title,
+                step: task.routine.step,
+                total: task.routine.total,
+              })
+            : t("eyebrow")}
+        </p>
         <h2 id={ids.title} className="first-title">
           {task.title}
         </h2>
@@ -250,7 +243,6 @@ function DeckCard({
             active,
             disabled: busy || turning || !active,
             startButtonRef,
-            showAnother,
             ids,
           })}
         </div>
@@ -262,11 +254,12 @@ function DeckCard({
         disabled={busy || turning || !isBack}
         tabIndex={isBack ? 0 : -1}
         aria-hidden={!isBack || undefined}
-        aria-labelledby={`${id}-peek-action ${id}-peek-title ${id}-peek-duration`}
         style={{ opacity: previewOpacity }}
       >
         <span className="peek-back-top">
-          <span className="peek-back-label">{t("otherOption")}</span>
+          <span id={`${id}-peek-label`} className="peek-back-label">
+            {t("otherOption")}
+          </span>
           <span id={`${id}-peek-action`} className="peek-back-action">
             {t("chooseTask")}
           </span>
@@ -274,6 +267,15 @@ function DeckCard({
         <span id={`${id}-peek-title`} className="peek-back-title">
           {task.title}
         </span>
+        {task.routine ? (
+          <span id={`${id}-peek-routine`} className="peek-back-label">
+            {t("routineProgress", {
+              name: task.routine.title,
+              step: task.routine.step,
+              total: task.routine.total,
+            })}
+          </span>
+        ) : null}
         <span id={`${id}-peek-duration`} className="peek-back-duration">
           {common("minutes", { count: task.remainingMin })}
           {task.isMissed ? (
