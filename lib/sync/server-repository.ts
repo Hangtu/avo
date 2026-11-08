@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import { accountStage } from "@/lib/observability/account-diagnostics";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "@/lib/db/schema";
@@ -238,26 +239,32 @@ export async function readAccountData(
     isolationLevel: "repeatable read",
     retries: 2,
     work: async (tx) => {
-      const ownerId = await domainOwner(tx, authId, false);
-      const etag = await snapshotEtag(tx, ownerId);
+      const ownerId = await accountStage("account.owner", () => domainOwner(tx, authId, false));
+      const etag = await accountStage("account.snapshot_version", () => snapshotEtag(tx, ownerId));
       if (ifNoneMatch === etag)
         return { version: 1, accountId: authId, records: [], etag, notModified: true };
       // One MVCC snapshot across every select; the token and payload cannot mix
       // pre/post-batch states. Conditional hits never fetch these wide rows.
-      const tasks = await tx
-        .select()
-        .from(schema.tasks)
-        .where(eq(schema.tasks.userId, ownerId))
-        .orderBy(asc(schema.tasks.id))
-        .limit(10_001);
-      const pendings = await tx
-        .select()
-        .from(schema.pendings)
-        .where(eq(schema.pendings.userId, ownerId))
-        .orderBy(asc(schema.pendings.id))
-        .limit(10_001);
+      const tasks = await accountStage("account.tasks", async () =>
+        tx
+          .select()
+          .from(schema.tasks)
+          .where(eq(schema.tasks.userId, ownerId))
+          .orderBy(asc(schema.tasks.id))
+          .limit(10_001),
+      );
+      const pendings = await accountStage("account.pendings", async () =>
+        tx
+          .select()
+          .from(schema.pendings)
+          .where(eq(schema.pendings.userId, ownerId))
+          .orderBy(asc(schema.pendings.id))
+          .limit(10_001),
+      );
       if (tasks.length > 10_000 || pendings.length > 10_000) throw new ProtocolError("snapshot_too_large");
-      const settings = await tx.select().from(schema.settings).where(eq(schema.settings.userId, ownerId));
+      const settings = await accountStage("account.preferences", async () =>
+        tx.select().from(schema.settings).where(eq(schema.settings.userId, ownerId)),
+      );
       const records: DurableRecord[] = [],
         issues: RemoteIssue[] = [];
       const collect = <T>(rows: T[], kind: DurableKind, convert: (row: T) => DurableRecord) => {

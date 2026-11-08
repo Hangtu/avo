@@ -1,4 +1,5 @@
 import { db } from "@/lib/db/client";
+import { accountStage, withAccountDiagnostics } from "@/lib/observability/account-diagnostics";
 import { AccountHttpError, accountFailure, privateHeaders, verifiedAccount } from "@/lib/sync/server-auth";
 import { mutateAccountData, readAccountData } from "@/lib/sync/server-repository";
 import {
@@ -11,15 +12,19 @@ import {
 } from "@/lib/sync/protocol";
 
 export async function GET(request: Request) {
-  try {
-    const accountId = await verifiedAccount(request);
-    const data = await readAccountData(db, accountId, request.headers.get("if-none-match") ?? undefined);
-    const headers = { ...privateHeaders, ETag: data.etag };
-    if (data.notModified) return new Response(null, { status: 304, headers });
-    return Response.json(data, { headers });
-  } catch (error) {
-    return accountFailure(error);
-  }
+  return withAccountDiagnostics("account.data.get", async () => {
+    try {
+      const accountId = await verifiedAccount(request);
+      const data = await accountStage("account.read", () =>
+        readAccountData(db, accountId, request.headers.get("if-none-match") ?? undefined),
+      );
+      const headers = { ...privateHeaders, ETag: data.etag };
+      if (data.notModified) return new Response(null, { status: 304, headers });
+      return Response.json(data, { headers });
+    } catch (error) {
+      return accountFailure(error);
+    }
+  });
 }
 async function boundedJSON(request: Request) {
   const reader = request.body?.getReader();
@@ -49,28 +54,34 @@ async function boundedJSON(request: Request) {
   return JSON.parse(new TextDecoder().decode(buffer)) as unknown;
 }
 export async function POST(request: Request) {
-  try {
-    const accountId = await verifiedAccount(request, true);
-    const raw = object(await boundedJSON(request));
-    if (
-      Object.keys(raw).some((key) => !["version", "mutations"].includes(key)) ||
-      raw.version !== 1 ||
-      !Array.isArray(raw.mutations) ||
-      raw.mutations.length < 1 ||
-      raw.mutations.length > MAX_BATCH
-    )
-      throw new ProtocolError("invalid_batch");
-    const mutations = raw.mutations.map(validMutation);
-    if (
-      new Set(mutations.map((row) => entityKey(row.kind, row.id))).size !== mutations.length ||
-      new Set(mutations.map((row) => row.operationId)).size !== mutations.length
-    )
-      throw new ProtocolError("duplicate_mutation");
-    return Response.json(
-      { version: 1, accountId, results: await mutateAccountData(db, accountId, mutations) },
-      { headers: privateHeaders },
-    );
-  } catch (error) {
-    return accountFailure(error);
-  }
+  return withAccountDiagnostics("account.data.post", async () => {
+    try {
+      const accountId = await verifiedAccount(request, true);
+      const raw = object(await accountStage("request.parse", () => boundedJSON(request)));
+      if (
+        Object.keys(raw).some((key) => !["version", "mutations"].includes(key)) ||
+        raw.version !== 1 ||
+        !Array.isArray(raw.mutations) ||
+        raw.mutations.length < 1 ||
+        raw.mutations.length > MAX_BATCH
+      )
+        throw new ProtocolError("invalid_batch");
+      const mutations = raw.mutations.map(validMutation);
+      if (
+        new Set(mutations.map((row) => entityKey(row.kind, row.id))).size !== mutations.length ||
+        new Set(mutations.map((row) => row.operationId)).size !== mutations.length
+      )
+        throw new ProtocolError("duplicate_mutation");
+      return Response.json(
+        {
+          version: 1,
+          accountId,
+          results: await accountStage("account.write", () => mutateAccountData(db, accountId, mutations)),
+        },
+        { headers: privateHeaders },
+      );
+    } catch (error) {
+      return accountFailure(error);
+    }
+  });
 }

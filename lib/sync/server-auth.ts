@@ -1,8 +1,10 @@
 import "server-only";
 
+import { unstable_rethrow } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { authOrigins } from "@/lib/auth-origins";
 import { DomainError } from "@/lib/domain/validation";
+import { accountStage, logAccountFailure } from "@/lib/observability/account-diagnostics";
 import { ProtocolError } from "./protocol";
 import { ACCOUNT_LIMITS, enforceRateLimit, rateLimitIp, RateLimitError } from "@/lib/security/rate-limit";
 
@@ -19,13 +21,19 @@ export async function accountSession(
   request: Request,
   intent: "probe" | "read" | "write",
 ): Promise<typeof auth.$Infer.Session> {
-  await enforceRateLimit(`account:ip:${rateLimitIp(request)}`, ACCOUNT_LIMITS.ip);
-  const session = await auth.api.getSession({
-    headers: request.headers,
-    query: { disableCookieCache: true },
-  });
+  await accountStage("rate_limit.ip", () =>
+    enforceRateLimit(`account:ip:${rateLimitIp(request)}`, ACCOUNT_LIMITS.ip),
+  );
+  const session = await accountStage("session.read", () =>
+    auth.api.getSession({
+      headers: request.headers,
+      query: { disableCookieCache: true },
+    }),
+  );
   if (!session) throw new AccountHttpError(401, "unauthorized");
-  await enforceRateLimit(`account:${intent}:${session.user.id}`, ACCOUNT_LIMITS[intent]);
+  await accountStage("rate_limit.account", () =>
+    enforceRateLimit(`account:${intent}:${session.user.id}`, ACCOUNT_LIMITS[intent]),
+  );
   return session;
 }
 
@@ -51,6 +59,8 @@ export const privateHeaders = { "Cache-Control": "private, no-store", Vary: "Coo
 
 /** One generic, non-cacheable error boundary for both account routes. */
 export function accountFailure(error: unknown): Response {
+  // PPR/request-time bailouts are framework control flow, not persistence outages.
+  unstable_rethrow(error);
   if (error instanceof RateLimitError)
     return Response.json(
       { error: "rate_limited" },
@@ -69,6 +79,6 @@ export function accountFailure(error: unknown): Response {
         : "invalid_request";
     return Response.json({ error: code }, { status: 400, headers: privateHeaders });
   }
-  console.error("Account persistence unavailable");
+  logAccountFailure(error);
   return Response.json({ error: "temporarily_unavailable" }, { status: 503, headers: privateHeaders });
 }

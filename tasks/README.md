@@ -43,7 +43,7 @@ The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
 
-Next id: **023** (IDs 008–010 remain retired; no IDs are reused; all IDs through 022 have been assigned).
+Next id: **024** (IDs 008–010 remain retired; no IDs are reused; all IDs through 023 have been assigned).
 
 ## Board conventions
 
