@@ -17,9 +17,10 @@ task ID with owner approval, validate locally, then commit and push the merge.
 
 ## Next step
 
-Create the authorized merge commit from the reviewed index, push normally to
-origin/main, verify the remote result, then checkpoint and close this integration
-task. No production schema change or device acceptance is authorized.
+No remaining merge-resolution step. The reviewed merge is committed and pushed
+to origin/main; task 024 remains in backlog awaiting owner device acceptance.
+Migration 0005 rollout and production incident verification are separate,
+explicitly authorized operations, not inferred from the push.
 
 ## Checklist
 
@@ -28,8 +29,8 @@ task. No production schema change or device acceptance is authorized.
 - [x] Resolve route/repository conflicts preserving diagnostics and both sync versions, including routine data.
 - [x] Add regression coverage for v2 reads/writes, error correlation and routine SQL failure stages.
 - [x] Run tests, types, lint, formatting, migration journal/task guard and isolated build/public E2E.
-- [ ] Review staged diff, no conflict markers/secrets, then commit and push the merge without force.
-- [ ] Record validation/results, complete task/board and run the guard.
+- [x] Review staged diff, no conflict markers/secrets, then commit and push the merge without force.
+- [x] Record validation/results, complete task/board and run the guard.
 
 ## Files
 
@@ -59,9 +60,14 @@ task. No production schema change or device acceptance is authorized.
 | 2026-11-07 | Isolated production build | Passed | Next 16.4.3, Cache Components/PPR retained, service worker generated. Synthetic loopback environment only; no private env files copied. |
 | 2026-11-07 | Public Chromium E2E after build | Passed | 31/31 including routine, pending-edit, task-moment and accessibility journeys. Loopback DB was intentionally absent: session probes emitted actual ECONNREFUSED diagnostics; no Neon/OAuth/account/device coverage claimed. |
 | 2026-11-07 | Resolved index/staged review | Passed | No unmerged paths, staged whitespace clean, no private env/key/build-output paths. Compared resolved route/repository to incoming to verify diagnostic-only additions preserve routine behavior. |
+| 2026-11-07 | Generated migration/lock preservation and secret-pattern scan | Passed | `git diff --quiet MERGE_HEAD -- drizzle package-lock.json` clean. Staged high-confidence private-key/GitHub/AWS/Slack-pattern scan found no matches; not a comprehensive security audit. |
+| 2026-11-07 | Merge commit and normal push | Passed | Merge commit `e26ec88` pushed from main to origin/main (`9de6102..e26ec88`); tracking status clean. No force/history rewrite. Remote reported repository moved to Hangtu/avo but accepted the push through existing origin; no remote configuration changed. |
+| 2026-11-07 | Closure task guard/whitespace | Passed | Task moved to completed, focus cleared, 024 stays parked; 24 tasks, 0 errors/warnings; whitespace clean. |
+| 2026-11-07 | Remote CI/deployment/Neon/OAuth/device acceptance | Not run | Push is evidence of publication only. No production schema changes, remote checks or device acceptance were performed. |
 
 ## Log
 
 - 2026-11-07 — Owner resolved the task-ID-policy blocker and authorized commit/push. Saved integration plan before application edits; read installed Next route-handler/rethrow guidance and task state.
 - 2026-11-07 — Resolved code conflicts by combining versioned routine persistence with request-local diagnostics; preserved incoming routine membership/quarantine logic. Added account.routines stage and six merge-regression cases; focused 90 tests pass. Incoming generated migration 0005 remains unchanged/unapplied; database rollout is not authorized by commit/push.
-- 2026-11-07 — Full isolated validation passed (550 unit/integration, 31 public Chromium journeys, types/lint/format/journal/guard/build). Staged merge review confirms no unmerged paths and no generated migration edits beyond incoming. Commit/push remain the next authorized operation; no external acceptance or deployment claim.
+- 2026-11-07 — Full isolated validation passed (550 unit/integration, 31 public Chromium journeys, types/lint/format/journal/guard/build). Staged merge review confirms no unmerged paths and no generated migration edits beyond incoming. Commit/push were the next authorized operation; no external acceptance or deployment claim.
+- 2026-11-07 — Created and successfully pushed merge `e26ec88`; index/worktree clean and origin/main tracking aligned. Closing this integration task in a documentation checkpoint; task 024's device acceptance and any remote migration remain open. The accepted repository-moved notice is informational and requires no merge fix.

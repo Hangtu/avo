@@ -5,7 +5,7 @@ Git and linked archives preserve history.
 
 ## Current focus
 
-- [027 — Resolve diagnostics and routine-sync merge](active/027-resolve-diagnostics-routine-merge.md) — Preserve both features, verify the combined tree, commit and push the approved merge.
+None.
 
 ## Backlog (in priority order)
 
