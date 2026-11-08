@@ -22,8 +22,16 @@ App personal local-first de hábitos, pendientes y timer; ES/EN, Next.js 16.4.3,
 
 ## Desarrollo
 
+Toolchain aprobada: **Node 26.13.0** y **npm 11.20.0**. `.node-version` fija la
+versión reproducible de desarrollo/CI; `engines.node` admite solo la rama 26 y
+los tipos de TypeScript usan `@types/node` 26. Activa esa versión con tu gestor
+(por ejemplo, `nvm use 26.13.0`) antes de instalar. La CI lee `.node-version` e
+instala npm 11.20.0 explícitamente; no depende del npm incluido por defecto.
+
 ```bash
-npm run check:dependencies # npm 11.11.0; valida lock/SRI/política antes de instalar
+node --version # v26.13.0
+npm --version # 11.20.0
+npm run check:dependencies # valida Node/npm, lock/SRI y política antes de instalar
 npm ci --ignore-scripts
 test -f .env || cp .env.example .env # no sobrescribas tu configuración
 npm run dev
@@ -76,7 +84,7 @@ Los cambios M1/M3/M4/B1/B3 están descritos con sus límites en el [registro de 
 
 - **Antes de ejecutar el código de auth/cuenta**, autoriza/revisa/aplica por separado la migración aditiva `0004_security_rate_limits.sql` en el destino confirmado, con recuperación. No se aplicó a Neon en este trabajo: sin tabla, los endpoints fallan cerrados con 503. Los contadores son compartidos/atómicos en PostgreSQL, no memoria por instancia.
 - Las nuevas escrituras de vínculos no guardan tokens OAuth; los tokens históricos y backups requieren limpieza autorizada aparte. La política de vinculación por correo no cambió.
-- npm está fijado a 11.11.0; `.npmrc` y CI desactivan todos los scripts de dependencias. **Cero rebuilds aprobados**; no omitir los paquetes opcionales de binarios. CI audita el lockfile antes de exponer credenciales de migración. `npm run check:dependencies` y `npm run test:dependencies` validan esta política.
+- Node está fijado a 26.13.0 y npm a 11.20.0; el guard rechaza otros majors de Node y desajustes de runtime/manifest/lock. `.npmrc` y CI desactivan todos los scripts de dependencias. **Cero rebuilds aprobados**; no omitir los paquetes opcionales de binarios. CI audita el lockfile antes de exponer credenciales de migración. `npm run check:dependencies` y `npm run test:dependencies` validan esta política.
 - La CSP es **report-only**: informa en consola/eventos del navegador, no bloquea XSS ni envía telemetría. Falta medir tema, motion, PWA/offline y OAuth real antes de enforcement; no se desactivó Cache Components/Partial Prefetching.
 - La IP solo se toma del encabezado que Vercel sobrescribe cuando `VERCEL=1`; otros hosts usan un bucket compartido hasta revisar su proxy. No establecer esa variable manualmente como atajo.
 

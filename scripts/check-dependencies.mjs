@@ -3,9 +3,12 @@ import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /** Fail before install if a changed lock or policy bypasses our trust boundary. */
-export function checkDependencyPolicy({ manifest, lock, npmrc, userAgent }) {
-  assert.equal(manifest.packageManager, "npm@11.11.0", "Review npm version changes with this policy");
-  assert.equal(userAgent?.split(" ")[0], "npm/11.11.0", "Use the packageManager-pinned npm");
+export function checkDependencyPolicy({ manifest, lock, npmrc, userAgent, nodeVersion, nodeVersionFile }) {
+  assert.equal(nodeVersionFile.trim(), "26.13.0", "Review Node pin changes with this policy");
+  assert.match(nodeVersion, /^26\.\d+\.\d+$/, "Use Node 26");
+  assert.equal(manifest.engines?.node, "26.x", "Use the approved Node 26 engine range");
+  assert.equal(manifest.packageManager, "npm@11.20.0", "Review npm version changes with this policy");
+  assert.equal(userAgent?.split(" ")[0], "npm/11.20.0", "Use the packageManager-pinned npm");
   assert.match(npmrc, /^ignore-scripts=true$/m, "Dependency lifecycle scripts must stay blocked");
   assert.match(
     npmrc,
@@ -16,6 +19,7 @@ export function checkDependencyPolicy({ manifest, lock, npmrc, userAgent }) {
   assert.equal(lock.name, manifest.name);
   const root = lock.packages?.[""];
   assert.ok(root, "Missing root package");
+  assert.deepEqual(root.engines, manifest.engines, "Manifest/lock engines mismatch");
   for (const kind of ["dependencies", "devDependencies"]) {
     assert.deepEqual(root[kind], manifest[kind], `Manifest/lock ${kind} mismatch`);
   }
@@ -38,6 +42,8 @@ function main() {
     manifest: json("package.json"),
     lock: json("package-lock.json"),
     npmrc: readFileSync(".npmrc", "utf8"),
+    nodeVersion: process.versions.node,
+    nodeVersionFile: readFileSync(".node-version", "utf8"),
     userAgent: process.env.npm_config_user_agent,
   });
   assert.equal(process.env.npm_config_ignore_scripts, "true", "Do not override ignore-scripts");
