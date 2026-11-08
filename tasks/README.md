@@ -9,6 +9,7 @@ None.
 
 ## Backlog (in priority order)
 
+- [028 — Investigate silent migration CLI failure](backlog/028-investigate-migration-cli-failure.md) — Node alignment verified; production metadata diagnosis still awaits recovery prerequisite confirmation.
 - [024 — Sequential routines](backlog/024-sequential-routines.md) — Routine flow and simplified Today task menu verified locally; owner device acceptance pending.
 
 - [023 — Unify task moments](backlog/023-unify-task-moments.md) — Owner's actual-browser/device visual acceptance remains pending.
@@ -46,7 +47,7 @@ The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
 
-Next id: **028** (IDs 008–010 remain retired; all IDs through 027 are assigned. Diagnostics was reassigned from branch-local 023 to 026 with owner approval during the merge).
+Next id: **030** (IDs 008–010 remain retired; all IDs through 029 are assigned. Diagnostics was reassigned from branch-local 023 to 026 with owner approval during the merge).
 
 ## Board conventions
 

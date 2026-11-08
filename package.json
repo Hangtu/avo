@@ -53,7 +53,7 @@
     "@electric-sql/pglite": "0.5.14",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
+    "@types/node": "^26",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -73,7 +73,7 @@
     "zod": "^4.6.7"
   },
   "engines": {
-    "node": ">=22"
+    "node": "26.x"
   },
-  "packageManager": "npm@11.11.0"
+  "packageManager": "npm@11.20.0"
 }

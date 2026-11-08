@@ -26,8 +26,12 @@ remain per-request operations.
   Partial Prefetching), React 19.3, TypeScript 5 strict, Tailwind CSS v4,
   next-intl 4, Dexie 4 (client persistence), Drizzle ORM 0.45 on PostgreSQL
   (Neon), Better Auth 1.7 with Google and Facebook providers, Vitest 4.
-- Package manager: npm with `package-lock.json` (lockfile v3). Node.js is
-  pinned in `.node-version`; CI reads that file.
+- Owner-approved toolchain (2026-11-08): Node.js **26.13.0** in `.node-version`,
+  Node **26.x** engine range, npm **11.20.0**, `@types/node` **26** and
+  `package-lock.json` (lockfile v3). CI reads the Node pin and installs the exact
+  npm version. Dependency guards retain script blocking, registry/SRI checks and
+  enforce runtime/manifest/lock consistency. Earlier evidence below retains its
+  original toolchain versions; it is not a claim about the current deployment.
 - Compatibility with the reference library: **supported**. It is an App Router
   application inside the library's primary scope. The library's literal `src/`
   and pnpm examples are defaults, not requirements; Avo keeps `app/` + `lib/`
