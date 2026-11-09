@@ -22,9 +22,10 @@ isolated installation, checks, production build and public browser journeys.
 ## Next step
 
 No remaining alignment step. Source/CI/toolchain policy and isolated clean
-installation are verified. Task 028 remains parked for the production incident;
-its recovery prerequisite and catalog verification are not satisfied by this
-change. Owner working node_modules and .next were preserved.
+installation are verified. The owner subsequently confirmed that everything
+works; investigation 028 closed on owner-reported functional acceptance, not
+independent production schema verification. Owner working node_modules and .next
+were preserved by the agent.
 
 ## Checklist
 
@@ -46,7 +47,7 @@ change. Owner working node_modules and .next were preserved.
 - `scripts/check-dependencies.mjs`, `scripts/check-dependencies.test.mjs` — enforce versions without relaxing script/SRI/registry controls.
 - `.github/workflows/app-ci.yml`, `.github/workflows/production-migrations.yml` — same npm pin, Node from .node-version, unchanged production approvals/triggers.
 - `README.md`, `docs/agent-kit/project-context.md` — current project-specific setup/contract, not an update of the pinned reference library.
-- `tasks/backlog/028-investigate-migration-cli-failure.md` — parked production investigation, not silently closed.
+- `tasks/completed/028-investigate-migration-cli-failure.md` — investigation evidence and explicit owner-reported functional acceptance.
 
 ## Decisions
 
@@ -97,4 +98,9 @@ change. Owner working node_modules and .next were preserved.
   31 Chromium journeys passed on Node 26.13.0 / npm 11.20.0 with the actual new
   declaration packages. Reviewed lock/package/CI diffs and retained all security
   gates. No runtime app changes were necessary. Closing alignment; task 028
-  remains in backlog and production is neither inspected nor repaired.
+  remained in backlog at that checkpoint; production was neither inspected nor
+  repaired by the agent.
+- 2026-11-08 — Owner subsequently confirmed "todo funciona perfectamente" after
+  an explicit question distinguishing Node alignment and production functionality.
+  Recorded owner acceptance; task 028 closed with evidence limits and optional
+  diagnostics findings preserved. No new production operations or publication.

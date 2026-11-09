@@ -2,6 +2,63 @@
 
 **Flujo vigente:** las migraciones se ejecutan localmente con los dos entornos del proyecto. Desarrollo usa `.env` (`npm run db:migrate`); producción usa `.env.prod` (`npm run db:migrate:prod`), que lee solo `DATABASE_URL_UNPOOLED`, exige conexión directa (rechaza `-pooler`) y aplica las migraciones pendientes de `drizzle/`. Las ramas Neon son `development` y `prod`; no hay rama de rehearsal. El workflow de GitHub Actions descrito abajo es una **alternativa opcional** para aplicar producción sin la credencial en la laptop; sigue deshabilitado y no se ha ejecutado.
 
+## Runner y lectura de logs
+
+Desde el cambio local de task 030 (2026-11-08), ambos comandos npm usan
+`scripts/db-migrate.ts` y el migrador de **Drizzle ORM/node-postgres**, no el
+renderer de `drizzle-kit migrate` que ocultaba errores rechazados. No se cambian
+las dependencias ni los archivos SQL, hashes, journal o transacciones de Drizzle.
+Los configs existentes permanecen disponibles; `db:studio` sigue usando el de
+desarrollo.
+
+- `npm run db:migrate`: `DATABASE_URL_UNPOOLED` del proceso tiene precedencia
+  sobre `.env`. CI puede proporcionar solo esa variable sin archivo. Un valor
+  vacío explícito no hace fallback. No se cargan archivos `.env.local`/Next ni
+  se muta `process.env`.
+- `npm run db:migrate:prod`: solo `DATABASE_URL_UNPOOLED` del archivo `.env.prod`
+  en el directorio del proyecto. Ignora las credenciales heredadas del shell y
+  `.env`. Si el archivo/clave falta, falla antes de conectar.
+- Ambos conservan `directMigrationUrl`: sin fallback pooled/local ni overrides
+  del destino mediante parámetros de la URL. No se cambia SSL para silenciar
+  advertencias del driver.
+- Salida JSON por línea: `migration_started`, `migration_stage`,
+  `migration_progress` cada 5 segundos mientras espera y **un** resultado final.
+  Las etapas son `configuration`, `files`, `connect`, `apply`, `close`; cada
+  evento incluye `runId`, entorno seleccionado y milisegundos transcurridos.
+- `migration_completed` va a stdout y termina con **salida 0**, también si no
+  había pendientes. `availableMigrations` cuenta archivos del journal local;
+  **no** significa migraciones recién aplicadas ni prueba de esquema completo.
+- `migration_failed` va a stderr y termina con **salida 1**. Incluye etapa,
+  `errorKind`, `errorCodes`/`errorSignals` permitidos y una orientación estática.
+  Por ejemplo, `stage: "apply", errorCodes: ["42P01"]` identifica una relación
+  ausente; no identifica cuál ni prueba por sí solo el origen del problema.
+  Un fallo de limpieza tampoco se presenta como éxito y no oculta el fallo SQL
+  original. Los errores del pool en reposo se capturan sin volcar el objeto pg.
+- Los logs deliberadamente **no** incluyen URL/credencial, host/base/usuario,
+  SQL, parámetros, mensajes privados, stacks ni datos personales. Un código
+  desconocido se omite, no se serializa el error como fallback. No existe modo
+  de SQL/raw debug. Una advertencia SSL del driver es independiente del resultado:
+  `--trace-warnings`, `tee` o `verbose` no recuperan lo que el CLI anterior omitía.
+- El pool es de una conexión: timeout de conexión **10 s**, de sentencia SQL
+  **120 s** y de espera de lock **10 s**, configurados en pg sin cambiar la URL.
+  No hay reintentos automáticos. Una migración que necesite más tiempo requiere
+  revisión/aprobación, no desactivar controles a ciegas. Se espera el cierre del
+  pool antes de anunciar éxito y se elimina el temporizador de progreso.
+
+**Un resultado perdido durante `COMMIT` puede ser ambiguo.** Aunque Drizzle
+revierte los errores SQL dentro de su transacción, un error de red o de cierre
+no prueba rollback; no repetir a ciegas ni editar el journal. Confirmar destino,
+autorización y punto de recuperación sigue siendo obligatorio para ejecutar
+cualquiera de los dos comandos. Los nombres `development`/`production` indican
+la selección de configuración, no verifican la identidad de una rama Neon: el
+CI opcional sigue usando `db:migrate` con su secreto aprobado.
+
+La validación del runner usa únicamente PGlite desechable y conexiones loopback
+rechazadas; no ejecuta migraciones reales ni certifica Neon, restauración o el
+estado de producción. El verificador de esquema/journal es una mejora separada
+no incluida. Los triggers, aprobaciones y estado deshabilitado del workflow no
+cambian por este trabajo.
+
 ## Comportamiento
 
 `.github/workflows/production-migrations.yml` valida cambios de migración en PR. Al llegar un archivo SQL de migración a `main`, puede aplicar las migraciones Drizzle pendientes después de las verificaciones automáticas y una aprobación humana en el entorno protegido de GitHub. El job de producción permanece **deshabilitado** hasta que `ENABLE_PRODUCTION_MIGRATIONS=true` se configure explícitamente en el entorno GitHub; el historial de `prod` ya está verificado (2026-11-03: 4 migraciones, esquema completo), así que activarlo es una decisión de flujo, no un pendiente de esquema. La migración corre en un runner de GitHub; la laptop no necesita recibir la credencial de producción.
