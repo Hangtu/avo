@@ -9,7 +9,6 @@ None.
 
 ## Backlog (in priority order)
 
-- [028 — Investigate silent migration CLI failure](backlog/028-investigate-migration-cli-failure.md) — Node alignment verified; production metadata diagnosis still awaits recovery prerequisite confirmation.
 - [024 — Sequential routines](backlog/024-sequential-routines.md) — Routine flow and simplified Today task menu verified locally; owner device acceptance pending.
 
 - [023 — Unify task moments](backlog/023-unify-task-moments.md) — Owner's actual-browser/device visual acceptance remains pending.
@@ -23,6 +22,7 @@ None.
 
 ## Icebox (not approved)
 
+- Migration verification: consider requiring routine schema and actual journal/hash reconciliation. Findings/evidence in [028](completed/028-investigate-migration-cli-failure.md); verifier implementation remains unapproved. The separately approved runner is complete in [030](completed/030-safe-migration-runner.md), with synthetic-only validation.
 - Authenticated E2E: Playwright setup with a disposable identity and `storageState`, plus axe on account pages. Archived detail: [008](archive/2026-11-04-dropped-tasks/008-authenticated-e2e.md).
 - Split oversized modules: `components/task-editor.tsx`, `components/runo-home.tsx` and `lib/db/repository.ts`; characterization tests first. Archived detail: [009](archive/2026-11-04-dropped-tasks/009-split-oversized-modules.md).
 - Historical OAuth tokens/backups: separately authorize targeted cleanup and retention review; new writes omit tokens, but dormant historical rows are not erased.
@@ -47,7 +47,7 @@ The folder is the status. Do not duplicate it in a task header.
 Use `NNN-short-title.md` with an unused id across all task folders.
 Start from [TEMPLATE.md](TEMPLATE.md).
 
-Next id: **030** (IDs 008–010 remain retired; all IDs through 029 are assigned. Diagnostics was reassigned from branch-local 023 to 026 with owner approval during the merge).
+Next id: **031** (IDs 008–010 remain retired; all IDs through 030 are assigned. Diagnostics was reassigned from branch-local 023 to 026 with owner approval during the merge).
 
 ## Board conventions
 

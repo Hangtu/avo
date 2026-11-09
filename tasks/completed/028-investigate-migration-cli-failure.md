@@ -21,11 +21,10 @@ without a verified schema and successful account request.
 
 ## Next step
 
-Obtain the production recovery prerequisite and inspect only catalog/journal
-metadata on the confirmed .env.prod target. Compare visible/public routine
-tables, search_path, migration timestamps/hashes and privileges before proposing
-any production repair. Node alignment is verified separately in task 029;
-its passing checks do not establish production schema health.
+No further incident investigation is pending after the owner explicitly
+confirmed that everything works, including production when asked. Close this
+investigation on owner-reported functional acceptance, not a verified schema or
+root-cause claim. Optional CLI/verifier improvements are routed to the icebox.
 
 ## Checklist
 
@@ -35,9 +34,9 @@ its passing checks do not establish production schema health.
 - [x] Compare behavior on installed Node 24 and 26; explicitly record missing pinned Node 22.
 - [x] Validate all six generated migrations and routine-table visibility on a fresh synthetic database.
 - [x] Run applicable local unit/integration and migration/policy checks without private env files.
-- [ ] Inspect production metadata only after recovery prerequisite is satisfied; otherwise record the blocker without claiming a schema result.
+- [x] Record production inspection as not run; the owner subsequently confirmed functional resolution, so further remote diagnosis is no longer needed for this investigation.
 - [x] Report confirmed local defects, remaining hypotheses, validation limits and the smallest proposed repair.
-- [x] Checkpoint the task/board and run the task guard; keep this task open for production evidence.
+- [x] Record owner acceptance, route optional findings, complete this investigation and run the task guard without claiming independent production verification.
 
 ## Files
 
@@ -58,6 +57,11 @@ its passing checks do not establish production schema health.
   to inspect its settings. Do not silently waive that project prerequisite.
 - 2026-11-08 — Use existing dependencies and installed runtimes only. Temporary
   synthetic fixtures may be written outside the repo; do not patch node_modules.
+- 2026-11-08 — After being asked whether production also works, the owner replied
+  "todo funciona perfectamente". Accept this as owner-reported functional
+  resolution and close the investigation without additional remote operations.
+  The original missing relation/migration outcome and the reason production
+  recovered remain independently unverified; do not attribute recovery to Node 26.
 
 ## Validation
 
@@ -77,6 +81,8 @@ its passing checks do not establish production schema health.
 | 2026-11-08 | Existing pinned npm dependency policy/tests | Passed | Ran existing npm 11.11.0 CLI from installed Node 25 directory under current Node; policy passed and 2/2 policy tests passed. No installation, PATH/config mutation or user-agent spoofing. |
 | 2026-11-08 | Migration journal, lint, format and guard tests | Passed | `db:check`, `lint`, `format:check`, 41/41 task-guard tests. No source/configuration repair. |
 | 2026-11-08 | Node 22 / independent PostgreSQL / build / remote checks | Not run | Pinned Node 22 not installed; Docker local context has no usable cached Postgres target (no pull/start/install attempted). No Next/UI changes, so no build/E2E repeated. No production reads/migrations or OAuth calls. |
+| 2026-11-08 | Functional acceptance including production | Owner reported | After the assistant explicitly distinguished Node alignment from /api/account/data in production, the owner confirmed "todo funciona perfectamente". No fresh runtime log, HTTP response or schema result was captured by the agent. |
+| 2026-11-08 | Investigation closure | Owner accepted | Local CLI defect and compatible tested runtimes established; remote cause remains unknown. No production repair or migration claimed. Optional hardening routed to tasks/README.md icebox. |
 
 ## Log
 
@@ -103,16 +109,19 @@ its passing checks do not establish production schema health.
   and 31 public Chromium journeys passed; no production access or migration.
   Keep this incident in backlog until its own authorized prerequisites are met.
 
-## Discoveries
+- 2026-11-08 — Owner confirmed all functionality works, including the production
+  distinction posed explicitly by the assistant. Closed on functional acceptance
+  reported by the owner. No new probe, migration, install, commit or push was
+  performed by the agent. Optional diagnostics improvements remain unapproved.
 
-- Confirmed upstream CLI reporting defect: any rejected migration task can exit
-  1 while suppressing the SQL/connection error. Proposed repair (not authorized
-  in this Verify): a privacy-safe migration runner/diagnostic boundary using
-  existing dependencies, without raw SQL, parameters or credentials in logs.
-- `scripts/db-verify.ts` can report required schema complete without checking
-  routine columns. Proposed follow-up: include v2 routine requirements and
-  compare actual migration journal/schema rather than only journal count.
-- Initial Node/npm drift was addressed by owner-approved task 029, with clean
-  isolated verification; historical results above retain their original pins.
-  Two non-database packages remain extraneous in the owner's unchanged working
-  install. Neither finding was demonstrated as the production SQL failure cause.
+## Follow-up disposition
+
+- Upstream CLI reporting defect and routine-schema verifier gap: routed together
+  to the diagnostics icebox entry in `tasks/README.md`. A future authorized task
+  can add a privacy-safe runner and require v2 schema/journal checks; neither is
+  represented as repaired here.
+- Initial Node/npm drift: addressed by completed task 029 with isolated checks;
+  not established as the cause of production recovery.
+- Initial extraneous non-database packages: dismissed as unrelated to the
+  demonstrated migration reporting defect. No assertion about the owner's
+  post-acceptance installation and no cleanup operation is required or authorized.
