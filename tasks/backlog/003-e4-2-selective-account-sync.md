@@ -1,7 +1,7 @@
 # 003 — E4.2 selective account sync
 
 id: 003
-updated: 2026-11-05
+updated: 2026-11-09
 
 ## Goal
 
@@ -18,10 +18,12 @@ own authorization.
 
 ## Next step
 
-Owner reviews the sync corrections and UI. Then, in the separately authorized
-`development` environment with a disposable account, complete the real sync,
-import and terminal-item checks below. Record results in Validation and Log.
-Schema readiness is owner-confirmed; do not recheck it, deploy, or migrate.
+Owner reviews the current sync UI and, in separately authorized `development`
+with a disposable account, performs recovery and terminal-item acceptance.
+Reconcile the legacy guest-import criterion with the owner-requested removal of
+its Settings entry in 032 before attempting it; do not recreate that UI
+automatically. Record results. Schema readiness is owner-confirmed; do not
+recheck it, deploy, or migrate.
 
 ## Checklist
 
@@ -33,7 +35,7 @@ Schema readiness is owner-confirmed; do not recheck it, deploy, or migrate.
 ### Real sync acceptance
 
 - [ ] Create and confirm a pending item with an authorized disposable Google account, clear storage, sign in in a second browser and recover it.
-- [ ] Cancel guest import and confirm neither side changes; accept once and verify only intended data/preferences plus the recovery copy are imported.
+- [ ] Reconcile the legacy guest-import criterion with the owner first: the Settings entry was removed in task 032. If a separately approved entry is ever provided, cancel and confirm neither side changes; accept once and verify only intended data/preferences plus the recovery copy. This criterion is not passed by UI removal.
 - [ ] Complete a one-time pending and confirm its terminal state survives recovery without duplicate or reopen.
 - [ ] Confirm no unrelated account data appears; record the results.
 
@@ -53,6 +55,7 @@ Schema readiness is owner-confirmed; do not recheck it, deploy, or migrate.
 
 ## Decisions
 
+- 2026-11-09 — Owner removed guest import and continue-as-guest actions from Settings in task 032. Existing guest import logic/consent constraints remain intact, but browser import acceptance has no current UI entry and needs product reconciliation before this task can close. Do not restore it automatically; recovery/terminal acceptance remains open and independently actionable.
 - 2026-11-03 — The provider-delivered email identifies the account; no mailbox verification in the MVP (ADR 0001).
 - 2026-11-03 — Only durable definitions, preferences and pending completion are portable; timers, sessions and recurring results stay local.
 - 2026-11-03 — Guest data is incorporated only with consent, a summary and a recovery copy.
@@ -72,6 +75,7 @@ Schema readiness is owner-confirmed; do not recheck it, deploy, or migrate.
 
 ## Log
 
+- 2026-11-09 — Recorded the owner-requested Settings UI removal from task 032 and clarified the legacy import criterion/next action. No real acceptance ran, no item was marked complete, and this task remains in backlog.
 - 2026-11-02 — Pending-persistence incident investigated: the form wrote only to IndexedDB; no account bootstrap.
 - 2026-11-02 — Account spaces, private API, atomic outbox, revisions/receipts, conflicts and consent-based import implemented.
 - 2026-11-03 — Review corrections applied: idempotent selection, atomic preference patches, canonical hash, ETag ordering, blocked/timeout recovery.

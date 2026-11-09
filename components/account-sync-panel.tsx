@@ -2,25 +2,13 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { openDatabaseForSpace } from "@/lib/db/database";
-import { lockAccountAccess } from "@/lib/sync/access";
-import { mirrorPreferences } from "@/lib/sync/browser-preferences";
-import { guestPreview, importGuest, type GuestPreview } from "@/lib/sync/guest-import";
 import { useWorkspace } from "./account-workspace";
+import type { WorkspaceValue } from "./workspace-context";
 
 export function PersistenceNotice() {
   const t = useTranslations("sync");
   const workspace = useWorkspace();
-  if (!workspace.available) return null;
-  const showNotice =
-    workspace.status !== "guest" ||
-    workspace.preferences.failed > 0 ||
-    workspace.preferences.pending > 0 ||
-    workspace.rejected.length > 0 ||
-    workspace.issues.length > 0 ||
-    workspace.conflicts.length > 0 ||
-    workspace.queued > 0;
-  if (!showNotice) return null;
+  if (!workspace.available || !hasPersistenceNotice(workspace)) return null;
   const message =
     workspace.preferences.failed > 0
       ? t("localSaveError")
@@ -52,47 +40,10 @@ export function PersistenceNotice() {
 export function AccountSyncPanel() {
   const t = useTranslations("sync");
   const workspace = useWorkspace();
-  const [preview, setPreview] = useState<GuestPreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  if (!workspace.available) return null;
+  if (!workspace.available || (!hasPersistenceNotice(workspace) && !error)) return null;
 
-  async function review() {
-    setBusy(true);
-    setError(null);
-    setMessage(null);
-    try {
-      setPreview(await guestPreview());
-    } catch {
-      setError(t("importError"));
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function incorporate() {
-    if (!preview || !workspace.accountId || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const db = await openDatabaseForSpace({ kind: "account", userId: workspace.accountId });
-      try {
-        await importGuest(db, preview);
-        await mirrorPreferences(db);
-      } finally {
-        db.close();
-      }
-      setPreview(null);
-      setMessage(t("importDone"));
-      workspace.refresh();
-      workspace.retry();
-    } catch {
-      setError(t("importError"));
-      setPreview(null);
-    } finally {
-      setBusy(false);
-    }
-  }
   async function resolve(key: string, choice: "local" | "remote") {
     setBusy(true);
     setError(null);
@@ -109,7 +60,7 @@ export function AccountSyncPanel() {
       <PersistenceNotice />
       {workspace.accountId ? (
         <>
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
+          {workspace.status === "error" ? (
             <button
               type="button"
               className="min-h-11 text-sm font-semibold underline underline-offset-4"
@@ -117,22 +68,7 @@ export function AccountSyncPanel() {
             >
               {t("retry")}
             </button>
-            <button
-              type="button"
-              className="min-h-11 text-sm font-semibold underline underline-offset-4"
-              disabled={busy}
-              onClick={() => void review()}
-            >
-              {t("importOpen")}
-            </button>
-            <button
-              type="button"
-              className="min-h-11 text-sm text-muted underline underline-offset-4"
-              onClick={() => lockAccountAccess()}
-            >
-              {t("useGuest")}
-            </button>
-          </div>
+          ) : null}
           {workspace.conflicts.map((item) => (
             <section
               key={item.key}
@@ -237,36 +173,6 @@ export function AccountSyncPanel() {
               </details>
             </section>
           ) : null}
-          {preview ? (
-            <section className="border border-line p-4" aria-label={t("importOpen")}>
-              <p className="text-sm leading-6">
-                {t("importSummary", {
-                  tasks: preview.tasks.length,
-                  routines: preview.routines.length,
-                  pendings: preview.pendings.length,
-                })}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-muted">{t("importPreferences")}</p>
-              <div className="mt-3 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  disabled={busy}
-                  className="min-h-11 bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
-                  onClick={() => void incorporate()}
-                >
-                  {t("importConfirm")}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  className="min-h-11 px-2 text-sm underline"
-                  onClick={() => setPreview(null)}
-                >
-                  {t("importCancel")}
-                </button>
-              </div>
-            </section>
-          ) : null}
         </>
       ) : null}
       {error ? (
@@ -274,11 +180,18 @@ export function AccountSyncPanel() {
           {error}
         </p>
       ) : null}
-      {message ? (
-        <p role="status" className="text-sm">
-          {message}
-        </p>
-      ) : null}
     </div>
+  );
+}
+
+function hasPersistenceNotice(workspace: WorkspaceValue): boolean {
+  return (
+    (workspace.status !== "guest" && workspace.status !== "saved") ||
+    workspace.preferences.failed > 0 ||
+    workspace.preferences.pending > 0 ||
+    workspace.rejected.length > 0 ||
+    workspace.issues.length > 0 ||
+    workspace.conflicts.length > 0 ||
+    workspace.queued > 0
   );
 }

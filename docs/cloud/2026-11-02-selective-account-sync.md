@@ -4,6 +4,8 @@
 
 > **Revisión posterior (2026-11-03):** corregidos selección/remount, carreras de preferencias, cola rechazada, apertura IDB y robustez. [Evidencia actual y límites](./2026-11-03-sync-review-corrections.md). Los números de pruebas de abajo corresponden al corte inicial; el corte corregido tiene 392 tests/36 archivos.
 
+> **UI local vigente (2026-11-09, tareas 031–032):** el respaldo confirmado ya no muestra un aviso rutinario. Ajustes no ofrece «Continuar sin cuenta» ni «Revisar datos del invitado»; conserva «Cerrar sesión», y «Reintentar conexión» aparece solo si una cuenta seleccionada está en estado de error. Los avisos, reintentos locales y acciones por conflicto/cambio rechazado se conservan. Esto no altera auth, datos, aislamiento ni reintentos automáticos; la evidencia histórica de abajo no prueba el estado desplegado.
+
 ## Flujo implementado
 
 1. `AccountWorkspace` selecciona el espacio usando `/api/account/me`, con sesión consultada en servidor sin cookie cache. Ningún componente operativo monta antes de seleccionar el espacio. Una cuenta nueva empieza vacía, sin seed personal ni adopción de `owner` o del invitado.
@@ -41,7 +43,9 @@
 
 ### Incorporación del invitado
 
-Solo desde Ajustes, después de mostrar resumen y obtener confirmación. Cancelar no escribe ni importa. Se vuelve a comprobar que el origen no cambió desde la revisión.
+**Estado local actual (2026-11-09, tarea 032):** el dueño retiró el acceso desde Ajustes. Se eliminaron ese botón y su pantalla/handlers de revisión e incorporación; no se borraron datos ni se sustituyó por incorporación automática. El módulo de dominio y sus pruebas de consentimiento/aislamiento siguen conservados. El criterio de aceptación de importación real en la tarea 003 debe conciliarse con esta decisión antes de intentarlo; no autoriza reponer otra entrada de UI.
+
+**Diseño original (2026-11-02, ya no accesible desde Ajustes):** solo desde Ajustes, después de mostrar resumen y obtener confirmación. Cancelar no escribe ni importa. Se vuelve a comprobar que el origen no cambió desde la revisión.
 
 IDs deterministas por origen/entidad evitan duplicados y colisiones con IDs de la cuenta. No se pisan filas ya incorporadas ni preferencias de cuenta ya modificadas. Una copia de recuperación del conjunto consentido y las filas/outbox se guardan juntas; los recibos de revisión son inmutables. La definición/preferencia/runtime original del invitado no se borra. No se incorporan sesiones, resultados ni RC.
 
